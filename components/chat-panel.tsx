@@ -541,6 +541,49 @@ export function ChatPanel({
       handleFork()
       return
     }
+    if (action === "tag") {
+      setTagPopoverOpen(true)
+      return
+    }
+  }
+
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false)
+  const [tagNameInput, setTagNameInput] = useState("")
+
+  async function handleTag() {
+    const name = tagNameInput.trim()
+    if (!name) return
+    if (!settings.githubPat) {
+      addSystemMessage("GitHub PAT required to push tags. Configure it in Settings.")
+      return
+    }
+    const [owner, repo] = repoFullName.split("/")
+    setTagPopoverOpen(false)
+    setTagNameInput("")
+    setActionLoading("tag")
+    try {
+      const res = await fetch("/api/sandbox/git", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          daytonaApiKey: settings.daytonaApiKey,
+          sandboxId: branch.sandboxId,
+          repoPath: `/home/daytona/${repoName}`,
+          action: "tag",
+          githubPat: settings.githubPat,
+          tagName: name,
+          repoOwner: owner,
+          repoApiName: repo,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      addSystemMessage(`Tag **${name}** created and pushed.`)
+    } catch (err: unknown) {
+      addSystemMessage(`Tag failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   async function handleFork() {
@@ -788,6 +831,38 @@ export function ChatPanel({
               className="cursor-pointer flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
             >
               Reset
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tag dialog */}
+      <Dialog open={tagPopoverOpen} onOpenChange={(open) => { setTagPopoverOpen(open); if (!open) setTagNameInput("") }}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Create Tag</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="v1.0.0"
+            value={tagNameInput}
+            onChange={(e) => setTagNameInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleTag() }}
+            className="h-8 text-xs font-mono"
+            autoFocus
+          />
+          <DialogFooter>
+            <button
+              onClick={() => { setTagPopoverOpen(false); setTagNameInput("") }}
+              className="cursor-pointer rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleTag}
+              disabled={!tagNameInput.trim()}
+              className="cursor-pointer flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              Create
             </button>
           </DialogFooter>
         </DialogContent>
