@@ -201,6 +201,10 @@ export function ChatPanel({
   onBack,
 }: ChatPanelProps) {
   const [input, setInput] = useState("")
+  const [renaming, setRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState("")
+  const [renameLoading, setRenameLoading] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -436,6 +440,39 @@ export function ChatPanel({
 
   function handleStop() {
     abortControllerRef.current?.abort()
+  }
+
+  async function handleRename() {
+    const newName = renameValue.trim()
+    if (!newName || newName === branch.name || renameLoading) return
+    setRenameLoading(true)
+    try {
+      const [owner, repo] = repoFullName.split("/")
+      const res = await fetch("/api/sandbox/git", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          daytonaApiKey: settings.daytonaApiKey,
+          sandboxId: branch.sandboxId,
+          repoPath: `/home/daytona/${repoName}`,
+          action: "rename-branch",
+          githubPat: settings.githubPat,
+          currentBranch: branch.name,
+          newBranchName: newName,
+          repoOwner: owner,
+          repoApiName: repo,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      onUpdateBranch({ name: newName })
+      setRenaming(false)
+    } catch (err: unknown) {
+      addSystemMessage(`Rename failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+      setRenaming(false)
+    } finally {
+      setRenameLoading(false)
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -699,17 +736,52 @@ export function ChatPanel({
               <ArrowRight className="h-4 w-4 rotate-180" />
             </button>
           )}
-          <a
-            href={`https://github.com/${repoFullName}/tree/${branch.name}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-2.5 py-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors min-w-0"
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
-              <path fillRule="evenodd" d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25zM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zM3.5 3.25a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0z" />
-            </svg>
-            <span className="truncate">{branch.name}</span>
-          </a>
+          {renaming ? (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="shrink-0 text-muted-foreground">
+                <path fillRule="evenodd" d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25zM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zM3.5 3.25a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0z" />
+              </svg>
+              <input
+                ref={renameInputRef}
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename()
+                  if (e.key === "Escape") setRenaming(false)
+                }}
+                onBlur={() => { if (!renameLoading) setRenaming(false) }}
+                disabled={renameLoading}
+                className="h-6 bg-secondary border border-border rounded px-1.5 text-xs font-mono text-foreground focus:outline-none focus:border-primary/50 min-w-0"
+                autoFocus
+              />
+              {renameLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 min-w-0 group/branch">
+              <a
+                href={`https://github.com/${repoFullName}/tree/${branch.name}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-2.5 py-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors min-w-0"
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="shrink-0">
+                  <path fillRule="evenodd" d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25zM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zM3.5 3.25a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0z" />
+                </svg>
+                <span className="truncate">{branch.name}</span>
+              </a>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => { setRenaming(true); setRenameValue(branch.name) }}
+                    className="flex cursor-pointer h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/0 group-hover/branch:text-muted-foreground hover:!text-foreground transition-colors"
+                  >
+                    <Pencil className="h-2.5 w-2.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">Rename branch</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
 
           {branch.sandboxId && (
             <Tooltip>

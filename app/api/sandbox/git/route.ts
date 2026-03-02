@@ -272,6 +272,37 @@ export async function POST(req: Request) {
         return Response.json({ diff: diffResult.result || "" })
       }
 
+      case "rename-branch": {
+        const newName = body.newBranchName
+        if (!currentBranch || !newName) {
+          return Response.json({ error: "Missing required fields for rename" }, { status: 400 })
+        }
+        const renameResult = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git branch -m ${currentBranch} ${newName} 2>&1`
+        )
+        if (renameResult.exitCode) {
+          return Response.json({ error: "Rename failed: " + renameResult.result }, { status: 500 })
+        }
+        // Push new branch name and delete old remote branch
+        if (githubPat) {
+          await sandbox.git.push(repoPath, "x-access-token", githubPat)
+          // Delete old remote branch (best effort)
+          if (repoOwner && repoApiName) {
+            await fetch(
+              `https://api.github.com/repos/${repoOwner}/${repoApiName}/git/refs/heads/${currentBranch}`,
+              {
+                method: "DELETE",
+                headers: {
+                  Authorization: `Bearer ${githubPat}`,
+                  Accept: "application/vnd.github.v3+json",
+                },
+              }
+            ).catch(() => {})
+          }
+        }
+        return Response.json({ success: true })
+      }
+
       default:
         return Response.json({ error: `Unknown action: ${action}` }, { status: 400 })
     }
