@@ -261,6 +261,7 @@ export default function Home() {
               branch={activeBranch}
               repoFullName={`${activeRepo.owner}/${activeRepo.name}`}
               repoName={activeRepo.name}
+              repoOwner={activeRepo.owner}
               settings={settings}
               gitHistoryOpen={gitHistoryOpen}
               onToggleGitHistory={() => setGitHistoryOpen((v) => !v)}
@@ -272,6 +273,13 @@ export default function Home() {
                 handleUpdateBranch(activeBranch.id, updates)
               }
               onForceSave={forceSave}
+              onForkRepo={(repo) => {
+                handleAddRepo({
+                  id: generateId(),
+                  ...repo,
+                  branches: [],
+                })
+              }}
               onBack={() => setMobileView("branches")}
             />
           ) : (
