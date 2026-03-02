@@ -75,7 +75,7 @@ function ToolCallIcon({ tool }: { tool: string }) {
 
 function ToolCallTimeline({ toolCalls }: { toolCalls: ToolCall[] }) {
   return (
-    <div className="relative my-1.5 ml-2">
+    <div className="relative my-1.5 ml-[10px]">
       <div className="absolute left-[5.5px] top-2 bottom-2 w-px bg-border" />
       <div className="flex flex-col">
         {toolCalls.map((tc) => (
