@@ -43,23 +43,30 @@ export async function POST(req: Request) {
         if (!githubPat) {
           return Response.json({ error: "GitHub PAT required for push" }, { status: 400 })
         }
-        // Check for uncommitted changes
+        // Check for uncommitted changes and commit them if any
+        let committed = false
         const statusResult = await sandbox.process.executeCommand(
           `cd ${repoPath} && git status --porcelain 2>&1`
         )
-        if (statusResult.exitCode || !statusResult.result.trim()) {
-          return Response.json({ committed: false, pushed: false })
+        if (!statusResult.exitCode && statusResult.result.trim()) {
+          const commitResult = await sandbox.process.executeCommand(
+            `cd ${repoPath} && git add -A && git commit -m "Auto-commit: agent changes" 2>&1`
+          )
+          if (commitResult.exitCode) {
+            return Response.json({ error: "Commit failed: " + commitResult.result }, { status: 500 })
+          }
+          committed = true
         }
-        // Commit all changes
-        const commitResult = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git add -A && git commit -m "Auto-commit: agent changes" 2>&1`
+        // Check if there are commits to push (agent may have committed during its turn)
+        const unpushed = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git log @{u}..HEAD --oneline 2>&1`
         )
-        if (commitResult.exitCode) {
-          return Response.json({ error: "Commit failed: " + commitResult.result }, { status: 500 })
+        const hasUnpushed = !unpushed.exitCode && unpushed.result.trim().length > 0
+        if (committed || hasUnpushed) {
+          await sandbox.git.push(repoPath, "x-access-token", githubPat)
+          return Response.json({ committed, pushed: true })
         }
-        // Push via Daytona SDK (PAT never enters sandbox)
-        await sandbox.git.push(repoPath, "x-access-token", githubPat)
-        return Response.json({ committed: true, pushed: true })
+        return Response.json({ committed: false, pushed: false })
       }
 
       case "push": {
