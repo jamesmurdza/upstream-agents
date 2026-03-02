@@ -8,6 +8,17 @@ import { GitBranch, Plus, Search, ChevronDown, Loader2, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useState, useRef, useEffect, useCallback } from "react"
 
+const WORDS = [
+  "swift","lunar","amber","coral","ember","frost","bloom","spark","drift","pulse",
+  "cedar","maple","river","stone","cloud","flame","steel","light","storm","wave",
+  "tiger","eagle","brave","vivid","noble","rapid","quiet","sharp","fresh","grand",
+]
+
+function randomBranchName() {
+  const pick = () => WORDS[Math.floor(Math.random() * WORDS.length)]
+  return `${pick()}-${pick()}-${pick()}`
+}
+
 interface BranchListProps {
   repo: Repo
   activeBranchId: string | null
@@ -63,6 +74,7 @@ export function BranchList({
   const [branchFromOpen, setBranchFromOpen] = useState(false)
   const [newBranchOpen, setNewBranchOpen] = useState(false)
   const [newBranchName, setNewBranchName] = useState("")
+  const [branchPlaceholder, setBranchPlaceholder] = useState(() => randomBranchName())
   const [newBranchBase, setNewBranchBase] = useState(
     (activeBranchId && repo.branches.find((b) => b.id === activeBranchId)?.name) || repo.defaultBranch || "main"
   )
@@ -130,7 +142,7 @@ export function BranchList({
   }
 
   const handleCreateBranch = useCallback(async () => {
-    const branchName = newBranchName.trim()
+    const branchName = newBranchName.trim() || branchPlaceholder
     if (!branchName || creating) return
 
     // Validate branch name
@@ -351,7 +363,7 @@ export function BranchList({
             </div>
             <Input
               ref={newBranchInputRef}
-              placeholder="branch-name"
+              placeholder={branchPlaceholder}
               value={newBranchName}
               onChange={(e) => setNewBranchName(e.target.value)}
               onKeyDown={(e) => {
@@ -383,7 +395,7 @@ export function BranchList({
             )}
             <button
               onClick={handleCreateBranch}
-              disabled={creating || !newBranchName.trim()}
+              disabled={creating}
               className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {creating && <Loader2 className="h-3 w-3 animate-spin" />}
@@ -396,6 +408,7 @@ export function BranchList({
           <button
             onClick={() => {
               setNewBranchOpen(true)
+              setBranchPlaceholder(randomBranchName())
               setNewBranchBase(
                 (activeBranchId && repo.branches.find((b) => b.id === activeBranchId)?.name) || repo.defaultBranch || "main"
               )
