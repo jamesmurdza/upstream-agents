@@ -20,9 +20,11 @@ interface GitHistoryPanelProps {
   baseBranch: string
   settings: Settings
   onClose: () => void
+  onScrollToCommit?: (shortHash: string) => void
+  refreshTrigger?: number
 }
 
-export function GitHistoryPanel({ sandboxId, repoName, baseBranch, settings, onClose }: GitHistoryPanelProps) {
+export function GitHistoryPanel({ sandboxId, repoName, baseBranch, settings, onClose, onScrollToCommit, refreshTrigger }: GitHistoryPanelProps) {
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [mergeBase, setMergeBase] = useState("")
   const [loading, setLoading] = useState(true)
@@ -57,6 +59,13 @@ export function GitHistoryPanel({ sandboxId, repoName, baseBranch, settings, onC
   useEffect(() => {
     fetchLog()
   }, [fetchLog])
+
+  // Auto-refresh when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      fetchLog()
+    }
+  }, [refreshTrigger]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function formatDate(ts: string) {
     try {
@@ -115,9 +124,11 @@ export function GitHistoryPanel({ sandboxId, repoName, baseBranch, settings, onC
               return (
                 <div
                   key={commit.hash || i}
+                  onClick={() => onScrollToCommit?.(commit.shortHash)}
                   className={cn(
                     "relative flex gap-2.5 border-b border-border/50 px-3 py-2.5",
-                    isInherited && "opacity-40"
+                    isInherited && "opacity-40",
+                    onScrollToCommit && "cursor-pointer hover:bg-accent/30"
                   )}
                 >
                   {/* Timeline dot */}

@@ -19,6 +19,7 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [addRepoOpen, setAddRepoOpen] = useState(false)
   const [gitHistoryOpen, setGitHistoryOpen] = useState(false)
+  const [gitHistoryRefreshTrigger, setGitHistoryRefreshTrigger] = useState(0)
   const [githubUser, setGithubUser] = useState<string | null>(null)
   const [userAvatar, setUserAvatar] = useState<string | null>(null)
 
@@ -279,6 +280,7 @@ export default function Home() {
                 handleUpdateBranch(activeBranch.id, updates)
               }
               onForceSave={forceSave}
+              onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}
               onForkRepo={(repo) => {
                 handleAddRepo({
                   id: generateId(),
@@ -300,6 +302,10 @@ export default function Home() {
               baseBranch={activeBranch.baseBranch}
               settings={settings}
               onClose={() => setGitHistoryOpen(false)}
+              refreshTrigger={gitHistoryRefreshTrigger}
+              onScrollToCommit={(shortHash) => {
+                document.getElementById(`commit-${shortHash}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+              }}
             />
           )}
         </div>

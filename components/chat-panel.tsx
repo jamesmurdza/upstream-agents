@@ -25,6 +25,7 @@ import {
   FolderSearch,
   Regex,
   AlertCircle,
+  GitCommitHorizontal,
 } from "lucide-react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import Markdown from "react-markdown"
@@ -96,6 +97,21 @@ function ToolCallTimeline({ toolCalls }: { toolCalls: ToolCall[] }) {
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user"
 
+  // Commit marker rendering
+  if (message.commitHash) {
+    return (
+      <div id={`commit-${message.commitHash}`} className="flex items-center gap-3 py-1">
+        <div className="h-px flex-1 bg-border" />
+        <div className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+          <GitCommitHorizontal className="h-3 w-3" />
+          <code className="font-mono text-[10px] text-primary/70">{message.commitHash}</code>
+          <span className="max-w-[200px] truncate">{message.commitMessage}</span>
+        </div>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 mb-1">
@@ -165,6 +181,7 @@ interface ChatPanelProps {
   onUpdateBranch: (updates: Partial<Branch>) => void
   onForceSave: () => void
   onForkRepo?: (repo: { name: string; owner: string; avatar: string; defaultBranch: string }) => void
+  onCommitsDetected?: () => void
   onBack?: () => void
 }
 
@@ -181,12 +198,36 @@ export function ChatPanel({
   onUpdateBranch,
   onForceSave,
   onForkRepo,
+  onCommitsDetected,
   onBack,
 }: ChatPanelProps) {
   const [input, setInput] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const knownCommitsRef = useRef<Set<string>>(new Set())
+
+  // Populate baseline known commits on mount / branch change
+  useEffect(() => {
+    if (!branch.sandboxId) return
+    knownCommitsRef.current = new Set()
+    fetch("/api/sandbox/git", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        daytonaApiKey: settings.daytonaApiKey,
+        sandboxId: branch.sandboxId,
+        repoPath: `/home/daytona/${repoName}`,
+        action: "log",
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const commits = data.commits || []
+        knownCommitsRef.current = new Set(commits.map((c: { shortHash: string }) => c.shortHash))
+      })
+      .catch(() => {})
+  }, [branch.id, branch.sandboxId, settings.daytonaApiKey, repoName])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -355,12 +396,44 @@ export function ChatPanel({
             }),
           })
         } catch {}
+
+        // Detect new commits and insert inline markers
+        try {
+          const logRes = await fetch("/api/sandbox/git", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              daytonaApiKey: settings.daytonaApiKey,
+              sandboxId: branch.sandboxId,
+              repoPath: `/home/daytona/${repoName}`,
+              action: "log",
+            }),
+          })
+          const logData = await logRes.json()
+          const allCommits: { shortHash: string; message: string }[] = logData.commits || []
+          const newCommits = allCommits.filter((c) => !knownCommitsRef.current.has(c.shortHash))
+          // Insert oldest-first so they appear chronologically
+          for (const c of [...newCommits].reverse()) {
+            knownCommitsRef.current.add(c.shortHash)
+            onAddMessage({
+              id: generateId(),
+              role: "assistant",
+              content: "",
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              commitHash: c.shortHash,
+              commitMessage: c.message,
+            })
+          }
+          if (newCommits.length > 0) {
+            onCommitsDetected?.()
+          }
+        } catch {}
       }
       onUpdateBranch({ status: "idle", lastActivity: "now", lastActivityTs: Date.now() })
       abortControllerRef.current = null
       onForceSave()
     }
-  }, [input, branch, settings, repoName, onAddMessage, onUpdateLastMessage, onUpdateBranch, onForceSave])
+  }, [input, branch, settings, repoName, onAddMessage, onUpdateLastMessage, onUpdateBranch, onForceSave, onCommitsDetected])
 
   function handleStop() {
     abortControllerRef.current?.abort()

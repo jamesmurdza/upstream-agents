@@ -13,6 +13,8 @@ export interface Message {
   content: string
   toolCalls?: ToolCall[]
   timestamp: string
+  commitHash?: string
+  commitMessage?: string
 }
 
 export interface Branch {
