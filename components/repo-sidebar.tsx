@@ -132,22 +132,20 @@ export function RepoSidebar({
         </div>
       </aside>
 
-      {/* Remove repo confirmation modal */}
+      {/* Remove repo confirmation modal — only shown if repo has chats */}
       <Dialog open={!!removeModalRepo} onOpenChange={(open) => !open && setRemoveModalRepo(null)}>
         <DialogContent className="sm:max-w-xs">
           <DialogHeader>
             <DialogTitle className="text-sm">Remove repository?</DialogTitle>
           </DialogHeader>
-          {removeModalRepo && removeModalRepo.branches.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              This will delete all chats and branches for <span className="font-semibold text-foreground">{removeModalRepo.owner}/{removeModalRepo.name}</span>.
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Remove <span className="font-semibold text-foreground">{removeModalRepo?.owner}/{removeModalRepo?.name}</span> from the sidebar?
-            </p>
-          )}
-          <DialogFooter>
+          <p className="text-xs text-muted-foreground">
+            {removeModalRepo && removeModalRepo.branches.length > 0 ? (
+              <>This will delete {removeModalRepo.branches.length} chat{removeModalRepo.branches.length !== 1 ? "s" : ""} and their sandboxes for <span className="font-semibold text-foreground">{removeModalRepo.owner}/{removeModalRepo.name}</span>. Branches on GitHub will not be affected.</>
+            ) : (
+              <>Remove <span className="font-semibold text-foreground">{removeModalRepo?.owner}/{removeModalRepo?.name}</span> from the sidebar?</>
+            )}
+          </p>
+          <DialogFooter className="gap-2">
             <button
               onClick={() => setRemoveModalRepo(null)}
               className="cursor-pointer rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
