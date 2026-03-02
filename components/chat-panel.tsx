@@ -26,6 +26,9 @@ import {
   AlertCircle,
   GitCommitHorizontal,
   GitBranch,
+  Copy,
+  Check,
+  FolderSync,
 } from "lucide-react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import Markdown from "react-markdown"
@@ -695,6 +698,9 @@ export function ChatPanel({
 
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false)
   const [tagNameInput, setTagNameInput] = useState("")
+  const [rsyncModalOpen, setRsyncModalOpen] = useState(false)
+  const [rsyncCommand, setRsyncCommand] = useState("")
+  const [rsyncCopied, setRsyncCopied] = useState(false)
 
   async function handleTag() {
     const name = tagNameInput.trim()
@@ -800,7 +806,7 @@ export function ChatPanel({
           )}
 
           <div className="ml-auto flex items-center gap-0.5 shrink-0 overflow-x-auto">
-            {branch.sandboxId && (
+            {branch.sandboxId && (<>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -837,7 +843,44 @@ export function ChatPanel({
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs">Open in VS Code</TooltipContent>
               </Tooltip>
-            )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch("/api/sandbox/ssh", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            daytonaApiKey: settings.daytonaApiKey,
+                            sandboxId: branch.sandboxId,
+                          }),
+                        })
+                        const data = await res.json()
+                        if (!res.ok) throw new Error(data.error)
+                        const cmd = data.sshCommand as string
+                        const userHostMatch = cmd.match(/(\S+@\S+)/)
+                        const portMatch = cmd.match(/-p\s+(\d+)/)
+                        if (userHostMatch) {
+                          const userHost = userHostMatch[1]
+                          const port = portMatch ? portMatch[1] : "22"
+                          const [owner, repo] = repoFullName.split("/")
+                          const localDir = `./${owner}-${repo}-${branch.name}`
+                          const rsyncCmd = `mkdir -p ${localDir} && \\\nwhile true; do \\\n  rsync -avz --filter=':- .gitignore' -e 'ssh -p ${port}' \\\n    ${userHost}:/home/daytona/${repoName}/ \\\n    ${localDir}/; \\\n  sleep 2; \\\ndone`
+                          setRsyncCommand(rsyncCmd)
+                          setRsyncCopied(false)
+                          setRsyncModalOpen(true)
+                        }
+                      } catch {}
+                    }}
+                    className="flex cursor-pointer h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <FolderSync className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">Sync to local</TooltipContent>
+              </Tooltip>
+            </>)}
             {headerActions.map((action) => {
               const isActive = action.action === "log" && gitHistoryOpen
               const hasPR = action.action === "create-pr" && !!branch.prUrl
@@ -1067,6 +1110,31 @@ export function ChatPanel({
               Create
             </button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rsync command modal */}
+      <Dialog open={rsyncModalOpen} onOpenChange={(open) => { setRsyncModalOpen(open); if (!open) setRsyncCopied(false) }}>
+        <DialogContent className="sm:max-w-lg overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Sync to local</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Run this in your terminal to continuously sync the sandbox to a local folder. It respects <code className="rounded bg-muted px-1 py-0.5">.gitignore</code> files and re-syncs every 2 seconds. Press <code className="rounded bg-muted px-1 py-0.5">Ctrl+C</code> to stop.
+          </p>
+          <div className="relative">
+            <pre className="rounded-md bg-muted p-3 pr-9 text-xs font-mono whitespace-pre-wrap break-all">{rsyncCommand}</pre>
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(rsyncCommand)
+                setRsyncCopied(true)
+                setTimeout(() => setRsyncCopied(false), 2000)
+              }}
+              className="absolute top-2 right-2 cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {rsyncCopied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 
