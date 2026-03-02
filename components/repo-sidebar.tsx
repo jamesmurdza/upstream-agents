@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import type { Repo } from "@/lib/types"
-import { Plus, Settings, X } from "lucide-react"
+import { Plus, X } from "lucide-react"
 import { useState, useRef } from "react"
 import {
   Tooltip,
@@ -46,21 +46,6 @@ export function RepoSidebar({
   return (
     <TooltipProvider delayDuration={0}>
       <aside className="flex h-full w-[60px] shrink-0 flex-col items-center gap-2 border-r border-border bg-sidebar py-3">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button className="mb-2 flex cursor-pointer h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-mono text-sm font-bold overflow-hidden">
-              {userAvatar ? (
-                <img src={userAvatar} alt="You" className="h-full w-full rounded-lg object-cover" />
-              ) : (
-                "Ah"
-              )}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">AgentHub</TooltipContent>
-        </Tooltip>
-
-        <div className="mx-auto h-px w-8 bg-border" />
-
         {repos.map((repo, index) => {
           const isActive = repo.id === activeRepoId
           const hasRunning = repo.branches.some((b) => b.status === "running" || b.status === "creating")
@@ -122,28 +107,32 @@ export function RepoSidebar({
           )
         })}
 
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onOpenAddRepo}
+              className="flex cursor-pointer h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Add repository</TooltipContent>
+        </Tooltip>
+
         <div className="mt-auto flex flex-col items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={onOpenAddRepo}
-                className="flex cursor-pointer h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Add repository</TooltipContent>
-          </Tooltip>
-
-          <div className="mx-auto h-px w-8 bg-border" />
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
                 onClick={onOpenSettings}
-                className="flex cursor-pointer h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex cursor-pointer h-10 w-10 items-center justify-center rounded-lg overflow-hidden transition-colors hover:ring-2 hover:ring-primary/50"
               >
-                <Settings className="h-4 w-4" />
+                {userAvatar ? (
+                  <img src={userAvatar} alt="Settings" className="h-full w-full rounded-lg object-cover" />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center rounded-lg bg-primary text-primary-foreground font-mono text-sm font-bold">
+                    Ah
+                  </span>
+                )}
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">Settings</TooltipContent>
