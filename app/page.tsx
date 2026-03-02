@@ -281,13 +281,6 @@ export default function Home() {
               }
               onForceSave={forceSave}
               onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}
-              onForkRepo={(repo) => {
-                handleAddRepo({
-                  id: generateId(),
-                  ...repo,
-                  branches: [],
-                })
-              }}
               onBack={() => setMobileView("branches")}
             />
           ) : (

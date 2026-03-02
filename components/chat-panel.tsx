@@ -17,7 +17,6 @@ import {
   Loader2,
   GitMerge,
   GitCompareArrows,
-  GitFork,
   Tag,
   RotateCcw,
   History,
@@ -162,7 +161,6 @@ const headerActions = [
   { icon: GitMerge, label: "Merge", action: "merge" },
   { icon: GitCompareArrows, label: "Rebase", action: "rebase" },
   { icon: RotateCcw, label: "Reset", action: "reset" },
-  { icon: GitFork, label: "Fork", action: "fork" },
   { icon: Tag, label: "Tag", action: "tag" },
   { icon: Diff, label: "Diff", action: "diff" },
   { icon: History, label: "Log", action: "log" },
@@ -180,7 +178,6 @@ interface ChatPanelProps {
   onUpdateLastMessage: (updates: Partial<Message>) => void
   onUpdateBranch: (updates: Partial<Branch>) => void
   onForceSave: () => void
-  onForkRepo?: (repo: { name: string; owner: string; avatar: string; defaultBranch: string }) => void
   onCommitsDetected?: () => void
   onBack?: () => void
 }
@@ -197,7 +194,6 @@ export function ChatPanel({
   onUpdateLastMessage,
   onUpdateBranch,
   onForceSave,
-  onForkRepo,
   onCommitsDetected,
   onBack,
 }: ChatPanelProps) {
@@ -630,10 +626,6 @@ export function ChatPanel({
       setResetConfirmOpen(true)
       return
     }
-    if (action === "fork") {
-      handleFork()
-      return
-    }
     if (action === "tag") {
       setTagPopoverOpen(true)
       return
@@ -680,41 +672,6 @@ export function ChatPanel({
       addSystemMessage(`Tag **${name}** created and pushed.`)
     } catch (err: unknown) {
       addSystemMessage(`Tag failed: ${err instanceof Error ? err.message : "Unknown error"}`)
-    } finally {
-      setActionLoading(null)
-    }
-  }
-
-  async function handleFork() {
-    if (!settings.githubPat) {
-      addSystemMessage("GitHub PAT required to fork. Configure it in Settings.")
-      return
-    }
-    const [owner, repo] = repoFullName.split("/")
-    setActionLoading("fork")
-    try {
-      const res = await fetch("/api/github/fork", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: settings.githubPat,
-          owner,
-          name: repo,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      addSystemMessage(`Forked to **${data.owner}/${data.name}**`)
-      if (onForkRepo) {
-        onForkRepo({
-          name: data.name,
-          owner: data.owner,
-          avatar: data.avatar,
-          defaultBranch: data.defaultBranch,
-        })
-      }
-    } catch (err: unknown) {
-      addSystemMessage(`Fork failed: ${err instanceof Error ? err.message : "Unknown error"}`)
     } finally {
       setActionLoading(null)
     }
