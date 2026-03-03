@@ -58,13 +58,12 @@ export default function Home() {
   useEffect(() => {
     const allBranches = repos.flatMap((r) => r.branches)
     const running = allBranches.filter((b) => b.status === "running").length
-    const idle = allBranches.filter((b) => b.status === "idle" || b.status === "stopped").length
+    const unread = allBranches.filter((b) => b.unread).length
     const parts: string[] = []
     if (running > 0) parts.push(`${running} running`)
-    if (idle > 0) parts.push(`${idle} idle`)
-    document.title = parts.length > 0
-      ? parts.join(", ")
-      : "No agents"
+    if (unread > 0) parts.push(`${unread} unread`)
+    if (running === 0 && unread === 0) parts.push("0 running")
+    document.title = parts.join(", ")
   }, [repos])
 
   // Auto-open settings if not configured
