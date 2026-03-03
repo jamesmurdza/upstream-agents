@@ -54,6 +54,19 @@ export default function Home() {
     }
   }, [loaded, repos, activeRepoId])
 
+  // Dynamic page title with agent counts
+  useEffect(() => {
+    const allBranches = repos.flatMap((r) => r.branches)
+    const running = allBranches.filter((b) => b.status === "running").length
+    const idle = allBranches.filter((b) => b.status === "idle" || b.status === "stopped").length
+    const parts: string[] = []
+    if (running > 0) parts.push(`${running} running`)
+    if (idle > 0) parts.push(`${idle} idle`)
+    document.title = parts.length > 0
+      ? parts.join(", ")
+      : "No agents"
+  }, [repos])
+
   // Auto-open settings if not configured
   useEffect(() => {
     const hasAnthropicCredential =
