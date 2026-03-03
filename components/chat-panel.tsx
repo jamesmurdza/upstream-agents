@@ -29,6 +29,8 @@ import {
   Copy,
   Check,
   FolderSync,
+  Play,
+  Pause,
 } from "lucide-react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import Markdown from "react-markdown"
@@ -583,6 +585,32 @@ export function ChatPanel({
     fetchBranches()
   }
 
+  const [sandboxToggleLoading, setSandboxToggleLoading] = useState(false)
+
+  async function handleSandboxToggle() {
+    if (!branch.sandboxId || sandboxToggleLoading) return
+    const isStopped = branch.status === "stopped"
+    setSandboxToggleLoading(true)
+    try {
+      const res = await fetch("/api/sandbox/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          daytonaApiKey: settings.daytonaApiKey,
+          sandboxId: branch.sandboxId,
+          action: isStopped ? "start" : "stop",
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      onUpdateBranch({ status: isStopped ? "idle" : "stopped" })
+    } catch {
+      // ignore
+    } finally {
+      setSandboxToggleLoading(false)
+    }
+  }
+
   function addSystemMessage(content: string) {
     onAddMessage({
       id: generateId(),
@@ -929,6 +957,26 @@ export function ChatPanel({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs">Sync to local</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleSandboxToggle}
+                    disabled={sandboxToggleLoading || branch.status === "running" || branch.status === "creating"}
+                    className="flex cursor-pointer h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    {sandboxToggleLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : branch.status === "stopped" ? (
+                      <Play className="h-3.5 w-3.5" />
+                    ) : (
+                      <Pause className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">
+                  {branch.status === "stopped" ? "Start sandbox" : "Pause sandbox"}
+                </TooltipContent>
               </Tooltip>
               <div className="mx-1.5 h-4 w-px bg-border shrink-0" />
             </>)}
