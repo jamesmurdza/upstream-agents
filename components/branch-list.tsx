@@ -350,12 +350,21 @@ export function BranchList({
                     )}
                   >
                     <StatusDot branch={branch} isActive={isActive} />
-                    <span className={cn(
-                      "truncate text-sm min-w-0 flex-1",
-                      isBold ? "font-semibold text-foreground" : "font-medium"
-                    )}>
-                      {branch.name}
-                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "truncate text-sm",
+                          isBold ? "font-semibold text-foreground" : "font-medium"
+                        )}>
+                          {branch.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">
+                          {branch.status === "creating" ? "Setting up..." : agentLabels[branch.agent]}
+                        </span>
+                      </div>
+                    </div>
                   </button>
                   <button
                     onClick={(e) => {
