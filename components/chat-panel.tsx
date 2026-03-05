@@ -13,7 +13,6 @@ import {
   GitPullRequest,
   ChevronDown,
   Send,
-  ArrowRight,
   Loader2,
   GitMerge,
   GitCompareArrows,
@@ -209,7 +208,6 @@ interface ChatPanelProps {
   onForceSave: () => void
   onCommitsDetected?: () => void
   onBranchFromCommit?: (commitHash: string) => void
-  onBack?: () => void
 }
 
 export function ChatPanel({
@@ -226,7 +224,6 @@ export function ChatPanel({
   onForceSave,
   onCommitsDetected,
   onBranchFromCommit,
-  onBack,
 }: ChatPanelProps) {
   const [input, setInput] = useState("")
   const [renaming, setRenaming] = useState(false)
@@ -871,14 +868,6 @@ export function ChatPanel({
       <div className="flex min-w-0 flex-1 flex-col bg-background">
         {/* Header */}
         <header className="flex items-center gap-2 border-b border-border px-3 py-2.5 sm:px-4">
-          {onBack && (
-            <button
-              onClick={onBack}
-              className="flex cursor-pointer h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground lg:hidden"
-            >
-              <ArrowRight className="h-4 w-4 rotate-180" />
-            </button>
-          )}
           {renaming ? (
             <div className="flex items-center gap-1.5 min-w-0 ml-2.5">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="shrink-0 text-muted-foreground">
