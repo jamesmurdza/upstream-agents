@@ -14,6 +14,7 @@ export async function ensureSandboxReady(
   anthropicApiKey?: string,
   anthropicAuthType?: string,
   anthropicAuthToken?: string,
+  frontendSessionId?: string,
 ): Promise<{
   sandbox: Awaited<ReturnType<InstanceType<typeof Daytona>["get"]>>
   contextId: string
@@ -43,16 +44,19 @@ export async function ensureSandboxReady(
   }
 
   // Read stored session ID for agent resumption
-  let resumeSessionId: string | undefined
-  try {
-    const result = await sandbox.process.executeCommand(
-      "cat /home/daytona/.agent_session_id 2>/dev/null"
-    )
-    if (!result.exitCode && result.result.trim()) {
-      resumeSessionId = result.result.trim()
+  // Priority: frontend sessionId > file-based sessionId
+  let resumeSessionId: string | undefined = frontendSessionId
+  if (!resumeSessionId) {
+    try {
+      const result = await sandbox.process.executeCommand(
+        "cat /home/daytona/.agent_session_id 2>/dev/null"
+      )
+      if (!result.exitCode && result.result.trim()) {
+        resumeSessionId = result.result.trim()
+      }
+    } catch {
+      // No stored session — that's fine
     }
-  } catch {
-    // No stored session — that's fine
   }
 
   // Verify agent script exists, re-upload if missing

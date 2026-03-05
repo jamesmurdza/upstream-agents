@@ -8,6 +8,7 @@ export async function POST(req: Request) {
     daytonaApiKey,
     sandboxId,
     contextId,
+    sessionId,
     prompt,
     previewUrlPattern,
     repoName,
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
           anthropicApiKey,
           anthropicAuthType,
           anthropicAuthToken,
+          sessionId,
         )
 
         // If context was re-created after resume, notify frontend

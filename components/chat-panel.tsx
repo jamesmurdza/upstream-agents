@@ -396,6 +396,7 @@ export function ChatPanel({
           daytonaApiKey: settings.daytonaApiKey,
           sandboxId: branch.sandboxId,
           contextId: branch.contextId,
+          sessionId: branch.sessionId,
           prompt,
           previewUrlPattern: branch.previewUrlPattern,
           repoName,
