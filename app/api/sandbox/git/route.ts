@@ -4,28 +4,19 @@ import type { Sandbox } from "@daytonaio/sdk"
 export const maxDuration = 60
 
 /**
- * Ensures we're on the correct branch before pushing.
- * This prevents agents from accidentally pushing to a wrong branch if they changed branches.
- * Returns an error message if branch verification fails, or null if successful.
+ * Verifies we're on the correct branch (no checkout).
+ * Prevents agents from pushing to the wrong branch. We only verify so we don't
+ * run checkout and wipe or alter the working tree, which was causing empty commits.
  */
 async function ensureCorrectBranch(
   sandbox: Sandbox,
   repoPath: string,
   expectedBranch: string
 ): Promise<string | null> {
-  // First, checkout the expected branch
-  try {
-    await sandbox.git.checkoutBranch(repoPath, expectedBranch)
-  } catch (err) {
-    return `Failed to checkout branch ${expectedBranch}: ${err instanceof Error ? err.message : "Unknown error"}`
-  }
-
-  // Verify we're on the correct branch using git status
   const status = await sandbox.git.status(repoPath)
   if (status.currentBranch !== expectedBranch) {
     return `Branch mismatch: expected ${expectedBranch} but on ${status.currentBranch}`
   }
-
   return null
 }
 
