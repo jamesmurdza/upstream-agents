@@ -348,6 +348,7 @@ export default function Home() {
         onClose={() => setSettingsOpen(false)}
         settings={settings}
         onSave={setSettings}
+        repos={repos}
       />
       <AddRepoModal
         open={addRepoOpen}
