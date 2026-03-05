@@ -205,7 +205,12 @@ export function BranchList({
           if (data.notFound) {
             setDeleteModalMergeStatus("unmerged")
           } else {
-            setDeleteModalMergeStatus(data.isMerged ? "merged" : "unmerged")
+            const isMerged = data.isMerged
+            setDeleteModalMergeStatus(isMerged ? "merged" : "unmerged")
+            // Default to checking the delete on GitHub option if branch is merged
+            if (isMerged) {
+              setDeleteRemoteChecked(true)
+            }
           }
         } else {
           setDeleteModalMergeStatus("error")
