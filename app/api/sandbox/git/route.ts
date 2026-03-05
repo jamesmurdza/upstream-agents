@@ -271,6 +271,66 @@ export async function POST(req: Request) {
         return Response.json({ diff: diffResult.result || "" })
       }
 
+      case "check-merged": {
+        if (!currentBranch || !targetBranch) {
+          return Response.json({ error: "Missing required fields for check-merged" }, { status: 400 })
+        }
+        // Check if current branch is fully merged into target branch
+        // First fetch latest to ensure we have up-to-date info
+        if (githubPat) {
+          const origUrlResult = await sandbox.process.executeCommand(
+            `cd ${repoPath} && git remote get-url origin 2>&1`
+          )
+          const origUrl = origUrlResult.result.trim()
+          const authedUrl = origUrl.replace(
+            /^https:\/\//,
+            `https://x-access-token:${githubPat}@`
+          )
+          await sandbox.process.executeCommand(
+            `cd ${repoPath} && git remote set-url origin '${authedUrl}' 2>&1`
+          )
+          await sandbox.process.executeCommand(
+            `cd ${repoPath} && git fetch origin --prune 2>&1`
+          )
+          await sandbox.process.executeCommand(
+            `cd ${repoPath} && git remote set-url origin '${origUrl}' 2>&1`
+          )
+        }
+        // Check if branch is merged using git branch --merged
+        const mergedResult = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git branch -r --merged origin/${targetBranch} 2>&1`
+        )
+        const mergedBranches = mergedResult.result
+          .trim()
+          .split("\n")
+          .map((b: string) => b.trim().replace("origin/", ""))
+          .filter(Boolean)
+        const isMerged = mergedBranches.includes(currentBranch)
+        return Response.json({ isMerged })
+      }
+
+      case "delete-remote-branch": {
+        if (!currentBranch || !githubPat || !repoOwner || !repoApiName) {
+          return Response.json({ error: "Missing required fields for delete-remote-branch" }, { status: 400 })
+        }
+        // Delete remote branch via GitHub API
+        const deleteRes = await fetch(
+          `https://api.github.com/repos/${repoOwner}/${repoApiName}/git/refs/heads/${currentBranch}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${githubPat}`,
+              Accept: "application/vnd.github.v3+json",
+            },
+          }
+        )
+        if (!deleteRes.ok && deleteRes.status !== 404) {
+          const deleteData = await deleteRes.json().catch(() => ({}))
+          return Response.json({ error: "Delete failed: " + ((deleteData as { message?: string }).message || deleteRes.status) }, { status: 500 })
+        }
+        return Response.json({ success: true })
+      }
+
       case "rename-branch": {
         const newName = body.newBranchName
         if (!currentBranch || !newName) {
