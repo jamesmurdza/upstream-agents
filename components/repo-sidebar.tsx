@@ -41,7 +41,7 @@ export function RepoSidebar({
 }: RepoSidebarProps) {
   const [removeModalRepo, setRemoveModalRepo] = useState<Repo | null>(null)
   const dragIndexRef = useRef<number | null>(null)
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [dropIndicator, setDropIndicator] = useState<{ index: number; position: "before" | "after" } | null>(null)
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -53,23 +53,51 @@ export function RepoSidebar({
           const initials = nameParts.length > 1
             ? (nameParts[0][0] + nameParts[1][0]).toUpperCase()
             : repo.name.slice(0, 2).toUpperCase()
+          const showDropBefore = dropIndicator?.index === index && dropIndicator?.position === "before"
+          const showDropAfter = dropIndicator?.index === index && dropIndicator?.position === "after"
           return (
             <div
               key={repo.id}
-              className={cn("relative group", dragOverIndex === index && "opacity-50")}
+              className="relative group"
               draggable
               onDragStart={() => { dragIndexRef.current = index }}
-              onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index) }}
-              onDragLeave={() => setDragOverIndex(null)}
+              onDragOver={(e) => {
+                e.preventDefault()
+                const rect = e.currentTarget.getBoundingClientRect()
+                const midpoint = rect.top + rect.height / 2
+                const position = e.clientY < midpoint ? "before" : "after"
+                setDropIndicator({ index, position })
+              }}
+              onDragLeave={() => setDropIndicator(null)}
               onDrop={() => {
-                if (dragIndexRef.current !== null && dragIndexRef.current !== index) {
-                  onReorderRepos(dragIndexRef.current, index)
+                if (dragIndexRef.current !== null && dropIndicator) {
+                  const fromIndex = dragIndexRef.current
+                  let toIndex = dropIndicator.index
+                  // Adjust target index based on position
+                  if (dropIndicator.position === "after") {
+                    toIndex = toIndex + 1
+                  }
+                  // Adjust for the removal of the dragged item
+                  if (fromIndex < toIndex) {
+                    toIndex = toIndex - 1
+                  }
+                  if (fromIndex !== toIndex) {
+                    onReorderRepos(fromIndex, toIndex)
+                  }
                 }
                 dragIndexRef.current = null
-                setDragOverIndex(null)
+                setDropIndicator(null)
               }}
-              onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null) }}
+              onDragEnd={() => { dragIndexRef.current = null; setDropIndicator(null) }}
             >
+              {/* Drop indicator line - before */}
+              {showDropBefore && dragIndexRef.current !== index && dragIndexRef.current !== index - 1 && (
+                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />
+              )}
+              {/* Drop indicator line - after */}
+              {showDropAfter && dragIndexRef.current !== index && dragIndexRef.current !== index + 1 && (
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
