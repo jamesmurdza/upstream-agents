@@ -144,6 +144,12 @@ export async function POST(req: Request) {
           )
         }
 
+        // Capture the current HEAD commit as the starting point for commit detection
+        const headResult = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git rev-parse --short HEAD 2>&1`
+        )
+        const headCommit = headResult.exitCode ? null : headResult.result.trim()
+
         send({ type: "progress", message: "Installing Claude Agent SDK..." })
 
         const installResult = await sandbox.process.executeCommand(
@@ -220,7 +226,7 @@ export async function POST(req: Request) {
             repoId: dbRepo.id,
             name: newBranch,
             baseBranch: baseBranch || "main",
-            startCommit,
+            startCommit: headCommit, // Store the HEAD commit for commit detection baseline
             status: "idle",
           },
         })

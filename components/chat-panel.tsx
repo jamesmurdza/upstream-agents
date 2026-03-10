@@ -277,7 +277,9 @@ export function ChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const startingCommitRef = useRef<string | null>(null)
+  // Use the persisted startCommit from when the branch was created
+  // This ensures we have a baseline even if the page is refreshed
+  const startingCommitRef = useRef<string | null>(branch.startCommit || null)
   const prevBranchIdRef = useRef(branch.id)
   const prevBranchNameRef = useRef(branch.name)
   const isNearBottomRef = useRef(true)
@@ -364,30 +366,12 @@ export function ChatPanel({
       .catch(() => {})
   }, [branch.id, branch.sandboxId, branch.status, onUpdateBranch])
 
-  // Capture the starting commit hash on mount / branch change
-  // This is used to filter out pre-existing commits when detecting new ones
+  // Update startingCommitRef when branch changes (e.g., switching branches)
   useEffect(() => {
-    if (!branch.sandboxId) return
-    // Fetch current HEAD commit as the baseline
-    fetch("/api/sandbox/git", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sandboxId: branch.sandboxId,
-        repoPath: `/home/daytona/${repoName}`,
-        action: "log",
-      }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        const commits = data.commits || []
-        if (commits.length > 0) {
-          // Store the current HEAD commit hash as our starting point
-          startingCommitRef.current = commits[0].shortHash
-        }
-      })
-      .catch(() => {})
-  }, [branch.id, branch.sandboxId, repoName])
+    if (branch.startCommit) {
+      startingCommitRef.current = branch.startCommit
+    }
+  }, [branch.id, branch.startCommit])
 
   // Track scroll position to determine if user is near the bottom
   const handleScroll = useCallback(() => {
@@ -549,36 +533,42 @@ export function ChatPanel({
               const logData = await logRes.json()
               const allCommits: { shortHash: string; message: string }[] = logData.commits || []
 
-              // Only consider commits that are newer than our starting point
-              // git log returns commits newest-first, so we take commits until we hit the starting commit
-              const chatCommits = new Set(branch.messages.filter((m) => m.commitHash).map((m) => m.commitHash))
-              const newCommits: { shortHash: string; message: string }[] = []
-              for (const c of allCommits) {
-                // Stop when we reach the starting commit (everything after this existed before the session)
-                if (c.shortHash === startingCommitRef.current) break
-                // Skip commits already shown in the chat
-                if (!chatCommits.has(c.shortHash)) {
-                  newCommits.push(c)
-                }
-              }
-
-              // Add new commits to the chat (reverse to show oldest first)
-              for (const c of [...newCommits].reverse()) {
-                onAddMessage({
-                  id: generateId(),
-                  role: "assistant",
-                  content: "",
-                  timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                  commitHash: c.shortHash,
-                  commitMessage: c.message,
-                })
-              }
-              if (newCommits.length > 0) {
-                // Update the starting commit to the new HEAD so future detections work correctly
+              // If we don't have a starting commit yet, set it now and skip detection
+              // This handles the race condition where agent completes before baseline is set
+              if (!startingCommitRef.current) {
                 if (allCommits.length > 0) {
                   startingCommitRef.current = allCommits[0].shortHash
                 }
-                onCommitsDetected?.()
+              } else {
+                // Only consider commits that are newer than our starting point
+                // git log returns commits newest-first, so we take commits until we hit the starting commit
+                const chatCommits = new Set(branch.messages.filter((m) => m.commitHash).map((m) => m.commitHash))
+                const newCommits: { shortHash: string; message: string }[] = []
+                for (const c of allCommits) {
+                  // Stop when we reach the starting commit (everything after this existed before the session)
+                  if (c.shortHash === startingCommitRef.current) break
+                  // Skip commits already shown in the chat
+                  if (!chatCommits.has(c.shortHash)) {
+                    newCommits.push(c)
+                  }
+                }
+
+                // Add new commits to the chat (reverse to show oldest first)
+                for (const c of [...newCommits].reverse()) {
+                  onAddMessage({
+                    id: generateId(),
+                    role: "assistant",
+                    content: "",
+                    timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                    commitHash: c.shortHash,
+                    commitMessage: c.message,
+                  })
+                }
+                if (newCommits.length > 0) {
+                  // Update the starting commit to the new HEAD so future detections work correctly
+                  startingCommitRef.current = allCommits[0].shortHash
+                  onCommitsDetected?.()
+                }
               }
             } catch {}
           }
