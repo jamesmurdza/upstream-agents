@@ -240,6 +240,7 @@ const headerActions = [
 
 interface ChatPanelProps {
   branch: Branch
+  repoId: string
   repoFullName: string
   repoName: string
   repoOwner: string
@@ -251,10 +252,13 @@ interface ChatPanelProps {
   onForceSave: () => void
   onCommitsDetected?: () => void
   onBranchFromCommit?: (commitHash: string) => void
+  onExecutionStarted?: (branchId: string, messageId: string, executionId: string) => void
+  onExecutionCompleted?: (branchId: string, status: "completed" | "error") => void
 }
 
 export function ChatPanel({
   branch,
+  repoId,
   repoFullName,
   repoName,
   repoOwner,
@@ -266,6 +270,8 @@ export function ChatPanel({
   onForceSave,
   onCommitsDetected,
   onBranchFromCommit,
+  onExecutionStarted,
+  onExecutionCompleted,
 }: ChatPanelProps) {
   const [input, setInput] = useState(branch.draftPrompt ?? "")
   const [renaming, setRenaming] = useState(false)
@@ -559,6 +565,9 @@ export function ChatPanel({
             } catch {}
           }
 
+          // Notify other windows that execution completed
+          onExecutionCompleted?.(branch.id, data.status as "completed" | "error")
+
           // Play notification sound
           try {
             const ctx = new AudioContext()
@@ -582,7 +591,7 @@ export function ChatPanel({
     // Start polling immediately, then every 500ms
     poll()
     pollingRef.current = setInterval(poll, 500)
-  }, [branch.sandboxId, branch.name, branch.messages, repoName, onUpdateMessage, onUpdateBranch, onAddMessage, onForceSave, onCommitsDetected])
+  }, [branch.sandboxId, branch.id, branch.name, branch.messages, repoName, onUpdateMessage, onUpdateBranch, onAddMessage, onForceSave, onCommitsDetected, onExecutionCompleted])
 
   const handleSend = useCallback(async () => {
     const prompt = input.trim()
@@ -636,6 +645,9 @@ export function ChatPanel({
       const { executionId } = await response.json()
       currentExecutionIdRef.current = executionId
 
+      // Notify other windows that execution started
+      onExecutionStarted?.(branch.id, messageId, executionId)
+
       // Start polling for updates
       startPolling(messageId, executionId)
 
@@ -643,10 +655,11 @@ export function ChatPanel({
       const message = err instanceof Error ? err.message : "Unknown error"
       onUpdateMessage(messageId, { content: `Error: ${message}` })
       onUpdateBranch({ status: "idle" })
+      onExecutionCompleted?.(branch.id, "error")
       currentMessageIdRef.current = null
       currentExecutionIdRef.current = null
     }
-  }, [input, branch, repoName, onAddMessage, onUpdateMessage, onUpdateBranch, startPolling])
+  }, [input, branch, repoName, onAddMessage, onUpdateMessage, onUpdateBranch, startPolling, onExecutionStarted, onExecutionCompleted])
 
   function handleStop() {
     // Stop polling

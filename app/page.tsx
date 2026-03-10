@@ -5,6 +5,19 @@ import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { generateId } from "@/lib/store"
 import type { Branch, Message } from "@/lib/types"
+import {
+  useBroadcastSync,
+  type BranchAddedPayload,
+  type BranchRemovedPayload,
+  type BranchUpdatedPayload,
+  type MessageAddedPayload,
+  type MessageUpdatedPayload,
+  type RepoAddedPayload,
+  type RepoRemovedPayload,
+  type ExecutionStartedPayload,
+  type ExecutionCompletedPayload,
+  type QuotaUpdatedPayload,
+} from "@/lib/use-broadcast-sync"
 import { RepoSidebar } from "@/components/repo-sidebar"
 import { BranchList } from "@/components/branch-list"
 import { ChatPanel, EmptyChatPanel } from "@/components/chat-panel"
@@ -125,6 +138,187 @@ export default function Home() {
   const [gitHistoryRefreshTrigger, setGitHistoryRefreshTrigger] = useState(0)
   const [pendingStartCommit, setPendingStartCommit] = useState<string | null>(null)
 
+  // Keep refs for repos state to use in sync handlers (avoid stale closures)
+  const reposRef = useRef(repos)
+  reposRef.current = repos
+
+  // Cross-window sync handlers
+  const handleSyncBranchAdded = useCallback((payload: BranchAddedPayload) => {
+    setRepos((prev) => {
+      const repo = prev.find((r) => r.id === payload.repoId)
+      if (!repo) return prev
+      // Check if branch already exists
+      if (repo.branches.some((b) => b.id === payload.branch.id)) return prev
+      return prev.map((r) => {
+        if (r.id !== payload.repoId) return r
+        return { ...r, branches: [...r.branches, payload.branch] }
+      })
+    })
+  }, [])
+
+  const handleSyncBranchRemoved = useCallback((payload: BranchRemovedPayload) => {
+    setRepos((prev) =>
+      prev.map((r) => {
+        if (r.id !== payload.repoId) return r
+        return {
+          ...r,
+          branches: r.branches.filter((b) => b.id !== payload.branchId),
+        }
+      })
+    )
+    // If the removed branch was active, clear selection
+    if (activeBranchIdRef.current === payload.branchId) {
+      setActiveBranchId(null)
+    }
+  }, [])
+
+  const handleSyncBranchUpdated = useCallback((payload: BranchUpdatedPayload) => {
+    setRepos((prev) =>
+      prev.map((r) => {
+        if (r.id !== payload.repoId) return r
+        return {
+          ...r,
+          branches: r.branches.map((b) => {
+            if (b.id !== payload.branchId) return b
+            const updated = { ...b, ...payload.updates }
+            // Handle ID replacement if provided
+            if (payload.newBranchId) {
+              updated.id = payload.newBranchId
+            }
+            return updated
+          }),
+        }
+      })
+    )
+    // Update active branch ID if it changed
+    if (payload.newBranchId && activeBranchIdRef.current === payload.branchId) {
+      setActiveBranchId(payload.newBranchId)
+    }
+  }, [])
+
+  const handleSyncMessageAdded = useCallback((payload: MessageAddedPayload) => {
+    setRepos((prev) =>
+      prev.map((r) => {
+        if (r.id !== payload.repoId) return r
+        return {
+          ...r,
+          branches: r.branches.map((b) => {
+            if (b.id !== payload.branchId) return b
+            // Check if message already exists
+            if (b.messages.some((m) => m.id === payload.message.id)) return b
+            return {
+              ...b,
+              messages: [...b.messages, payload.message],
+            }
+          }),
+        }
+      })
+    )
+  }, [])
+
+  const handleSyncMessageUpdated = useCallback((payload: MessageUpdatedPayload) => {
+    setRepos((prev) =>
+      prev.map((r) => {
+        if (r.id !== payload.repoId) return r
+        return {
+          ...r,
+          branches: r.branches.map((b) => {
+            if (b.id !== payload.branchId) return b
+            return {
+              ...b,
+              messages: b.messages.map((m) =>
+                m.id === payload.messageId ? { ...m, ...payload.updates } : m
+              ),
+            }
+          }),
+        }
+      })
+    )
+  }, [])
+
+  const handleSyncRepoAdded = useCallback((payload: RepoAddedPayload) => {
+    setRepos((prev) => {
+      // Check if repo already exists
+      if (prev.some((r) => r.id === payload.repo.id)) return prev
+      return [...prev, payload.repo]
+    })
+  }, [])
+
+  const handleSyncRepoRemoved = useCallback((payload: RepoRemovedPayload) => {
+    setRepos((prev) => prev.filter((r) => r.id !== payload.repoId))
+    // If the removed repo was active, clear selection
+    if (activeRepoId === payload.repoId) {
+      setActiveRepoId(null)
+      setActiveBranchId(null)
+    }
+  }, [activeRepoId])
+
+  const handleSyncExecutionStarted = useCallback((payload: ExecutionStartedPayload) => {
+    // Update branch status to running
+    setRepos((prev) =>
+      prev.map((r) => {
+        if (r.id !== payload.repoId) return r
+        return {
+          ...r,
+          branches: r.branches.map((b) => {
+            if (b.id !== payload.branchId) return b
+            return { ...b, status: "running" as const }
+          }),
+        }
+      })
+    )
+  }, [])
+
+  const handleSyncExecutionCompleted = useCallback((payload: ExecutionCompletedPayload) => {
+    // Update branch status based on completion status
+    setRepos((prev) =>
+      prev.map((r) => {
+        if (r.id !== payload.repoId) return r
+        return {
+          ...r,
+          branches: r.branches.map((b) => {
+            if (b.id !== payload.branchId) return b
+            return {
+              ...b,
+              status: payload.status === "error" ? "error" as const : "idle" as const,
+              lastActivity: "now",
+              lastActivityTs: Date.now(),
+            }
+          }),
+        }
+      })
+    )
+  }, [])
+
+  const handleSyncQuotaUpdated = useCallback((payload: QuotaUpdatedPayload) => {
+    setQuota(payload)
+  }, [])
+
+  // Initialize broadcast sync hook with handlers
+  const {
+    broadcastBranchAdded,
+    broadcastBranchRemoved,
+    broadcastBranchUpdated,
+    broadcastMessageAdded,
+    broadcastMessageUpdated,
+    broadcastRepoAdded,
+    broadcastRepoRemoved,
+    broadcastExecutionStarted,
+    broadcastExecutionCompleted,
+    broadcastQuotaUpdated,
+  } = useBroadcastSync({
+    onBranchAdded: handleSyncBranchAdded,
+    onBranchRemoved: handleSyncBranchRemoved,
+    onBranchUpdated: handleSyncBranchUpdated,
+    onMessageAdded: handleSyncMessageAdded,
+    onMessageUpdated: handleSyncMessageUpdated,
+    onRepoAdded: handleSyncRepoAdded,
+    onRepoRemoved: handleSyncRepoRemoved,
+    onExecutionStarted: handleSyncExecutionStarted,
+    onExecutionCompleted: handleSyncExecutionCompleted,
+    onQuotaUpdated: handleSyncQuotaUpdated,
+  })
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -205,6 +399,8 @@ export default function Home() {
     setRepos((prev) => [...prev, repo])
     setActiveRepoId(repo.id)
     setActiveBranchId(null)
+    // Broadcast to other windows
+    broadcastRepoAdded({ repo })
   }
 
   function handleRemoveRepo(repoId: string) {
@@ -231,6 +427,8 @@ export default function Home() {
       setActiveRepoId(remaining[0]?.id ?? null)
       setActiveBranchId(null)
     }
+    // Broadcast to other windows
+    broadcastRepoRemoved({ repoId })
   }
 
   const handleAddBranch = useCallback((branch: Branch) => {
@@ -244,12 +442,18 @@ export default function Home() {
     setActiveBranchId(branch.id)
     setMobileView("chat")
 
+    // Broadcast to other windows
+    broadcastBranchAdded({ repoId: activeRepo.id, branch })
+
     // Refresh quota
     fetch("/api/user/quota")
       .then((r) => r.json())
-      .then((q) => setQuota(q))
+      .then((q) => {
+        setQuota(q)
+        broadcastQuotaUpdated(q)
+      })
       .catch(() => {})
-  }, [activeRepo])
+  }, [activeRepo, broadcastBranchAdded, broadcastQuotaUpdated])
 
   const handleUpdateBranch = useCallback((branchId: string, updates: Partial<Branch>) => {
     if (!activeRepo) return
@@ -284,6 +488,14 @@ export default function Home() {
       setActiveBranchId(updates.id)
     }
 
+    // Broadcast to other windows
+    broadcastBranchUpdated({
+      repoId: activeRepo.id,
+      branchId,
+      updates,
+      newBranchId: updates.id,
+    })
+
     // Only update in database if branch exists there (not during creation)
     // When id is provided, we're transitioning from client-side to server-side ID
     const shouldPersist = !isBeingCreated || updates.id
@@ -294,7 +506,7 @@ export default function Home() {
         body: JSON.stringify({ branchId: dbBranchId, ...updates }),
       }).catch(() => {})
     }
-  }, [activeRepo])
+  }, [activeRepo, broadcastBranchUpdated])
 
   const handleRemoveBranch = useCallback((branchId: string, deleteRemote?: boolean) => {
     if (!activeRepo) return
@@ -341,12 +553,18 @@ export default function Home() {
       setActiveBranchId(remaining[0]?.id ?? null)
     }
 
+    // Broadcast to other windows
+    broadcastBranchRemoved({ repoId: activeRepo.id, branchId })
+
     // Refresh quota
     fetch("/api/user/quota")
       .then((r) => r.json())
-      .then((q) => setQuota(q))
+      .then((q) => {
+        setQuota(q)
+        broadcastQuotaUpdated(q)
+      })
       .catch(() => {})
-  }, [activeRepo, activeBranchId])
+  }, [activeRepo, activeBranchId, broadcastBranchRemoved, broadcastQuotaUpdated])
 
   const handleAddMessage = useCallback(async (branchId: string, message: Message): Promise<string> => {
     if (!activeRepo) return message.id
@@ -367,6 +585,9 @@ export default function Home() {
         }
       })
     )
+
+    // Broadcast to other windows (with temporary ID initially)
+    broadcastMessageAdded({ repoId: activeRepo.id, branchId, message })
 
     // Save message to database and get the real DB ID
     try {
@@ -411,6 +632,13 @@ export default function Home() {
             }
           })
         )
+        // Broadcast the ID update
+        broadcastMessageUpdated({
+          repoId: activeRepo.id,
+          branchId,
+          messageId: message.id,
+          updates: { id: dbId },
+        })
         return dbId
       }
       return message.id
@@ -418,7 +646,7 @@ export default function Home() {
       console.error("Error saving message to database:", error)
       return message.id
     }
-  }, [activeRepo])
+  }, [activeRepo, broadcastMessageAdded, broadcastMessageUpdated])
 
   const handleUpdateMessage = useCallback((branchId: string, messageId: string, updates: Partial<Message>) => {
     if (!activeRepo) return
@@ -441,6 +669,9 @@ export default function Home() {
       })
     )
 
+    // Broadcast to other windows
+    broadcastMessageUpdated({ repoId: activeRepo.id, branchId, messageId, updates })
+
     // Update message in database
     fetch("/api/branches/messages", {
       method: "PATCH",
@@ -453,7 +684,7 @@ export default function Home() {
     }).catch((error) => {
       console.error("Error updating message in database:", error)
     })
-  }, [activeRepo])
+  }, [activeRepo, broadcastMessageUpdated])
 
   const handleCredentialsUpdate = useCallback(() => {
     // Refresh credentials state
@@ -539,6 +770,7 @@ export default function Home() {
           {activeBranch && activeRepo ? (
             <ChatPanel
               branch={activeBranch}
+              repoId={activeRepo.id}
               repoFullName={`${activeRepo.owner}/${activeRepo.name}`}
               repoName={activeRepo.name}
               repoOwner={activeRepo.owner}
@@ -554,6 +786,12 @@ export default function Home() {
               onForceSave={() => {}}
               onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}
               onBranchFromCommit={(hash) => setPendingStartCommit(hash)}
+              onExecutionStarted={(branchId, messageId, executionId) =>
+                broadcastExecutionStarted({ repoId: activeRepo.id, branchId, messageId, executionId })
+              }
+              onExecutionCompleted={(branchId, status) =>
+                broadcastExecutionCompleted({ repoId: activeRepo.id, branchId, status })
+              }
             />
           ) : (
             <EmptyChatPanel hasRepos={repos.length > 0} />
