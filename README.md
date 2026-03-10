@@ -1,4 +1,4 @@
-# AgentHub
+# Sandboxed Agents
 
 A multi-tenant web application that lets users run Claude Code agents in isolated Daytona sandboxes. Each user gets their own sandboxes linked to GitHub repositories, with real-time streaming of agent output.
 
@@ -73,7 +73,7 @@ A multi-tenant web application that lets users run Claude Code agents in isolate
 
 1. Go to GitHub → **Settings** → **Developer settings** → **OAuth Apps** → **New OAuth App**
 2. Fill in:
-   - **Application name**: `AgentHub`
+   - **Application name**: `Sandboxed Agents`
    - **Homepage URL**: `https://your-app.vercel.app`
    - **Authorization callback URL**: `https://your-app.vercel.app/api/auth/callback/github`
 3. Click **Register application**
