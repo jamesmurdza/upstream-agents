@@ -360,13 +360,14 @@ export function ChatPanel({
     }
     let currentMessageId = await onAddMessage(assistantMsg)
 
-    // Stream the response
+    // Stream the response - pass messageId so server can save output if client disconnects
     const controller = new AbortController()
     abortControllerRef.current = controller
     let content = ""
     let toolCalls: ToolCall[] = []
     let hadToolCalls = false
     let needsNewBubble = false
+    const initialMessageId = currentMessageId
 
     async function startNewBubble() {
       content = ""
@@ -428,6 +429,7 @@ export function ChatPanel({
           prompt,
           previewUrlPattern: branch.previewUrlPattern,
           repoName,
+          messageId: initialMessageId, // Pass messageId so server can save output if client disconnects
         }),
         signal: controller.signal,
       })
