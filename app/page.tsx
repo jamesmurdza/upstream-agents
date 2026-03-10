@@ -348,6 +348,32 @@ export default function Home() {
       .catch(() => {})
   }, [activeRepo, activeBranchId])
 
+  // Save draft for a specific branch (used when switching branches to persist the previous branch's draft)
+  const handleSaveDraftForBranch = useCallback((branchId: string, draftPrompt: string) => {
+    if (!activeRepo) return
+
+    // Update local state
+    setRepos((prev) =>
+      prev.map((r) => {
+        if (r.id !== activeRepo.id) return r
+        return {
+          ...r,
+          branches: r.branches.map((b) => {
+            if (b.id !== branchId) return b
+            return { ...b, draftPrompt }
+          }),
+        }
+      })
+    )
+
+    // Persist to database
+    fetch("/api/branches", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ branchId, draftPrompt }),
+    }).catch(() => {})
+  }, [activeRepo])
+
   const handleAddMessage = useCallback(async (branchId: string, message: Message): Promise<string> => {
     if (!activeRepo) return message.id
 
@@ -551,6 +577,7 @@ export default function Home() {
               onUpdateBranch={(updates) =>
                 handleUpdateBranch(activeBranch.id, updates)
               }
+              onSaveDraftForBranch={handleSaveDraftForBranch}
               onForceSave={() => {}}
               onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}
               onBranchFromCommit={(hash) => setPendingStartCommit(hash)}
