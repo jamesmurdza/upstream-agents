@@ -21,12 +21,21 @@ export const authOptions: NextAuthOptions = {
       if (session.user && token.sub) {
         session.user.id = token.sub
 
-        // Fetch GitHub access token from Account table
-        const account = await prisma.account.findFirst({
-          where: { userId: token.sub, provider: "github" },
-        })
+        // Fetch GitHub access token and login from database
+        const [account, user] = await Promise.all([
+          prisma.account.findFirst({
+            where: { userId: token.sub, provider: "github" },
+          }),
+          prisma.user.findUnique({
+            where: { id: token.sub },
+            select: { githubLogin: true },
+          }),
+        ])
         if (account?.access_token) {
           session.accessToken = account.access_token
+        }
+        if (user?.githubLogin) {
+          session.user.githubLogin = user.githubLogin
         }
       }
       return session

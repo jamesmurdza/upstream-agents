@@ -527,7 +527,7 @@ export default function Home() {
       <AddRepoModal
         open={addRepoOpen}
         onClose={() => setAddRepoOpen(false)}
-        githubUser={session?.user?.name || null}
+        githubUser={session?.user?.githubLogin || null}
         existingRepos={repos}
         onAddRepo={handleAddRepo}
         onSelectExistingRepo={handleSelectRepo}

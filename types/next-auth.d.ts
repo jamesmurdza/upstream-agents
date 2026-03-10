@@ -4,6 +4,7 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string
+      githubLogin?: string
     } & DefaultSession["user"]
     accessToken?: string
   }
