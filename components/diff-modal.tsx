@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { Settings } from "@/lib/types"
 
 // --- Diff parser types ---
 
@@ -112,12 +111,11 @@ interface DiffModalProps {
   repoName: string
   branchName: string
   baseBranch: string
-  settings: Settings
   commitHash?: string | null
   commitMessage?: string | null
 }
 
-export function DiffModal({ open, onClose, repoOwner, repoName, branchName, baseBranch, settings, commitHash, commitMessage }: DiffModalProps) {
+export function DiffModal({ open, onClose, repoOwner, repoName, branchName, baseBranch, commitHash, commitMessage }: DiffModalProps) {
   const [branches, setBranches] = useState<string[]>([])
   const [compareBranch, setCompareBranch] = useState(baseBranch)
   const [diff, setDiff] = useState("")
@@ -130,7 +128,7 @@ export function DiffModal({ open, onClose, repoOwner, repoName, branchName, base
     setBranchesLoading(true)
     try {
       const res = await fetch(
-        `/api/github/branches?token=${encodeURIComponent(settings.githubPat)}&owner=${encodeURIComponent(repoOwner)}&repo=${encodeURIComponent(repoName)}`
+        `/api/github/branches?owner=${encodeURIComponent(repoOwner)}&repo=${encodeURIComponent(repoName)}`
       )
       const data = await res.json()
       const brList = (data.branches || []).filter((b: string) => b !== branchName)
@@ -143,7 +141,7 @@ export function DiffModal({ open, onClose, repoOwner, repoName, branchName, base
     } finally {
       setBranchesLoading(false)
     }
-  }, [repoOwner, repoName, branchName, baseBranch, settings.githubPat, compareBranch])
+  }, [repoOwner, repoName, branchName, baseBranch, compareBranch])
 
   const fetchDiff = useCallback(async () => {
     if (!compareBranch) return
@@ -153,7 +151,6 @@ export function DiffModal({ open, onClose, repoOwner, repoName, branchName, base
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          githubPat: settings.githubPat,
           owner: repoOwner,
           repo: repoName,
           base: compareBranch,
@@ -167,7 +164,7 @@ export function DiffModal({ open, onClose, repoOwner, repoName, branchName, base
     } finally {
       setLoading(false)
     }
-  }, [repoOwner, repoName, branchName, compareBranch, settings.githubPat])
+  }, [repoOwner, repoName, branchName, compareBranch])
 
   const fetchCommitDiff = useCallback(async () => {
     if (!commitHash) return
@@ -177,7 +174,6 @@ export function DiffModal({ open, onClose, repoOwner, repoName, branchName, base
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          githubPat: settings.githubPat,
           owner: repoOwner,
           repo: repoName,
           commitHash,
@@ -190,7 +186,7 @@ export function DiffModal({ open, onClose, repoOwner, repoName, branchName, base
     } finally {
       setLoading(false)
     }
-  }, [repoOwner, repoName, commitHash, settings.githubPat])
+  }, [repoOwner, repoName, commitHash])
 
   useEffect(() => {
     if (open && !isCommitMode) {

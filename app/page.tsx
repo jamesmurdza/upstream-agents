@@ -1,21 +1,120 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { useStore, generateId } from "@/lib/store"
-import type { Repo, Branch, Message, Settings, ToolCall } from "@/lib/types"
+import { useSession, signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { generateId } from "@/lib/store"
+import type { Branch, Message } from "@/lib/types"
 import { RepoSidebar } from "@/components/repo-sidebar"
 import { BranchList } from "@/components/branch-list"
 import { ChatPanel, EmptyChatPanel } from "@/components/chat-panel"
 import { GitHistoryPanel } from "@/components/git-history-panel"
 import { SettingsModal } from "@/components/settings-modal"
 import { AddRepoModal } from "@/components/add-repo-modal"
+import { Loader2 } from "lucide-react"
+
+// Types for database models
+interface DbSandbox {
+  id: string
+  sandboxId: string
+  contextId: string | null
+  sessionId: string | null
+  previewUrlPattern: string | null
+  status: string
+}
+
+interface DbMessage {
+  id: string
+  role: string
+  content: string
+  toolCalls: unknown
+  timestamp: string | null
+  commitHash: string | null
+  commitMessage: string | null
+}
+
+interface DbBranch {
+  id: string
+  name: string
+  baseBranch: string | null
+  startCommit: string | null
+  status: string
+  prUrl: string | null
+  sandbox: DbSandbox | null
+  messages: DbMessage[]
+}
+
+interface DbRepo {
+  id: string
+  name: string
+  owner: string
+  avatar: string | null
+  defaultBranch: string
+  branches: DbBranch[]
+}
+
+interface Quota {
+  current: number
+  max: number
+  remaining: number
+}
+
+interface UserCredentials {
+  anthropicAuthType: string
+  hasAnthropicApiKey: boolean
+  hasAnthropicAuthToken: boolean
+}
+
+// Transform DB data to frontend format
+function transformBranch(dbBranch: DbBranch): Branch {
+  return {
+    id: dbBranch.id,
+    name: dbBranch.name,
+    baseBranch: dbBranch.baseBranch || "main",
+    startCommit: dbBranch.startCommit || undefined,
+    status: dbBranch.status as Branch["status"],
+    prUrl: dbBranch.prUrl || undefined,
+    sandboxId: dbBranch.sandbox?.sandboxId,
+    contextId: dbBranch.sandbox?.contextId || undefined,
+    sessionId: dbBranch.sandbox?.sessionId || undefined,
+    previewUrlPattern: dbBranch.sandbox?.previewUrlPattern || undefined,
+    messages: dbBranch.messages.map((m) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      toolCalls: m.toolCalls as Message["toolCalls"],
+      timestamp: m.timestamp || "",
+      commitHash: m.commitHash || undefined,
+      commitMessage: m.commitMessage || undefined,
+    })),
+  }
+}
+
+function transformRepo(dbRepo: DbRepo) {
+  return {
+    id: dbRepo.id,
+    name: dbRepo.name,
+    owner: dbRepo.owner,
+    avatar: dbRepo.avatar || "",
+    defaultBranch: dbRepo.defaultBranch,
+    branches: dbRepo.branches.map(transformBranch),
+  }
+}
 
 export default function Home() {
-  const { repos, settings, loaded, setRepos, setSettings, forceSave } = useStore()
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  const [repos, setRepos] = useState<ReturnType<typeof transformRepo>[]>([])
+  const [quota, setQuota] = useState<Quota | null>(null)
+  const [credentials, setCredentials] = useState<UserCredentials | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null)
   const activeBranchIdRef = useRef(activeBranchId)
   activeBranchIdRef.current = activeBranchId
+
   const [mobileView, setMobileView] = useState<"branches" | "chat">("branches")
   const [branchListWidth, setBranchListWidth] = useState(260)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -23,26 +122,38 @@ export default function Home() {
   const [gitHistoryOpen, setGitHistoryOpen] = useState(false)
   const [gitHistoryRefreshTrigger, setGitHistoryRefreshTrigger] = useState(0)
   const [pendingStartCommit, setPendingStartCommit] = useState<string | null>(null)
-  const [githubUser, setGithubUser] = useState<string | null>(null)
-  const [userAvatar, setUserAvatar] = useState<string | null>(null)
 
-  // Fetch GitHub user info when PAT is set
+  // Redirect to login if not authenticated
   useEffect(() => {
-    if (!settings.githubPat) {
-      setGithubUser(null)
-      setUserAvatar(null)
-      return
+    if (status === "unauthenticated") {
+      router.push("/login")
     }
-    fetch(`/api/github/user?token=${settings.githubPat}`)
+  }, [status, router])
+
+  // Fetch user data on mount
+  useEffect(() => {
+    if (status !== "authenticated") return
+
+    fetch("/api/user/me")
       .then((r) => r.json())
       .then((data) => {
-        if (data.login) {
-          setGithubUser(data.login)
-          setUserAvatar(data.avatar || null)
+        if (data.repos) {
+          const transformedRepos = data.repos.map(transformRepo)
+          setRepos(transformedRepos)
         }
+        if (data.quota) {
+          setQuota(data.quota)
+        }
+        if (data.credentials) {
+          setCredentials(data.credentials)
+        }
+        setLoaded(true)
       })
-      .catch(() => {})
-  }, [settings.githubPat])
+      .catch((err) => {
+        console.error("Failed to fetch user data:", err)
+        setLoaded(true)
+      })
+  }, [status])
 
   // Auto-select first repo on load
   useEffect(() => {
@@ -58,23 +169,18 @@ export default function Home() {
   useEffect(() => {
     const allBranches = repos.flatMap((r) => r.branches)
     const running = allBranches.filter((b) => b.status === "running").length
-    const unread = allBranches.filter((b) => b.unread).length
     const parts: string[] = []
     if (running > 0) parts.push(`${running} running`)
-    if (unread > 0) parts.push(`${unread} unread`)
-    if (running === 0 && unread === 0) parts.push("0 running")
+    if (running === 0) parts.push("0 running")
     document.title = parts.join(", ")
   }, [repos])
 
-  // Auto-open settings if not configured
+  // Auto-open settings if Anthropic credentials not configured
   useEffect(() => {
-    const hasAnthropicCredential =
-      (settings.anthropicAuthType === "claude-max" && settings.anthropicAuthToken) ||
-      settings.anthropicApiKey
-    if (loaded && !settings.daytonaApiKey && !hasAnthropicCredential) {
+    if (loaded && credentials && !credentials.hasAnthropicApiKey && !credentials.hasAnthropicAuthToken) {
       setSettingsOpen(true)
     }
-  }, [loaded, settings])
+  }, [loaded, credentials])
 
   const activeRepo = repos.find((r) => r.id === activeRepoId) ?? null
   const activeBranch = activeBranchId && activeRepo
@@ -89,26 +195,11 @@ export default function Home() {
   }
 
   function handleSelectBranch(branchId: string) {
-    // Mark as read
-    if (activeRepo) {
-      setRepos((prev) =>
-        prev.map((r) => {
-          if (r.id !== activeRepo.id) return r
-          return {
-            ...r,
-            branches: r.branches.map((b) => {
-              if (b.id !== branchId) return b
-              return { ...b, unread: false }
-            }),
-          }
-        })
-      )
-    }
     setActiveBranchId(branchId)
     setMobileView("chat")
   }
 
-  function handleAddRepo(repo: Repo) {
+  function handleAddRepo(repo: ReturnType<typeof transformRepo>) {
     setRepos((prev) => [...prev, repo])
     setActiveRepoId(repo.id)
     setActiveBranchId(null)
@@ -117,19 +208,21 @@ export default function Home() {
   function handleRemoveRepo(repoId: string) {
     const repo = repos.find((r) => r.id === repoId)
     if (!repo) return
+
     // Clean up sandboxes for all branches
     for (const branch of repo.branches) {
-      if (branch.sandboxId && settings.daytonaApiKey) {
+      if (branch.sandboxId) {
         fetch("/api/sandbox/delete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            daytonaApiKey: settings.daytonaApiKey,
-            sandboxId: branch.sandboxId,
-          }),
+          body: JSON.stringify({ sandboxId: branch.sandboxId }),
         }).catch(() => {})
       }
     }
+
+    // Delete repo from database
+    fetch(`/api/repos?id=${repoId}`, { method: "DELETE" }).catch(() => {})
+
     setRepos((prev) => prev.filter((r) => r.id !== repoId))
     if (activeRepoId === repoId) {
       const remaining = repos.filter((r) => r.id !== repoId)
@@ -148,7 +241,13 @@ export default function Home() {
     )
     setActiveBranchId(branch.id)
     setMobileView("chat")
-  }, [activeRepo, setRepos])
+
+    // Refresh quota
+    fetch("/api/user/quota")
+      .then((r) => r.json())
+      .then((q) => setQuota(q))
+      .catch(() => {})
+  }, [activeRepo])
 
   const handleUpdateBranch = useCallback((branchId: string, updates: Partial<Branch>) => {
     if (!activeRepo) return
@@ -159,50 +258,52 @@ export default function Home() {
           ...r,
           branches: r.branches.map((b) => {
             if (b.id !== branchId) return b
-            const merged = { ...b, ...updates }
-            // Mark as unread when agent finishes on a non-active branch
-            if (updates.status === "idle" && b.status === "running" && branchId !== activeBranchIdRef.current) {
-              merged.unread = true
-            }
-            return merged
+            return { ...b, ...updates }
           }),
         }
       })
     )
-  }, [activeRepo, setRepos])
+
+    // Update status in database
+    if (updates.status || updates.prUrl || updates.name) {
+      fetch("/api/branches", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branchId, ...updates }),
+      }).catch(() => {})
+    }
+  }, [activeRepo])
 
   const handleRemoveBranch = useCallback((branchId: string, deleteRemote?: boolean) => {
     if (!activeRepo) return
-    // Delete sandbox if exists
     const branch = activeRepo.branches.find((b) => b.id === branchId)
-    if (branch?.sandboxId && settings.daytonaApiKey) {
+
+    if (branch?.sandboxId) {
       fetch("/api/sandbox/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          daytonaApiKey: settings.daytonaApiKey,
-          sandboxId: branch.sandboxId,
-        }),
-      }).catch(() => {}) // Best effort cleanup
+        body: JSON.stringify({ sandboxId: branch.sandboxId }),
+      }).catch(() => {})
 
-      // Delete remote branch on GitHub if requested
-      if (deleteRemote && branch && settings.githubPat) {
+      if (deleteRemote && branch) {
         fetch("/api/sandbox/git", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            daytonaApiKey: settings.daytonaApiKey,
             sandboxId: branch.sandboxId,
             repoPath: `/home/daytona/${activeRepo.name}`,
             action: "delete-remote-branch",
             currentBranch: branch.name,
-            githubPat: settings.githubPat,
             repoOwner: activeRepo.owner,
             repoApiName: activeRepo.name,
           }),
-        }).catch(() => {}) // Best effort cleanup
+        }).catch(() => {})
       }
     }
+
+    // Delete from database
+    fetch(`/api/branches?id=${branchId}`, { method: "DELETE" }).catch(() => {})
+
     setRepos((prev) =>
       prev.map((r) => {
         if (r.id !== activeRepo.id) return r
@@ -212,11 +313,18 @@ export default function Home() {
         }
       })
     )
+
     if (activeBranchId === branchId) {
       const remaining = activeRepo.branches.filter((b) => b.id !== branchId)
       setActiveBranchId(remaining[0]?.id ?? null)
     }
-  }, [activeRepo, activeBranchId, settings.daytonaApiKey, settings.githubPat, setRepos])
+
+    // Refresh quota
+    fetch("/api/user/quota")
+      .then((r) => r.json())
+      .then((q) => setQuota(q))
+      .catch(() => {})
+  }, [activeRepo, activeBranchId])
 
   const handleAddMessage = useCallback((branchId: string, message: Message) => {
     if (!activeRepo) return
@@ -230,18 +338,33 @@ export default function Home() {
             return {
               ...b,
               messages: [...b.messages, message],
-              lastActivity: "now",
-              lastActivityTs: Date.now(),
-              unread: branchId !== activeBranchIdRef.current ? true : b.unread,
             }
           }),
         }
       })
     )
-  }, [activeRepo, setRepos])
+
+    // Save message to database
+    fetch("/api/branches/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        branchId,
+        role: message.role,
+        content: message.content,
+        toolCalls: message.toolCalls,
+        timestamp: message.timestamp,
+        commitHash: message.commitHash,
+        commitMessage: message.commitMessage,
+      }),
+    }).catch(() => {})
+  }, [activeRepo])
 
   const handleUpdateLastMessage = useCallback((branchId: string, updates: Partial<Message>) => {
     if (!activeRepo) return
+
+    let lastMessageId: string | null = null
+
     setRepos((prev) =>
       prev.map((r) => {
         if (r.id !== activeRepo.id) return r
@@ -250,9 +373,9 @@ export default function Home() {
           branches: r.branches.map((b) => {
             if (b.id !== branchId) return b
             const msgs = [...b.messages]
-            // Find last non-commit-pill message
             for (let i = msgs.length - 1; i >= 0; i--) {
               if (!msgs[i].commitHash) {
+                lastMessageId = msgs[i].id
                 msgs[i] = { ...msgs[i], ...updates }
                 break
               }
@@ -262,12 +385,47 @@ export default function Home() {
         }
       })
     )
-  }, [activeRepo, setRepos])
 
-  if (!loaded) {
+    // Update message in database
+    if (lastMessageId) {
+      fetch("/api/branches/messages", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageId: lastMessageId,
+          content: updates.content,
+          toolCalls: updates.toolCalls,
+        }),
+      }).catch(() => {})
+    }
+  }, [activeRepo])
+
+  const handleCredentialsUpdate = useCallback(() => {
+    // Refresh credentials state
+    fetch("/api/user/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.credentials) {
+          setCredentials(data.credentials)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Loading state
+  if (status === "loading" || !loaded) {
     return (
       <main className="flex h-dvh items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </main>
+    )
+  }
+
+  // Not authenticated - will redirect
+  if (status === "unauthenticated") {
+    return (
+      <main className="flex h-dvh items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground">Redirecting to login...</div>
       </main>
     )
   }
@@ -278,7 +436,7 @@ export default function Home() {
         <RepoSidebar
           repos={repos}
           activeRepoId={activeRepoId}
-          userAvatar={userAvatar}
+          userAvatar={session?.user?.image || null}
           onSelectRepo={handleSelectRepo}
           onRemoveRepo={handleRemoveRepo}
           onReorderRepos={(from, to) => {
@@ -291,6 +449,8 @@ export default function Home() {
           }}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenAddRepo={() => setAddRepoOpen(true)}
+          onSignOut={() => signOut({ callbackUrl: "/login" })}
+          quota={quota}
         />
 
         <div className="hidden sm:flex">
@@ -302,11 +462,11 @@ export default function Home() {
               onAddBranch={handleAddBranch}
               onRemoveBranch={handleRemoveBranch}
               onUpdateBranch={handleUpdateBranch}
-              settings={settings}
               width={branchListWidth}
               onWidthChange={setBranchListWidth}
               pendingStartCommit={pendingStartCommit}
               onClearPendingCommit={() => setPendingStartCommit(null)}
+              quota={quota}
             />
           ) : (
             <div
@@ -325,7 +485,6 @@ export default function Home() {
               repoFullName={`${activeRepo.owner}/${activeRepo.name}`}
               repoName={activeRepo.name}
               repoOwner={activeRepo.owner}
-              settings={settings}
               gitHistoryOpen={gitHistoryOpen}
               onToggleGitHistory={() => setGitHistoryOpen((v) => !v)}
               onAddMessage={(msg) => handleAddMessage(activeBranch.id, msg)}
@@ -335,7 +494,7 @@ export default function Home() {
               onUpdateBranch={(updates) =>
                 handleUpdateBranch(activeBranch.id, updates)
               }
-              onForceSave={forceSave}
+              onForceSave={() => {}}
               onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}
               onBranchFromCommit={(hash) => setPendingStartCommit(hash)}
             />
@@ -343,13 +502,11 @@ export default function Home() {
             <EmptyChatPanel hasRepos={repos.length > 0} />
           )}
 
-          {/* Git history panel */}
           {gitHistoryOpen && activeBranch?.sandboxId && activeRepo && (
             <GitHistoryPanel
               sandboxId={activeBranch.sandboxId}
               repoName={activeRepo.name}
               baseBranch={activeBranch.baseBranch}
-              settings={settings}
               onClose={() => setGitHistoryOpen(false)}
               refreshTrigger={gitHistoryRefreshTrigger}
               onScrollToCommit={(shortHash) => {
@@ -364,15 +521,13 @@ export default function Home() {
       <SettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        settings={settings}
-        onSave={setSettings}
-        repos={repos}
+        credentials={credentials}
+        onCredentialsUpdate={handleCredentialsUpdate}
       />
       <AddRepoModal
         open={addRepoOpen}
         onClose={() => setAddRepoOpen(false)}
-        settings={settings}
-        githubUser={githubUser}
+        githubUser={session?.user?.name || null}
         existingRepos={repos}
         onAddRepo={handleAddRepo}
         onSelectExistingRepo={handleSelectRepo}

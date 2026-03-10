@@ -20,16 +20,17 @@ export interface Message {
 export interface Branch {
   id: string
   name: string
-  agent: Agent
+  agent?: Agent
   messages: Message[]
   status: "idle" | "running" | "creating" | "error" | "stopped"
-  lastActivity: string
+  lastActivity?: string
   lastActivityTs?: number
   unread?: boolean
   sandboxId?: string
   contextId?: string
   sessionId?: string
   baseBranch: string
+  startCommit?: string
   prUrl?: string
   previewUrlPattern?: string
   draftPrompt?: string

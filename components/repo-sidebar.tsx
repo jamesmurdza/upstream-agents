@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import type { Repo } from "@/lib/types"
-import { Plus, X } from "lucide-react"
+import { Plus, X, LogOut } from "lucide-react"
 import { useState, useRef } from "react"
 import {
   Tooltip,
@@ -18,7 +18,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 
-interface RepoSidebarProps {
+interface Quota {
+  current: number
+  max: number
+  remaining: number
+}
+
+export interface RepoSidebarProps {
   repos: Repo[]
   activeRepoId: string | null
   userAvatar?: string | null
@@ -27,6 +33,8 @@ interface RepoSidebarProps {
   onReorderRepos: (fromIndex: number, toIndex: number) => void
   onOpenSettings: () => void
   onOpenAddRepo: () => void
+  onSignOut?: () => void
+  quota?: Quota | null
 }
 
 export function RepoSidebar({
@@ -38,6 +46,8 @@ export function RepoSidebar({
   onReorderRepos,
   onOpenSettings,
   onOpenAddRepo,
+  onSignOut,
+  quota,
 }: RepoSidebarProps) {
   const [removeModalRepo, setRemoveModalRepo] = useState<Repo | null>(null)
   const dragIndexRef = useRef<number | null>(null)
@@ -155,6 +165,18 @@ export function RepoSidebar({
         </Tooltip>
 
         <div className="mt-auto flex flex-col items-center gap-2">
+          {quota && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex flex-col items-center text-[10px] text-muted-foreground">
+                  <span className="font-mono">{quota.current}/{quota.max}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {quota.current} of {quota.max} sandboxes active
+              </TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -165,13 +187,26 @@ export function RepoSidebar({
                   <img src={userAvatar} alt="Settings" className="h-full w-full rounded-lg object-cover" />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center rounded-lg bg-primary text-primary-foreground font-mono text-sm font-bold">
-                    Ah
+                    ?
                   </span>
                 )}
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">Settings</TooltipContent>
           </Tooltip>
+          {onSignOut && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onSignOut}
+                  className="flex cursor-pointer h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Sign out</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </aside>
 

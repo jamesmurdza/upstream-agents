@@ -1,11 +1,33 @@
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 import { ensureSandboxStarted } from "@/lib/sandbox-resume"
 
 export async function POST(req: Request) {
-  const body = await req.json()
-  const { daytonaApiKey, sandboxId } = body
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
-  if (!daytonaApiKey || !sandboxId) {
-    return Response.json({ error: "Missing required fields" }, { status: 400 })
+  const body = await req.json()
+  const { sandboxId } = body
+
+  if (!sandboxId) {
+    return Response.json({ error: "Missing sandbox ID" }, { status: 400 })
+  }
+
+  // Verify ownership
+  const sandboxRecord = await prisma.sandbox.findUnique({
+    where: { sandboxId },
+  })
+
+  if (!sandboxRecord || sandboxRecord.userId !== session.user.id) {
+    return Response.json({ error: "Sandbox not found" }, { status: 404 })
+  }
+
+  const daytonaApiKey = process.env.DAYTONA_API_KEY
+  if (!daytonaApiKey) {
+    return Response.json({ error: "Server configuration error" }, { status: 500 })
   }
 
   try {

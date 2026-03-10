@@ -4,7 +4,7 @@ import { Github, X, Loader2, Search, Lock, GitFork, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useState, useEffect, useCallback } from "react"
 import { cn } from "@/lib/utils"
-import type { Repo, Settings } from "@/lib/types"
+import type { Repo } from "@/lib/types"
 import { generateId } from "@/lib/store"
 
 interface GitHubRepo {
@@ -20,14 +20,13 @@ interface GitHubRepo {
 interface AddRepoModalProps {
   open: boolean
   onClose: () => void
-  settings: Settings
   githubUser: string | null
   existingRepos: Repo[]
   onAddRepo: (repo: Repo) => void
   onSelectExistingRepo: (repoId: string) => void
 }
 
-export function AddRepoModal({ open, onClose, settings, githubUser, existingRepos, onAddRepo, onSelectExistingRepo }: AddRepoModalProps) {
+export function AddRepoModal({ open, onClose, githubUser, existingRepos, onAddRepo, onSelectExistingRepo }: AddRepoModalProps) {
   const [mode, setMode] = useState<"select" | "url" | "create">("select")
   const [url, setUrl] = useState("")
   const [search, setSearch] = useState("")
@@ -42,9 +41,9 @@ export function AddRepoModal({ open, onClose, settings, githubUser, existingRepo
 
   // Fetch user repos when modal opens in select mode
   useEffect(() => {
-    if (open && settings.githubPat && mode === "select") {
+    if (open && mode === "select") {
       setLoadingRepos(true)
-      fetch(`/api/github/repos?token=${settings.githubPat}`)
+      fetch("/api/github/repos")
         .then((r) => r.json())
         .then((data) => {
           if (data.repos) setUserRepos(data.repos)
@@ -52,7 +51,7 @@ export function AddRepoModal({ open, onClose, settings, githubUser, existingRepo
         .catch(() => {})
         .finally(() => setLoadingRepos(false))
     }
-  }, [open, settings.githubPat, mode])
+  }, [open, mode])
 
   // Reset state when modal closes
   useEffect(() => {
@@ -112,7 +111,6 @@ export function AddRepoModal({ open, onClose, settings, githubUser, existingRepo
 
     try {
       const params = new URLSearchParams({ owner: parsed.owner, name: parsed.name })
-      if (settings.githubPat) params.set("token", settings.githubPat)
 
       const res = await fetch(`/api/github/repo?${params}`)
       const data = await res.json()
@@ -147,7 +145,6 @@ export function AddRepoModal({ open, onClose, settings, githubUser, existingRepo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token: settings.githubPat,
           owner: forkPrompt.owner,
           name: forkPrompt.name,
         }),
@@ -185,7 +182,6 @@ export function AddRepoModal({ open, onClose, settings, githubUser, existingRepo
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          token: settings.githubPat,
           name,
           description: newRepoDescription.trim() || undefined,
           isPrivate: newRepoPrivate,
@@ -315,10 +311,6 @@ export function AddRepoModal({ open, onClose, settings, githubUser, existingRepo
               {loadingRepos ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : !settings.githubPat ? (
-                <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-                  Configure your GitHub PAT in Settings to browse repos
                 </div>
               ) : filteredRepos.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-muted-foreground">

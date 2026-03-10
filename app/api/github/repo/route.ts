@@ -1,8 +1,21 @@
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+
 export async function GET(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { userId: session.user.id, provider: "github" },
+  })
+  const token = account?.access_token
+
   const url = new URL(req.url)
   const owner = url.searchParams.get("owner")
   const name = url.searchParams.get("name")
-  const token = url.searchParams.get("token")
 
   if (!owner || !name) {
     return Response.json({ error: "Missing owner or name" }, { status: 400 })

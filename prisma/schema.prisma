@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// NextAuth required tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  githubId      String?   @unique
+  githubLogin   String?
+
+  accounts    Account[]
+  sessions    Session[]
+  credentials UserCredentials?
+  repos       Repo[]
+  sandboxes   Sandbox[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Application-specific tables
+model UserCredentials {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Encrypted Anthropic credentials
+  anthropicApiKey    String? @db.Text
+  anthropicAuthType  String  @default("api-key") // "api-key" | "claude-max"
+  anthropicAuthToken String? @db.Text
+
+  updatedAt DateTime @updatedAt
+}
+
+model Repo {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name          String
+  owner         String
+  avatar        String?
+  defaultBranch String
+
+  branches Branch[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, owner, name])
+}
+
+model Branch {
+  id     String @id @default(cuid())
+  repoId String
+  repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  name        String
+  baseBranch  String?
+  startCommit String?
+  status      String  @default("idle") // "idle" | "running" | "creating" | "stopped" | "error"
+  prUrl       String?
+
+  sandbox  Sandbox?
+  messages Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([repoId, name])
+}
+
+model Sandbox {
+  id String @id @default(cuid())
+
+  // Daytona sandbox info
+  sandboxId   String @unique // Format: agenthub-{userId}-{uuid}
+  sandboxName String
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  branchId String @unique
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  contextId         String?
+  sessionId         String?
+  previewUrlPattern String?
+  status            String  @default("creating") // "creating" | "running" | "stopped" | "error"
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastActiveAt DateTime @default(now())
+}
+
+model Message {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  role          String // "user" | "assistant"
+  content       String  @db.Text
+  toolCalls     Json?
+  timestamp     String?
+  commitHash    String?
+  commitMessage String?
+
+  createdAt DateTime @default(now())
+
+  @@index([branchId, createdAt])
+}

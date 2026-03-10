@@ -1,129 +1,90 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { X, Key, Github, Terminal, Copy, Check, Loader2 } from "lucide-react"
+import { X, Terminal, Copy, Check, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
-import type { Settings, AnthropicAuthType, Repo } from "@/lib/types"
+import type { AnthropicAuthType } from "@/lib/types"
 
 interface SettingsModalProps {
   open: boolean
   onClose: () => void
-  settings: Settings
-  onSave: (settings: Settings) => void
-  repos?: Repo[]
+  credentials?: { anthropicAuthType: string; hasAnthropicApiKey: boolean; hasAnthropicAuthToken: boolean } | null
+  onCredentialsUpdate: () => void
 }
 
-export function SettingsModal({ open, onClose, settings, onSave, repos }: SettingsModalProps) {
-  const [githubPat, setGithubPat] = useState("")
+export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate }: SettingsModalProps) {
   const [anthropicApiKey, setAnthropicApiKey] = useState("")
   const [anthropicAuthType, setAnthropicAuthType] = useState<AnthropicAuthType>("api-key")
   const [anthropicAuthToken, setAnthropicAuthToken] = useState("")
-  const [daytonaApiKey, setDaytonaApiKey] = useState("")
   const [copied, setCopied] = useState(false)
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [syncStatus, setSyncStatus] = useState<{ message: string; isError: boolean } | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<{ message: string; isError: boolean } | null>(null)
 
   // Sync form state when modal opens
   useEffect(() => {
     if (open) {
-      setGithubPat(settings.githubPat)
-      setAnthropicApiKey(settings.anthropicApiKey)
-      setAnthropicAuthType(settings.anthropicAuthType ?? "api-key")
-      setAnthropicAuthToken(settings.anthropicAuthToken ?? "")
-      setDaytonaApiKey(settings.daytonaApiKey)
-      setSyncStatus(null)
+      // Set auth type from credentials but clear input fields
+      setAnthropicAuthType((credentials?.anthropicAuthType as AnthropicAuthType) ?? "api-key")
+      setAnthropicApiKey("")
+      setAnthropicAuthToken("")
+      setSaveStatus(null)
     }
-  }, [open, settings])
+  }, [open, credentials])
 
   if (!open) return null
 
-  // Check if Anthropic auth has changed
-  function hasAnthropicAuthChanged(): boolean {
-    const newAuthType = anthropicAuthType
+  async function handleSave() {
     const newApiKey = anthropicApiKey.trim()
     const newAuthToken = anthropicAuthToken.trim()
 
-    if (newAuthType !== settings.anthropicAuthType) return true
-    if (newAuthType === "api-key" && newApiKey !== settings.anthropicApiKey) return true
-    if (newAuthType === "claude-max" && newAuthToken !== settings.anthropicAuthToken) return true
-    return false
-  }
+    // Check if there's anything to save
+    if (anthropicAuthType === "api-key" && !newApiKey) {
+      onClose()
+      return
+    }
+    if (anthropicAuthType === "claude-max" && !newAuthToken) {
+      onClose()
+      return
+    }
 
-  // Sync auth to all sandboxes
-  async function syncAuthToSandboxes(newSettings: Settings): Promise<void> {
-    if (!repos) return
-
-    // Collect all sandbox IDs from all repos
-    const sandboxIds = repos
-      .flatMap((repo) => repo.branches)
-      .filter((branch) => branch.sandboxId)
-      .map((branch) => branch.sandboxId as string)
-
-    if (sandboxIds.length === 0) return
-
-    setIsSyncing(true)
-    setSyncStatus(null)
+    setIsSaving(true)
+    setSaveStatus(null)
 
     try {
-      const response = await fetch("/api/sandbox/update-auth", {
+      const response = await fetch("/api/user/credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          daytonaApiKey: newSettings.daytonaApiKey,
-          anthropicApiKey: newSettings.anthropicApiKey,
-          anthropicAuthType: newSettings.anthropicAuthType,
-          anthropicAuthToken: newSettings.anthropicAuthToken,
-          sandboxIds,
+          anthropicAuthType,
+          anthropicApiKey: anthropicAuthType === "api-key" ? newApiKey : undefined,
+          anthropicAuthToken: anthropicAuthType === "claude-max" ? newAuthToken : undefined,
         }),
       })
 
       const data = await response.json()
-      if (!response.ok || !data.success) {
-        setSyncStatus({
-          message: `Updated ${data.updated || 0} sandbox(es), ${data.failed || 0} failed`,
-          isError: data.failed > 0,
+      if (!response.ok) {
+        setSaveStatus({
+          message: data.error || "Failed to save credentials",
+          isError: true,
         })
       } else {
-        setSyncStatus({
-          message: `Updated auth in ${data.updated} sandbox(es)`,
+        setSaveStatus({
+          message: "Credentials saved",
           isError: false,
         })
+        onCredentialsUpdate()
+        setTimeout(() => {
+          onClose()
+        }, 1000)
       }
-    } catch (error) {
-      setSyncStatus({
-        message: "Failed to sync auth to sandboxes",
+    } catch {
+      setSaveStatus({
+        message: "Failed to save credentials",
         isError: true,
       })
     } finally {
-      setIsSyncing(false)
-    }
-  }
-
-  async function handleSave() {
-    const newSettings: Settings = {
-      githubPat: githubPat.trim(),
-      anthropicApiKey: anthropicApiKey.trim(),
-      anthropicAuthType,
-      anthropicAuthToken: anthropicAuthToken.trim(),
-      daytonaApiKey: daytonaApiKey.trim(),
-    }
-
-    // Check if we need to sync auth to sandboxes
-    const authChanged = hasAnthropicAuthChanged()
-
-    // Save settings first
-    onSave(newSettings)
-
-    // If auth changed and we have repos with sandboxes, sync them
-    if (authChanged && newSettings.daytonaApiKey) {
-      await syncAuthToSandboxes(newSettings)
-      // Wait a moment to show the status before closing
-      setTimeout(() => {
-        onClose()
-      }, 1500)
-    } else {
-      onClose()
+      setIsSaving(false)
     }
   }
 
@@ -142,26 +103,7 @@ export function SettingsModal({ open, onClose, settings, onSave, repos }: Settin
           </button>
         </div>
 
-        {/* GitHub PAT */}
-        <div className="border-b border-border px-5 py-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Github className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-medium text-foreground">GitHub Personal Access Token</span>
-          </div>
-          <Input
-            type="password"
-            placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            value={githubPat}
-            onChange={(e) => setGithubPat(e.target.value)}
-            className="h-9 bg-secondary border-border text-xs font-mono placeholder:text-muted-foreground/40"
-          />
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Required for cloning repos, creating branches, and pushing code.
-            Needs <code className="text-[10px]">repo</code> scope.
-          </p>
-        </div>
-
-        {/* API Keys */}
+        {/* Anthropic Credentials */}
         <div className="flex flex-col gap-4 px-5 py-4">
           {/* Anthropic Auth */}
           <div className="flex flex-col gap-1.5">
@@ -236,64 +178,38 @@ export function SettingsModal({ open, onClose, settings, onSave, repos }: Settin
               </>
             )}
           </div>
-
-          {/* Daytona API Key */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <Key className="h-3.5 w-3.5 text-muted-foreground" />
-              <label className="text-xs font-medium text-foreground">Daytona API Key</label>
-            </div>
-            <Input
-              type="password"
-              placeholder="dtn_..."
-              value={daytonaApiKey}
-              onChange={(e) => setDaytonaApiKey(e.target.value)}
-              className="h-9 bg-secondary border-border text-xs font-mono placeholder:text-muted-foreground/40"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Used for creating cloud sandboxes.{" "}
-              <a
-                href="https://app.daytona.io/dashboard/keys"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-foreground"
-              >
-                Get a key
-              </a>
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-border px-5 py-3">
-          {/* Sync status */}
+          {/* Save status */}
           <div className="flex items-center gap-2 text-xs">
-            {isSyncing && (
+            {isSaving && (
               <>
                 <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                <span className="text-muted-foreground">Syncing auth to sandboxes...</span>
+                <span className="text-muted-foreground">Saving credentials...</span>
               </>
             )}
-            {syncStatus && !isSyncing && (
-              <span className={syncStatus.isError ? "text-destructive" : "text-green-500"}>
-                {syncStatus.message}
+            {saveStatus && !isSaving && (
+              <span className={saveStatus.isError ? "text-destructive" : "text-green-500"}>
+                {saveStatus.message}
               </span>
             )}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              disabled={isSyncing}
+              disabled={isSaving}
               className="cursor-pointer rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              disabled={isSyncing}
+              disabled={isSaving}
               className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSyncing ? "Saving..." : "Save"}
+              {isSaving ? "Saving..." : "Save"}
             </button>
           </div>
         </div>

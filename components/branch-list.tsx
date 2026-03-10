@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import type { Repo, Branch, Settings } from "@/lib/types"
+import type { Repo, Branch } from "@/lib/types"
 import { agentLabels } from "@/lib/types"
 import { generateId } from "@/lib/store"
 import { GitBranch, Plus, Search, ChevronDown, Loader2, X } from "lucide-react"
@@ -33,7 +33,7 @@ interface BranchListProps {
   onAddBranch: (branch: Branch) => void
   onRemoveBranch: (branchId: string, deleteRemote?: boolean) => void
   onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
-  settings: Settings
+  quota?: { current: number; max: number; remaining: number } | null
   width: number
   onWidthChange: (w: number) => void
   pendingStartCommit?: string | null
@@ -83,7 +83,7 @@ export function BranchList({
   onAddBranch,
   onRemoveBranch,
   onUpdateBranch,
-  settings,
+  quota,
   width,
   onWidthChange,
   pendingStartCommit,
@@ -148,11 +148,10 @@ export function BranchList({
   }, [newBranchOpen])
 
   const fetchGithubBranches = useCallback(async () => {
-    if (!settings.githubPat) return
     setGithubBranchesLoading(true)
     try {
       const res = await fetch(
-        `/api/github/branches?token=${encodeURIComponent(settings.githubPat)}&owner=${encodeURIComponent(repo.owner)}&repo=${encodeURIComponent(repo.name)}`
+        `/api/github/branches?owner=${encodeURIComponent(repo.owner)}&repo=${encodeURIComponent(repo.name)}`
       )
       const data = await res.json()
       setGithubBranches(data.branches || [])
@@ -161,7 +160,7 @@ export function BranchList({
     } finally {
       setGithubBranchesLoading(false)
     }
-  }, [settings.githubPat, repo.owner, repo.name])
+  }, [repo.owner, repo.name])
 
   // Open new branch dialog when a commit is selected from git history
   useEffect(() => {
@@ -187,17 +186,11 @@ export function BranchList({
     setDeleteModalMergeStatus("loading")
     setDeleteRemoteChecked(false)
 
-    // Need GitHub PAT to check merge status via GitHub API
-    if (!settings.githubPat) {
-      setDeleteModalMergeStatus("error")
-      return
-    }
-
     const checkMerged = async () => {
       try {
         const baseBranch = deleteModalBranch.baseBranch || repo.defaultBranch || "main"
         const res = await fetch(
-          `/api/github/check-merged?token=${encodeURIComponent(settings.githubPat!)}&owner=${encodeURIComponent(repo.owner)}&repo=${encodeURIComponent(repo.name)}&branch=${encodeURIComponent(deleteModalBranch.name)}&baseBranch=${encodeURIComponent(baseBranch)}`
+          `/api/github/check-merged?owner=${encodeURIComponent(repo.owner)}&repo=${encodeURIComponent(repo.name)}&branch=${encodeURIComponent(deleteModalBranch.name)}&baseBranch=${encodeURIComponent(baseBranch)}`
         )
         const data = await res.json()
         if (res.ok) {
@@ -220,7 +213,7 @@ export function BranchList({
       }
     }
     checkMerged()
-  }, [deleteModalBranchId, deleteModalBranch, settings.githubPat, repo.owner, repo.name, repo.defaultBranch])
+  }, [deleteModalBranchId, deleteModalBranch, repo.owner, repo.name, repo.defaultBranch])
 
   function startResize() {
     isResizing.current = true
@@ -255,14 +248,6 @@ export function BranchList({
       return
     }
 
-    const hasAnthropicCredential =
-      (settings.anthropicAuthType === "claude-max" && settings.anthropicAuthToken) ||
-      (settings.anthropicAuthType !== "claude-max" && settings.anthropicApiKey)
-    if (!settings.daytonaApiKey || !hasAnthropicCredential || !settings.githubPat) {
-      setCreateError("Please configure API keys in Settings first")
-      return
-    }
-
     setCreating(true)
     setCreateError(null)
 
@@ -288,11 +273,6 @@ export function BranchList({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          daytonaApiKey: settings.daytonaApiKey,
-          anthropicApiKey: settings.anthropicApiKey,
-          anthropicAuthType: settings.anthropicAuthType,
-          anthropicAuthToken: settings.anthropicAuthToken,
-          githubPat: settings.githubPat,
           repoOwner: repo.owner,
           repoName: repo.name,
           baseBranch: newBranchBase,
@@ -342,7 +322,7 @@ export function BranchList({
     } finally {
       setCreating(false)
     }
-  }, [newBranchName, newBranchBase, creating, settings, repo, onAddBranch, onUpdateBranch])
+  }, [newBranchName, newBranchBase, creating, repo, onAddBranch, onUpdateBranch, branchPlaceholder, startCommit])
 
   return (
     <div className="relative flex h-full shrink-0 flex-col border-r border-border bg-card" style={{ width }}>
@@ -406,7 +386,7 @@ export function BranchList({
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] text-muted-foreground">
-                          {branch.status === "creating" ? "Setting up..." : agentLabels[branch.agent]}
+                          {branch.status === "creating" ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
                         </span>
                       </div>
                     </div>

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { X, RefreshCw, Loader2, GitCommitHorizontal, GitBranch } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Settings } from "@/lib/types"
 
 interface GitCommit {
   hash: string
@@ -18,14 +17,13 @@ interface GitHistoryPanelProps {
   sandboxId: string
   repoName: string
   baseBranch: string
-  settings: Settings
   onClose: () => void
   onScrollToCommit?: (shortHash: string) => void
   onBranchFromCommit?: (commitHash: string) => void
   refreshTrigger?: number
 }
 
-export function GitHistoryPanel({ sandboxId, repoName, baseBranch, settings, onClose, onScrollToCommit, onBranchFromCommit, refreshTrigger }: GitHistoryPanelProps) {
+export function GitHistoryPanel({ sandboxId, repoName, baseBranch, onClose, onScrollToCommit, onBranchFromCommit, refreshTrigger }: GitHistoryPanelProps) {
   const [commits, setCommits] = useState<GitCommit[]>([])
   const [mergeBase, setMergeBase] = useState("")
   const [loading, setLoading] = useState(true)
@@ -39,7 +37,6 @@ export function GitHistoryPanel({ sandboxId, repoName, baseBranch, settings, onC
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          daytonaApiKey: settings.daytonaApiKey,
           sandboxId,
           repoPath: `/home/daytona/${repoName}`,
           action: "log",
@@ -55,7 +52,7 @@ export function GitHistoryPanel({ sandboxId, repoName, baseBranch, settings, onC
     } finally {
       setLoading(false)
     }
-  }, [sandboxId, repoName, baseBranch, settings.daytonaApiKey])
+  }, [sandboxId, repoName, baseBranch])
 
   useEffect(() => {
     fetchLog()

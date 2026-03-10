@@ -1,12 +1,29 @@
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+
 export async function GET(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { userId: session.user.id, provider: "github" },
+  })
+  const token = account?.access_token
+
+  if (!token) {
+    return Response.json({ error: "GitHub account not linked" }, { status: 401 })
+  }
+
   const { searchParams } = new URL(req.url)
-  const token = searchParams.get("token")
   const owner = searchParams.get("owner")
   const repo = searchParams.get("repo")
   const branch = searchParams.get("branch")
   const baseBranch = searchParams.get("baseBranch")
 
-  if (!token || !owner || !repo || !branch || !baseBranch) {
+  if (!owner || !repo || !branch || !baseBranch) {
     return Response.json({ error: "Missing required parameters" }, { status: 400 })
   }
 

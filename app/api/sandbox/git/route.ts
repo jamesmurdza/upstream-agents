@@ -1,3 +1,6 @@
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 import { ensureSandboxStarted } from "@/lib/sandbox-resume"
 import type { Sandbox } from "@daytonaio/sdk"
 
@@ -21,12 +24,37 @@ async function ensureCorrectBranch(
 }
 
 export async function POST(req: Request) {
-  const body = await req.json()
-  const { daytonaApiKey, sandboxId, repoPath, action, githubPat, targetBranch, currentBranch, repoOwner, repoApiName, tagName, branchName } = body
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
-  if (!daytonaApiKey || !sandboxId || !repoPath || !action) {
+  const body = await req.json()
+  const { sandboxId, repoPath, action, targetBranch, currentBranch, repoOwner, repoApiName, tagName, branchName } = body
+
+  if (!sandboxId || !repoPath || !action) {
     return Response.json({ error: "Missing required fields" }, { status: 400 })
   }
+
+  // Verify ownership
+  const sandboxRecord = await prisma.sandbox.findUnique({
+    where: { sandboxId },
+  })
+
+  if (!sandboxRecord || sandboxRecord.userId !== session.user.id) {
+    return Response.json({ error: "Sandbox not found" }, { status: 404 })
+  }
+
+  const daytonaApiKey = process.env.DAYTONA_API_KEY
+  if (!daytonaApiKey) {
+    return Response.json({ error: "Server configuration error" }, { status: 500 })
+  }
+
+  // Get GitHub token from NextAuth
+  const account = await prisma.account.findFirst({
+    where: { userId: session.user.id, provider: "github" },
+  })
+  const githubToken = account?.access_token
 
   try {
     const sandbox = await ensureSandboxStarted(daytonaApiKey, sandboxId)
@@ -66,8 +94,8 @@ export async function POST(req: Request) {
       }
 
       case "auto-commit-push": {
-        if (!githubPat) {
-          return Response.json({ error: "GitHub PAT required for push" }, { status: 400 })
+        if (!githubToken) {
+          return Response.json({ error: "GitHub token not found" }, { status: 400 })
         }
         if (!branchName) {
           return Response.json({ error: "Branch name required for push" }, { status: 400 })
@@ -97,14 +125,13 @@ export async function POST(req: Request) {
           return Response.json({ error: `Branch changed during operation: expected ${branchName} but on ${verifyStatus.currentBranch}` }, { status: 400 })
         }
         // Always push — covers agent-made commits AND new branches with no upstream.
-        // Daytona SDK push is safe to call even if there's nothing new to push.
-        await sandbox.git.push(repoPath, "x-access-token", githubPat)
+        await sandbox.git.push(repoPath, "x-access-token", githubToken)
         return Response.json({ committed, pushed: true })
       }
 
       case "push": {
-        if (!githubPat) {
-          return Response.json({ error: "GitHub PAT required for push" }, { status: 400 })
+        if (!githubToken) {
+          return Response.json({ error: "GitHub token not found" }, { status: 400 })
         }
         if (!branchName) {
           return Response.json({ error: "Branch name required for push" }, { status: 400 })
@@ -119,21 +146,21 @@ export async function POST(req: Request) {
         if (pushVerifyStatus.currentBranch !== branchName) {
           return Response.json({ error: `Branch mismatch: expected ${branchName} but on ${pushVerifyStatus.currentBranch}` }, { status: 400 })
         }
-        await sandbox.git.push(repoPath, "x-access-token", githubPat)
+        await sandbox.git.push(repoPath, "x-access-token", githubToken)
         return Response.json({ success: true })
       }
 
       case "pull": {
-        if (!githubPat) {
-          return Response.json({ error: "GitHub PAT required for pull" }, { status: 400 })
+        if (!githubToken) {
+          return Response.json({ error: "GitHub token not found" }, { status: 400 })
         }
-        await sandbox.git.pull(repoPath, "x-access-token", githubPat)
+        await sandbox.git.pull(repoPath, "x-access-token", githubToken)
         return Response.json({ success: true })
       }
 
       case "list-branches": {
         // Fetch all remote branches first (single-branch clones only see origin/main)
-        if (githubPat) {
+        if (githubToken) {
           const origUrlResult = await sandbox.process.executeCommand(
             `cd ${repoPath} && git remote get-url origin 2>&1`
           )
@@ -141,7 +168,7 @@ export async function POST(req: Request) {
           // Temporarily set authed URL for private repos
           const authedUrl = origUrl.replace(
             /^https:\/\//,
-            `https://x-access-token:${githubPat}@`
+            `https://x-access-token:${githubToken}@`
           )
           await sandbox.process.executeCommand(
             `cd ${repoPath} && git remote set-url origin '${authedUrl}' 2>&1`
@@ -175,7 +202,7 @@ export async function POST(req: Request) {
       }
 
       case "merge": {
-        if (!githubPat || !targetBranch || !currentBranch) {
+        if (!githubToken || !targetBranch || !currentBranch) {
           return Response.json({ error: "Missing required fields for merge" }, { status: 400 })
         }
         // Use SDK to checkout target branch (safer than git command)
@@ -191,7 +218,7 @@ export async function POST(req: Request) {
         }
         // Pull latest on target via Daytona SDK
         try {
-          await sandbox.git.pull(repoPath, "x-access-token", githubPat)
+          await sandbox.git.pull(repoPath, "x-access-token", githubToken)
         } catch {
           // May fail if target is already up to date or doesn't have upstream
         }
@@ -211,14 +238,14 @@ export async function POST(req: Request) {
           return Response.json({ error: `Branch changed during merge: expected ${targetBranch} but on ${mergeVerifyStatus.currentBranch}` }, { status: 400 })
         }
         // Push the merged target
-        await sandbox.git.push(repoPath, "x-access-token", githubPat)
+        await sandbox.git.push(repoPath, "x-access-token", githubToken)
         // Switch back to current branch
         await sandbox.git.checkoutBranch(repoPath, currentBranch)
         return Response.json({ success: true })
       }
 
       case "rebase": {
-        if (!githubPat || !targetBranch || !currentBranch || !repoOwner || !repoApiName) {
+        if (!githubToken || !targetBranch || !currentBranch || !repoOwner || !repoApiName) {
           return Response.json({ error: "Missing required fields for rebase" }, { status: 400 })
         }
         // Checkout target branch, pull latest, come back, rebase
@@ -229,7 +256,7 @@ export async function POST(req: Request) {
           return Response.json({ error: "Failed to checkout target: " + coTarget2.result }, { status: 500 })
         }
         try {
-          await sandbox.git.pull(repoPath, "x-access-token", githubPat)
+          await sandbox.git.pull(repoPath, "x-access-token", githubToken)
         } catch {
           // Target may already be up to date
         }
@@ -252,7 +279,7 @@ export async function POST(req: Request) {
           {
             method: "PATCH",
             headers: {
-              Authorization: `Bearer ${githubPat}`,
+              Authorization: `Bearer ${githubToken}`,
               Accept: "application/vnd.github.v3+json",
             },
             body: JSON.stringify({ sha, force: true }),
@@ -276,7 +303,7 @@ export async function POST(req: Request) {
       }
 
       case "tag": {
-        if (!githubPat || !tagName || !repoOwner || !repoApiName) {
+        if (!githubToken || !tagName || !repoOwner || !repoApiName) {
           return Response.json({ error: "Missing required fields for tag" }, { status: 400 })
         }
         // Create local tag
@@ -297,7 +324,7 @@ export async function POST(req: Request) {
           {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${githubPat}`,
+              Authorization: `Bearer ${githubToken}`,
               Accept: "application/vnd.github.v3+json",
             },
             body: JSON.stringify({ ref: `refs/tags/${tagName}`, sha: tagSha }),
@@ -325,7 +352,7 @@ export async function POST(req: Request) {
       }
 
       case "delete-remote-branch": {
-        if (!currentBranch || !githubPat || !repoOwner || !repoApiName) {
+        if (!currentBranch || !githubToken || !repoOwner || !repoApiName) {
           return Response.json({ error: "Missing required fields for delete-remote-branch" }, { status: 400 })
         }
         // Delete remote branch via GitHub API
@@ -334,7 +361,7 @@ export async function POST(req: Request) {
           {
             method: "DELETE",
             headers: {
-              Authorization: `Bearer ${githubPat}`,
+              Authorization: `Bearer ${githubToken}`,
               Accept: "application/vnd.github.v3+json",
             },
           }
@@ -363,13 +390,13 @@ export async function POST(req: Request) {
           return Response.json({ error: "Rename failed: " + renameResult.result }, { status: 500 })
         }
         // Push new branch name and delete old remote branch
-        if (githubPat) {
+        if (githubToken) {
           // Verify we're on the newly renamed branch before pushing
           const renameVerifyStatus = await sandbox.git.status(repoPath)
           if (renameVerifyStatus.currentBranch !== newName) {
             return Response.json({ error: `Branch mismatch after rename: expected ${newName} but on ${renameVerifyStatus.currentBranch}` }, { status: 400 })
           }
-          await sandbox.git.push(repoPath, "x-access-token", githubPat)
+          await sandbox.git.push(repoPath, "x-access-token", githubToken)
           // Delete old remote branch (best effort)
           if (repoOwner && repoApiName) {
             await fetch(
@@ -377,13 +404,28 @@ export async function POST(req: Request) {
               {
                 method: "DELETE",
                 headers: {
-                  Authorization: `Bearer ${githubPat}`,
+                  Authorization: `Bearer ${githubToken}`,
                   Accept: "application/vnd.github.v3+json",
                 },
               }
             ).catch(() => {})
           }
         }
+
+        // Update branch name in database
+        const branchRecord = await prisma.branch.findFirst({
+          where: {
+            name: currentBranch,
+            sandbox: { sandboxId },
+          },
+        })
+        if (branchRecord) {
+          await prisma.branch.update({
+            where: { id: branchRecord.id },
+            data: { name: newName },
+          })
+        }
+
         return Response.json({ success: true })
       }
 

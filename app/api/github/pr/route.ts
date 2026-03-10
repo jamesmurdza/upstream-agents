@@ -1,9 +1,27 @@
-export async function POST(req: Request) {
-  const body = await req.json()
-  const { token, owner, repo, head, base } = body
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
-  if (!token || !owner || !repo || !head || !base) {
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const body = await req.json()
+  const { owner, repo, head, base } = body
+
+  if (!owner || !repo || !head || !base) {
     return Response.json({ error: "Missing required fields" }, { status: 400 })
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { userId: session.user.id, provider: "github" },
+  })
+  const token = account?.access_token
+
+  if (!token) {
+    return Response.json({ error: "GitHub token not found" }, { status: 401 })
   }
 
   try {
@@ -56,6 +74,24 @@ export async function POST(req: Request) {
     if (!prRes.ok) {
       const message = (prData as { message?: string }).message || `PR creation failed (${prRes.status})`
       return Response.json({ error: message }, { status: prRes.status })
+    }
+
+    // Update branch with PR URL
+    const branchRecord = await prisma.branch.findFirst({
+      where: {
+        name: head,
+        repo: {
+          owner,
+          name: repo,
+          userId: session.user.id,
+        },
+      },
+    })
+    if (branchRecord) {
+      await prisma.branch.update({
+        where: { id: branchRecord.id },
+        data: { prUrl: prData.html_url },
+      })
     }
 
     return Response.json({

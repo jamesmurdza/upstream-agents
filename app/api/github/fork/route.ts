@@ -1,8 +1,26 @@
-export async function POST(req: Request) {
-  const body = await req.json()
-  const { token, owner, name } = body
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
 
-  if (!token || !owner || !name) {
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { userId: session.user.id, provider: "github" },
+  })
+  const token = account?.access_token
+
+  if (!token) {
+    return Response.json({ error: "GitHub account not linked" }, { status: 401 })
+  }
+
+  const body = await req.json()
+  const { owner, name } = body
+
+  if (!owner || !name) {
     return Response.json({ error: "Missing required fields" }, { status: 400 })
   }
 

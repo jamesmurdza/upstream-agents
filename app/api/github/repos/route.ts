@@ -1,9 +1,20 @@
-export async function GET(req: Request) {
-  const url = new URL(req.url)
-  const token = url.searchParams.get("token")
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+
+export async function GET() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { userId: session.user.id, provider: "github" },
+  })
+  const token = account?.access_token
 
   if (!token) {
-    return Response.json({ error: "Token required" }, { status: 400 })
+    return Response.json({ error: "GitHub token not found" }, { status: 401 })
   }
 
   try {
