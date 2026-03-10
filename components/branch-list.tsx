@@ -211,16 +211,20 @@ export function BranchList({
 
   // Check if branch is merged when delete modal opens
   useEffect(() => {
-    if (!deleteModalBranchId || !deleteModalBranch) return
+    if (!deleteModalBranchId) return
+
+    // Find the branch inside the effect to avoid dependency on the derived object
+    const branch = repo.branches.find((b) => b.id === deleteModalBranchId)
+    if (!branch) return
 
     setDeleteModalMergeStatus("loading")
     setDeleteRemoteChecked(false)
 
     const checkMerged = async () => {
       try {
-        const baseBranch = deleteModalBranch.baseBranch || repo.defaultBranch || "main"
+        const baseBranch = branch.baseBranch || repo.defaultBranch || "main"
         const res = await fetch(
-          `/api/github/check-merged?owner=${encodeURIComponent(repo.owner)}&repo=${encodeURIComponent(repo.name)}&branch=${encodeURIComponent(deleteModalBranch.name)}&baseBranch=${encodeURIComponent(baseBranch)}`
+          `/api/github/check-merged?owner=${encodeURIComponent(repo.owner)}&repo=${encodeURIComponent(repo.name)}&branch=${encodeURIComponent(branch.name)}&baseBranch=${encodeURIComponent(baseBranch)}`
         )
         const data = await res.json()
         if (res.ok) {
@@ -238,7 +242,7 @@ export function BranchList({
       }
     }
     checkMerged()
-  }, [deleteModalBranchId, deleteModalBranch, repo.owner, repo.name, repo.defaultBranch])
+  }, [deleteModalBranchId, repo.owner, repo.name, repo.defaultBranch])
 
   function startResize() {
     isResizing.current = true
