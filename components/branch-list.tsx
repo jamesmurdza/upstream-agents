@@ -386,7 +386,7 @@ export function BranchList({
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] text-muted-foreground">
-                          {branch.status === "creating" ? "Setting up..." : agentLabels[branch.agent]}
+                          {branch.status === "creating" ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
                         </span>
                       </div>
                     </div>

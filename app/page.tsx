@@ -83,7 +83,7 @@ function transformBranch(dbBranch: DbBranch): Branch {
       role: m.role as "user" | "assistant",
       content: m.content,
       toolCalls: m.toolCalls as Message["toolCalls"],
-      timestamp: m.timestamp || undefined,
+      timestamp: m.timestamp || "",
       commitHash: m.commitHash || undefined,
       commitMessage: m.commitMessage || undefined,
     })),
