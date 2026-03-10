@@ -248,6 +248,7 @@ interface ChatPanelProps {
   onAddMessage: (message: Message) => Promise<string>
   onUpdateMessage: (messageId: string, updates: Partial<Message>) => void
   onUpdateBranch: (updates: Partial<Branch>) => void
+  onSaveDraftForBranch?: (branchId: string, draftPrompt: string) => void
   onForceSave: () => void
   onCommitsDetected?: () => void
   onBranchFromCommit?: (commitHash: string) => void
@@ -263,6 +264,7 @@ export function ChatPanel({
   onAddMessage,
   onUpdateMessage,
   onUpdateBranch,
+  onSaveDraftForBranch,
   onForceSave,
   onCommitsDetected,
   onBranchFromCommit,
@@ -299,12 +301,19 @@ export function ChatPanel({
       const isRealBranchSwitch = prevBranchName !== branch.name
 
       // Save draft for previous branch (if it has unsaved changes and switching to different branch)
+      // This updates both the database AND local state via onSaveDraftForBranch
       if (currentInput && isRealBranchSwitch) {
-        fetch("/api/branches", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ branchId: prevBranchId, draftPrompt: currentInput }),
-        }).catch(() => {})
+        if (onSaveDraftForBranch) {
+          // Update local state and persist to database
+          onSaveDraftForBranch(prevBranchId, currentInput)
+        } else {
+          // Fallback: just persist to database
+          fetch("/api/branches", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ branchId: prevBranchId, draftPrompt: currentInput }),
+          }).catch(() => {})
+        }
       }
 
       // Only load draft from new branch if it's a real branch switch
@@ -318,7 +327,7 @@ export function ChatPanel({
       prevBranchIdRef.current = branch.id
       prevBranchNameRef.current = branch.name
     }
-  }, [branch.id, branch.name, branch.draftPrompt])
+  }, [branch.id, branch.name, branch.draftPrompt, onSaveDraftForBranch])
 
   // Check sandbox status on mount — detect stopped sandboxes and resume polling for running executions
   useEffect(() => {
