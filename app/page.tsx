@@ -16,6 +16,7 @@ import { MobileSidebarDrawer } from "@/components/mobile-sidebar-drawer"
 import { DiffModal } from "@/components/diff-modal"
 import { Loader2 } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useCrossDeviceSync } from "@/hooks/use-cross-device-sync"
 
 // Types for database models
 interface DbSandbox {
@@ -617,6 +618,82 @@ export default function Home() {
       setMobilePrLoading(false)
     }
   }, [activeBranch, activeRepo, handleUpdateBranch])
+
+  // Cross-device sync - polls for changes from other devices
+  const handleSyncBranchStatusChange = useCallback((branchId: string, status: string) => {
+    setRepos((prev) =>
+      prev.map((r) => ({
+        ...r,
+        branches: r.branches.map((b) =>
+          b.id === branchId ? { ...b, status: status as Branch["status"] } : b
+        ),
+      }))
+    )
+  }, [])
+
+  const handleSyncBranchPrUrlChange = useCallback((branchId: string, prUrl: string) => {
+    setRepos((prev) =>
+      prev.map((r) => ({
+        ...r,
+        branches: r.branches.map((b) =>
+          b.id === branchId ? { ...b, prUrl } : b
+        ),
+      }))
+    )
+  }, [])
+
+  const handleSyncNewMessage = useCallback((branchId: string) => {
+    // Mark branch as having unread messages if it's not the active branch
+    if (branchId !== activeBranchId) {
+      setRepos((prev) =>
+        prev.map((r) => ({
+          ...r,
+          branches: r.branches.map((b) =>
+            b.id === branchId ? { ...b, unread: true } : b
+          ),
+        }))
+      )
+    }
+    // If it's the active branch, reload messages
+    if (branchId === activeBranchId) {
+      fetch(`/api/branches/messages?branchId=${branchId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.messages) {
+            setRepos((prev) =>
+              prev.map((r) => ({
+                ...r,
+                branches: r.branches.map((b) => {
+                  if (b.id !== branchId) return b
+                  return {
+                    ...b,
+                    messages: data.messages.map((m: DbMessage) => ({
+                      id: m.id,
+                      role: m.role as "user" | "assistant",
+                      content: m.content,
+                      toolCalls: m.toolCalls as Message["toolCalls"],
+                      timestamp: m.timestamp || "",
+                      commitHash: m.commitHash || undefined,
+                      commitMessage: m.commitMessage || undefined,
+                    })),
+                  }
+                }),
+              }))
+            )
+          }
+        })
+        .catch(() => {})
+    }
+  }, [activeBranchId])
+
+  useCrossDeviceSync({
+    repoId: activeRepoId,
+    enabled: loaded && !!activeRepoId,
+    interval: 5000,
+    onBranchStatusChange: handleSyncBranchStatusChange,
+    onBranchPrUrlChange: handleSyncBranchPrUrlChange,
+    onNewMessage: handleSyncNewMessage,
+  })
 
   // Loading state
   if (status === "loading" || !loaded) {
