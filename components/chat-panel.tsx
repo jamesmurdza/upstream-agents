@@ -974,7 +974,10 @@ export function ChatPanel({
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="flex min-w-0 min-h-0 flex-1 flex-col bg-background overflow-hidden">
+      <div className={cn(
+        "flex min-w-0 flex-1 flex-col bg-background overflow-hidden",
+        isMobile ? "h-full" : "min-h-0"
+      )}>
         {/* Header - hidden on mobile since MobileHeader handles it */}
         {!isMobile && (
         <header className={cn(
@@ -1175,8 +1178,8 @@ export function ChatPanel({
 
         {/* Messages */}
         <div ref={scrollRef} onScroll={handleScroll} className={cn(
-          "flex-1 min-h-0 overflow-y-auto overscroll-contain",
-          isMobile ? "px-3 py-4 pb-4 touch-pan-y" : "px-3 py-6 sm:px-6"
+          "flex-1 overflow-y-auto overscroll-contain",
+          isMobile ? "px-3 py-4 pb-4 touch-pan-y h-0" : "min-h-0 px-3 py-6 sm:px-6"
         )}>
           {branch.status === "creating" ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
