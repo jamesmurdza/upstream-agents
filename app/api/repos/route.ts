@@ -14,19 +14,21 @@ export async function GET() {
       branches: {
         include: {
           sandbox: true,
-          messages: {
-            orderBy: { createdAt: "asc" },
-            take: 100, // Limit messages to prevent OOM on large conversations
-          },
+          // Don't load messages in list view - load them on-demand when branch is selected
+          messages: false,
           _count: {
-            select: { messages: true }, // Include total count for pagination
+            select: { messages: true }, // Include total count for UI
           },
         },
-        take: 50, // Limit branches per repo
+        orderBy: { updatedAt: "desc" },
+        take: 10, // Limit branches per repo in list view
+      },
+      _count: {
+        select: { branches: true }, // Total branch count for pagination
       },
     },
     orderBy: { createdAt: "desc" },
-    take: 100, // Limit total repos
+    take: 50, // Limit total repos
   })
 
   return Response.json({ repos })

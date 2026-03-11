@@ -29,21 +29,21 @@ export async function GET() {
           branches: {
             include: {
               sandbox: true,
-              // Only load recent messages to prevent OOM - full history can be loaded via /api/branches/messages
-              messages: {
-                orderBy: { createdAt: "asc" },
-                take: 50, // Limit initial messages loaded
-              },
+              // Don't load messages in initial user fetch - load on-demand when branch selected
+              messages: false,
               _count: {
-                select: { messages: true }, // Include total count for UI to know if more exist
+                select: { messages: true }, // Include total count for UI
               },
             },
             orderBy: { updatedAt: "desc" }, // Most recently active branches first
-            take: 20, // Limit branches per repo
+            take: 10, // Limit branches per repo
+          },
+          _count: {
+            select: { branches: true }, // Total branch count for pagination
           },
         },
         orderBy: { createdAt: "desc" },
-        take: 50, // Limit repos returned
+        take: 20, // Limit repos returned
       },
     },
   })
