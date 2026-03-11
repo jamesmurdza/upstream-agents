@@ -252,6 +252,7 @@ interface ChatPanelProps {
   onForceSave: () => void
   onCommitsDetected?: () => void
   onBranchFromCommit?: (commitHash: string) => void
+  messagesLoading?: boolean
   isMobile?: boolean
 }
 
@@ -269,6 +270,7 @@ export function ChatPanel({
   onForceSave,
   onCommitsDetected,
   onBranchFromCommit,
+  messagesLoading = false,
   isMobile = false,
 }: ChatPanelProps) {
   const [input, setInput] = useState(branch.draftPrompt ?? "")
@@ -1218,6 +1220,11 @@ export function ChatPanel({
               <p className="text-xs text-muted-foreground/60">
                 Check your API keys in Settings and try again
               </p>
+            </div>
+          ) : messagesLoading ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <p className="text-sm">Loading messages...</p>
             </div>
           ) : branch.messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">

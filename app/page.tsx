@@ -116,6 +116,7 @@ export default function Home() {
   const [quota, setQuota] = useState<Quota | null>(null)
   const [credentials, setCredentials] = useState<UserCredentials | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [messagesLoading, setMessagesLoading] = useState(false)
 
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null)
@@ -184,6 +185,54 @@ export default function Home() {
       }
     }
   }, [loaded, repos, activeRepoId])
+
+  // Load messages when active branch changes (messages aren't included in initial /api/user/me fetch)
+  useEffect(() => {
+    if (!activeBranchId || !activeRepoId) return
+
+    // Skip if branch already has messages loaded
+    const repo = repos.find((r) => r.id === activeRepoId)
+    const branch = repo?.branches.find((b) => b.id === activeBranchId)
+    if (!branch) return
+    if (branch.messages.length > 0) return
+
+    setMessagesLoading(true)
+    fetch(`/api/branches/messages?branchId=${activeBranchId}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`Failed to fetch messages: ${r.status}`)
+        return r.json()
+      })
+      .then((data) => {
+        if (data.messages && data.messages.length > 0) {
+          setRepos((prev) =>
+            prev.map((r) => {
+              if (r.id !== activeRepoId) return r
+              return {
+                ...r,
+                branches: r.branches.map((b) => {
+                  if (b.id !== activeBranchId) return b
+                  return {
+                    ...b,
+                    messages: data.messages.map((m: DbMessage) => ({
+                      id: m.id,
+                      role: m.role as "user" | "assistant",
+                      content: m.content,
+                      toolCalls: m.toolCalls as Message["toolCalls"],
+                      timestamp: m.timestamp || "",
+                      commitHash: m.commitHash || undefined,
+                      commitMessage: m.commitMessage || undefined,
+                    })),
+                  }
+                }),
+              }
+            })
+          )
+        }
+      })
+      .catch((err) => console.error("Failed to load messages:", err))
+      .finally(() => setMessagesLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBranchId])
 
   // Dynamic page title with agent counts
   useEffect(() => {
@@ -708,6 +757,7 @@ export default function Home() {
                   onForceSave={() => {}}
                   onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}
                   onBranchFromCommit={(hash) => setPendingStartCommit(hash)}
+                  messagesLoading={messagesLoading}
                   isMobile={true}
                 />
               ) : (
@@ -738,6 +788,7 @@ export default function Home() {
               onForceSave={() => {}}
               onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}
               onBranchFromCommit={(hash) => setPendingStartCommit(hash)}
+              messagesLoading={messagesLoading}
             />
           ) : (
             <EmptyChatPanel hasRepos={repos.length > 0} />
