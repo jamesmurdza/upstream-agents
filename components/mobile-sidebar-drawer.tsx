@@ -4,6 +4,9 @@ import { cn } from "@/lib/utils"
 import type { Repo, Branch } from "@/lib/types"
 import { agentLabels } from "@/lib/types"
 import { generateId } from "@/lib/store"
+import { randomBranchName, validateBranchName } from "@/lib/branch-utils"
+import { BRANCH_STATUS } from "@/lib/constants"
+import { StatusDot } from "@/components/ui/status-dot"
 import { Plus, X, LogOut, Settings, Box, ChevronDown, Check, Loader2, GitBranch } from "lucide-react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
@@ -22,17 +25,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-
-const WORDS = [
-  "swift","lunar","amber","coral","ember","frost","bloom","spark","drift","pulse",
-  "cedar","maple","river","stone","cloud","flame","steel","light","storm","wave",
-  "tiger","eagle","brave","vivid","noble","rapid","quiet","sharp","fresh","grand",
-]
-
-function randomBranchName() {
-  const pick = () => WORDS[Math.floor(Math.random() * WORDS.length)]
-  return `${pick()}-${pick()}-${pick()}`
-}
 
 interface Quota {
   current: number
@@ -59,42 +51,6 @@ interface MobileSidebarDrawerProps {
   onAddBranch?: (branch: Branch) => void
   onUpdateBranch?: (branchId: string, updates: Partial<Branch>) => void
   onQuotaRefresh?: () => void
-}
-
-function StatusDot({ branch, isActive }: { branch: Branch; isActive: boolean }) {
-  if (branch.status === "running" || branch.status === "creating") {
-    return (
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-      </span>
-    )
-  }
-
-  if (branch.unread && !isActive) {
-    return (
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-        <span className="h-2 w-2 rounded-full bg-foreground" />
-      </span>
-    )
-  }
-
-  if (branch.status === "error") {
-    return (
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-        <span className="h-2 w-2 rounded-full bg-red-400" />
-      </span>
-    )
-  }
-
-  if (branch.status === "stopped") {
-    return (
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-        <span className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-      </span>
-    )
-  }
-
-  return <span className="h-4 w-4 shrink-0" />
 }
 
 export function MobileSidebarDrawer({
@@ -159,31 +115,14 @@ export function MobileSidebarDrawer({
     const branchName = newBranchName.trim() || branchPlaceholder
     if (!branchName || creating) return
 
-    // Validate branch name
-    if (/\s/.test(branchName)) {
-      setCreateError("Branch name cannot contain spaces")
-      return
-    }
-    if (/[~^:?*\[\\]/.test(branchName)) {
-      setCreateError("Branch name contains invalid characters")
-      return
-    }
-    if (branchName.startsWith("-") || branchName.startsWith(".") || branchName.endsWith(".") || branchName.endsWith(".lock")) {
-      setCreateError("Invalid branch name format")
-      return
-    }
-    if (branchName.includes("..") || branchName.includes("@{")) {
-      setCreateError("Branch name contains invalid sequence")
-      return
-    }
-    // Check for duplicates in local branches
-    if (activeRepo.branches.some((b) => b.name === branchName)) {
-      setCreateError("A branch with this name already exists")
-      return
-    }
-    // Check for duplicates in GitHub remote branches
-    if (githubBranches.includes(branchName)) {
-      setCreateError("A branch with this name already exists on GitHub")
+    // Validate branch name using shared validation
+    const validationError = validateBranchName(
+      branchName,
+      activeRepo.branches.map((b) => b.name),
+      githubBranches
+    )
+    if (validationError) {
+      setCreateError(validationError)
       return
     }
 
@@ -197,7 +136,7 @@ export function MobileSidebarDrawer({
       name: branchName,
       agent: "claude-code",
       messages: [],
-      status: "creating",
+      status: BRANCH_STATUS.CREATING,
       lastActivity: "now",
       lastActivityTs: Date.now(),
       baseBranch,
@@ -355,7 +294,7 @@ export function MobileSidebarDrawer({
                 <DropdownMenuContent align="start" className="w-[268px]">
                   {repos.map((repo) => {
                     const isActive = repo.id === activeRepoId
-                    const hasRunning = repo.branches.some((b) => b.status === "running" || b.status === "creating")
+                    const hasRunning = repo.branches.some((b) => b.status === BRANCH_STATUS.RUNNING || b.status === BRANCH_STATUS.CREATING)
                     return (
                       <DropdownMenuItem
                         key={repo.id}
@@ -501,7 +440,7 @@ export function MobileSidebarDrawer({
                 <div className="flex flex-col">
                   {sortedBranches.map((branch) => {
                     const isActive = branch.id === activeBranchId
-                    const isBold = branch.status === "running" || branch.status === "creating" || (branch.unread && !isActive)
+                    const isBold = branch.status === BRANCH_STATUS.RUNNING || branch.status === BRANCH_STATUS.CREATING || (branch.unread && !isActive)
                     return (
                       <button
                         key={branch.id}
@@ -513,7 +452,7 @@ export function MobileSidebarDrawer({
                             : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                         )}
                       >
-                        <StatusDot branch={branch} isActive={isActive} />
+                        <StatusDot status={branch.status} unread={branch.unread} isActive={isActive} />
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <span className={cn(
                             "truncate text-sm",
@@ -522,7 +461,7 @@ export function MobileSidebarDrawer({
                             {branch.name}
                           </span>
                           <span className="text-[10px] text-muted-foreground">
-                            {branch.status === "creating" ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
+                            {branch.status === BRANCH_STATUS.CREATING ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
                           </span>
                         </div>
                       </button>
