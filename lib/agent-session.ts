@@ -21,6 +21,7 @@ export interface AgentSessionOptions {
   sandbox: any // Daytona Sandbox - typed as any to avoid SDK version mismatch
   credentials: {
     anthropicApiKey?: string
+    anthropicAuthToken?: string // Claude Max subscription token
     openaiApiKey?: string
   }
   model?: string

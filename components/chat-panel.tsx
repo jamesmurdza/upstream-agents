@@ -43,7 +43,11 @@ interface ChatPanelProps {
   onBranchFromCommit?: (commitHash: string) => void
   onAgentChange?: (agent: AgentProvider) => void
   onModelChange?: (model: string) => void
-  credentials?: { hasAnthropicApiKey?: boolean; hasOpenaiApiKey?: boolean }
+  credentials?: {
+    hasAnthropicApiKey?: boolean
+    hasAnthropicAuthToken?: boolean
+    hasOpenaiApiKey?: boolean
+  }
   messagesLoading?: boolean
   isMobile?: boolean
 }

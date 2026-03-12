@@ -146,6 +146,7 @@ export async function POST(req: Request) {
           sandbox,
           credentials: {
             anthropicApiKey: credentials.anthropicApiKey,
+            anthropicAuthToken: credentials.anthropicAuthToken,
             openaiApiKey: credentials.openaiApiKey,
           },
           model,

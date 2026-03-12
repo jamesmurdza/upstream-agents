@@ -12,7 +12,6 @@ export interface ProviderConfig {
   name: AgentProvider
   displayName: string
   description: string
-  envKey: string
   defaultModel: string
   models: string[]
 }
@@ -25,7 +24,6 @@ export const PROVIDERS: Record<AgentProvider, ProviderConfig> = {
     name: "claude",
     displayName: "Claude",
     description: "Anthropic's Claude Code",
-    envKey: "ANTHROPIC_API_KEY",
     defaultModel: "sonnet",
     models: ["sonnet", "opus", "haiku"],
   },
@@ -33,17 +31,30 @@ export const PROVIDERS: Record<AgentProvider, ProviderConfig> = {
     name: "codex",
     displayName: "Codex",
     description: "OpenAI's coding agent",
-    envKey: "OPENAI_API_KEY",
     defaultModel: "gpt-4o",
-    models: ["gpt-4o", "o1", "o3"],
+    models: ["gpt-4o", "o1", "o3", "o4-mini"],
   },
   opencode: {
     name: "opencode",
     displayName: "OpenCode",
     description: "Open source, multi-provider",
-    envKey: "OPENAI_API_KEY", // Can use OpenAI or Anthropic
-    defaultModel: "openai/gpt-4o",
-    models: ["openai/gpt-4o", "anthropic/claude-sonnet"],
+    defaultModel: "anthropic:claude-sonnet-4-20250514",
+    models: [
+      // Anthropic models
+      "anthropic:claude-sonnet-4-20250514",
+      "anthropic:claude-opus-4-20250514",
+      // OpenAI models
+      "openai:gpt-4o",
+      "openai:o1",
+      "openai:o3",
+      // Groq free models
+      "groq:llama-3.3-70b-versatile",
+      "groq:llama-3.1-8b-instant",
+      // OpenRouter models
+      "openrouter:anthropic/claude-3.5-sonnet",
+      "openrouter:google/gemini-2.0-flash-exp:free",
+      "openrouter:meta-llama/llama-3.3-70b-instruct:free",
+    ],
   },
 }
 
@@ -52,15 +63,21 @@ export const PROVIDERS: Record<AgentProvider, ProviderConfig> = {
  */
 export function hasCredentialsForProvider(
   provider: AgentProvider,
-  credentials: { hasAnthropicApiKey?: boolean; hasOpenaiApiKey?: boolean }
+  credentials: {
+    hasAnthropicApiKey?: boolean
+    hasAnthropicAuthToken?: boolean // Claude Max subscription
+    hasOpenaiApiKey?: boolean
+  }
 ): boolean {
   switch (provider) {
     case "claude":
-      return !!credentials.hasAnthropicApiKey
+      // Claude supports both API key and Max subscription
+      return !!credentials.hasAnthropicApiKey || !!credentials.hasAnthropicAuthToken
     case "codex":
       return !!credentials.hasOpenaiApiKey
     case "opencode":
-      // OpenCode can work with either OpenAI or Anthropic
+      // OpenCode can work with OpenAI, Anthropic, or free models (Groq, OpenRouter free)
+      // For free models, no credentials needed but we'll require at least one for now
       return !!credentials.hasOpenaiApiKey || !!credentials.hasAnthropicApiKey
   }
 }
@@ -72,27 +89,40 @@ export function getEnvVarsForProvider(
   provider: AgentProvider,
   credentials: {
     anthropicApiKey?: string
+    anthropicAuthToken?: string // Claude Max subscription token
     openaiApiKey?: string
   }
 ): Record<string, string> {
+  const envVars: Record<string, string> = {}
+
   switch (provider) {
     case "claude":
-      return credentials.anthropicApiKey
-        ? { ANTHROPIC_API_KEY: credentials.anthropicApiKey }
-        : {}
+      // Claude supports API key or Max subscription token
+      if (credentials.anthropicApiKey) {
+        envVars.ANTHROPIC_API_KEY = credentials.anthropicApiKey
+      }
+      if (credentials.anthropicAuthToken) {
+        // Claude Max uses CLAUDE_CODE_USE_BEDROCK=0 and a session token
+        envVars.CLAUDE_AUTH_TOKEN = credentials.anthropicAuthToken
+      }
+      return envVars
+
     case "codex":
-      return credentials.openaiApiKey
-        ? { OPENAI_API_KEY: credentials.openaiApiKey }
-        : {}
+      if (credentials.openaiApiKey) {
+        envVars.OPENAI_API_KEY = credentials.openaiApiKey
+      }
+      return envVars
+
     case "opencode":
-      // OpenCode prefers OpenAI but can use Anthropic
-      const envVars: Record<string, string> = {}
+      // OpenCode can use multiple providers - pass all available credentials
       if (credentials.openaiApiKey) {
         envVars.OPENAI_API_KEY = credentials.openaiApiKey
       }
       if (credentials.anthropicApiKey) {
         envVars.ANTHROPIC_API_KEY = credentials.anthropicApiKey
       }
+      // OpenRouter uses OPENROUTER_API_KEY but we can use OpenAI key format
+      // Groq uses GROQ_API_KEY - free tier available
       return envVars
   }
 }
