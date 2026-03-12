@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react"
-import type { Branch, Message } from "@/lib/types"
+import type { Branch, Message, ToolCall } from "@/lib/types"
 import { BRANCH_STATUS } from "@/lib/constants"
+import { generateId } from "@/lib/store"
 
 interface UseAgentStreamOptions {
   branch: Branch
@@ -32,7 +33,7 @@ export function useAgentStream({
     currentMessageIdRef.current = messageId
 
     let content = ""
-    const toolCalls: { tool: string; summary: string }[] = []
+    const toolCalls: ToolCall[] = []
 
     try {
       const response = await fetch("/api/agent/query", {
@@ -88,8 +89,10 @@ export function useAgentStream({
 
               case "tool-start":
                 toolCalls.push({
+                  id: generateId(),
                   tool: event.tool,
                   summary: event.summary || event.tool,
+                  timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
                 })
                 onUpdateMessage(messageId, { content, toolCalls: [...toolCalls] })
 
