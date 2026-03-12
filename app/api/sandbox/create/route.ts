@@ -214,9 +214,8 @@ export async function POST(req: Request) {
             sandboxName,
             userId: userId,
             branchId: branchRecord.id,
-            contextId: ctx.id,
             previewUrlPattern,
-            status: "running",
+            status: "idle",
           },
         })
 
@@ -224,7 +223,6 @@ export async function POST(req: Request) {
         send({
           type: "done",
           sandboxId: sandbox.id,
-          contextId: ctx.id,
           previewUrlPattern,
           branchId: branchRecord.id,
           repoId: dbRepo.id,
