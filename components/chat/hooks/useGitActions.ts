@@ -2,6 +2,9 @@ import { useState, useCallback } from "react"
 import type { Branch, Message } from "@/lib/types"
 import { generateId } from "@/lib/store"
 
+// Export the return type for use in sub-components
+export type UseGitActionsReturn = ReturnType<typeof useGitActions>
+
 interface UseGitActionsOptions {
   branch: Branch
   repoName: string

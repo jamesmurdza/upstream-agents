@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback } from "react"
 import type { Branch } from "@/lib/types"
 
+// Export the return type for use in sub-components
+export type UseBranchRenamingReturn = ReturnType<typeof useBranchRenaming>
+
 interface UseBranchRenamingOptions {
   branch: Branch
   repoName: string
