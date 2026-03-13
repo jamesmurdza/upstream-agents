@@ -1,6 +1,39 @@
 import { type BranchStatus, type AnthropicAuthType as ConstantsAnthropicAuthType } from "./constants"
 
-export type Agent = "claude-code"
+export type Agent = "claude-code" | "opencode"
+
+// SDK provider mapping
+export const agentToProvider: Record<Agent, string> = {
+  "claude-code": "claude",
+  "opencode": "opencode",
+}
+
+// Model configurations per agent
+export interface ModelOption {
+  value: string
+  label: string
+}
+
+export const agentModels: Record<Agent, ModelOption[]> = {
+  "claude-code": [
+    { value: "sonnet", label: "Sonnet" },
+    { value: "opus", label: "Opus" },
+    { value: "haiku", label: "Haiku" },
+  ],
+  "opencode": [
+    { value: "anthropic/claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
+    { value: "openai/gpt-4.1", label: "GPT-4.1" },
+    { value: "openai/o3", label: "OpenAI o3" },
+    { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+    { value: "big-pickle/bp1-mini", label: "Big Pickle (Free)" },
+  ],
+}
+
+// Default model per agent
+export const defaultAgentModel: Record<Agent, string> = {
+  "claude-code": "sonnet",
+  "opencode": "anthropic/claude-sonnet-4-20250514",
+}
 
 export interface ToolCall {
   id: string
@@ -74,6 +107,17 @@ export interface Settings {
 
 export const agentLabels: Record<Agent, string> = {
   "claude-code": "Claude Code",
+  "opencode": "OpenCode",
+}
+
+// Get model label from model value
+export function getModelLabel(agent: Agent, modelValue: string | undefined): string {
+  if (!modelValue) {
+    modelValue = defaultAgentModel[agent]
+  }
+  const models = agentModels[agent]
+  const model = models.find(m => m.value === modelValue)
+  return model?.label || modelValue
 }
 
 export const defaultSettings: Settings = {

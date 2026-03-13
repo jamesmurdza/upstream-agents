@@ -24,6 +24,7 @@ import {
   type BackgroundSessionOptions,
 } from "@jamesmurdza/coding-agents-sdk"
 import type { Sandbox as DaytonaSandbox } from "@daytonaio/sdk"
+import { type Agent, agentToProvider } from "@/lib/types"
 
 // =============================================================================
 // Types
@@ -35,6 +36,7 @@ export interface AgentSessionOptions {
   sessionId?: string
   model?: string
   env?: Record<string, string>
+  agent?: Agent
 }
 
 export interface BackgroundAgentOptions extends AgentSessionOptions {
@@ -290,14 +292,20 @@ export async function createAgentSession(
     env: options.env,
   }
 
+  // Map agent type to SDK provider name
+  const agent = options.agent || "claude-code"
+  const provider = agentToProvider[agent]
+
   console.log("[agent-session] createAgentSession", {
     repoPath: options.repoPath,
     previewUrlPattern: options.previewUrlPattern,
     model: options.model,
     sessionId: options.sessionId,
+    agent,
+    provider,
   })
 
-  const session = await sdkCreateSession("claude", sessionOptions)
+  const session = await sdkCreateSession(provider, sessionOptions)
 
   return { session, sandbox }
 }
@@ -339,6 +347,18 @@ export async function startBackgroundAgent(
   // Cast sandbox for SDK version compatibility
   const sandboxForSdk = sandbox as unknown as NonNullable<BackgroundSessionOptions['sandbox']>
 
+  // Map agent type to SDK provider name
+  const agent = options.agent || "claude-code"
+  const provider = agentToProvider[agent]
+
+  console.log("[agent-session] startBackgroundAgent", {
+    repoPath: options.repoPath,
+    model: options.model,
+    agent,
+    provider,
+    backgroundSessionId: options.backgroundSessionId,
+  })
+
   // If we have an existing background session ID, reuse it via getBackgroundSession.
   // Otherwise, create a new background session.
   const bgSession = options.backgroundSessionId
@@ -349,7 +369,7 @@ export async function startBackgroundAgent(
         model: options.model,
         env: options.env,
       })
-    : await sdkCreateBackgroundSession("claude", {
+    : await sdkCreateBackgroundSession(provider, {
         sandbox: sandboxForSdk,
         systemPrompt,
         model: options.model,
@@ -375,6 +395,7 @@ export interface PollBackgroundOptions {
   previewUrlPattern?: string
   model?: string
   env?: Record<string, string>
+  agent?: Agent
 }
 
 export async function pollBackgroundAgent(

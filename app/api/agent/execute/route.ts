@@ -14,6 +14,7 @@ import {
   updateSandboxAndBranchStatus,
   resetSandboxStatus,
 } from "@/lib/api-helpers"
+import type { Agent } from "@/lib/types"
 
 export const maxDuration = 60 // Only needs to start the background process
 
@@ -39,13 +40,17 @@ export async function POST(req: Request) {
   const daytonaApiKey = getDaytonaApiKey()
   if (isDaytonaKeyError(daytonaApiKey)) return daytonaApiKey
 
-  // Decrypt user's Anthropic credentials
-  const { anthropicApiKey, anthropicAuthToken, anthropicAuthType } =
+  // Decrypt user's credentials (Anthropic and OpenAI)
+  const { anthropicApiKey, anthropicAuthToken, anthropicAuthType, openaiApiKey } =
     decryptUserCredentials(sandboxRecord.user.credentials)
 
   // Determine repo name from database or request
   const actualRepoName = repoName || sandboxRecord.branch?.repo?.name || "repo"
   const repoPath = `/home/daytona/${actualRepoName}`
+
+  // Get agent and model from branch record
+  const agent = (sandboxRecord.branch?.agent as Agent) || "claude-code"
+  const model = sandboxRecord.branch?.model || undefined
 
   try {
     console.log("[agent/execute] start", {
@@ -54,6 +59,8 @@ export async function POST(req: Request) {
       prompt,
       repoName: actualRepoName,
       dbSessionId: sandboxRecord.sessionId,
+      agent,
+      model,
     })
 
     // 4. Ensure sandbox is ready
@@ -65,7 +72,9 @@ export async function POST(req: Request) {
       anthropicApiKey,
       anthropicAuthType,
       anthropicAuthToken,
-      sandboxRecord.sessionId || undefined // Pass database session ID for resumption
+      sandboxRecord.sessionId || undefined, // Pass database session ID for resumption
+      openaiApiKey,
+      agent
     )
 
     // 5. Verify message exists before creating AgentExecution (prevents FK constraint violation)
@@ -95,6 +104,8 @@ export async function POST(req: Request) {
         // so each run gets a fresh background session bound to the resumed conversation.
         sessionId: resumeSessionId,
         env,
+        agent,
+        model,
       }
     )
 
