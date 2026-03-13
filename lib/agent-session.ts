@@ -343,6 +343,10 @@ export async function startBackgroundAgent(
   }
 }
 
+// In-memory cache for accumulated events per background session
+// This is needed because SDK's getEvents() returns only NEW events since last poll
+const backgroundSessionEvents = new Map<string, Event[]>()
+
 export async function pollBackgroundAgent(
   sandbox: DaytonaSandbox,
   backgroundSessionId: string
@@ -355,29 +359,42 @@ export async function pollBackgroundAgent(
     })
 
     const isRunning = await bgSession.isRunning()
-    const { events, sessionId } = await bgSession.getEvents()
+    const { events: newEvents, sessionId } = await bgSession.getEvents()
 
-    // Build content, tool calls, and content blocks from events
-    const { content, toolCalls, contentBlocks } = buildContentBlocks(events)
+    // Accumulate events - SDK returns only new events since last poll
+    const cachedEvents = backgroundSessionEvents.get(backgroundSessionId) || []
+    const allEvents = [...cachedEvents, ...newEvents]
+    backgroundSessionEvents.set(backgroundSessionId, allEvents)
+
+    // Build content, tool calls, and content blocks from ALL accumulated events
+    const { content, toolCalls, contentBlocks } = buildContentBlocks(allEvents)
 
     // Persist session ID if received
     if (sessionId) {
       await persistSessionId(sandbox, sessionId)
     }
 
-    // Check for error event
-    let error: string | undefined
-    // Note: SDK doesn't emit error events currently, but we handle it for future compatibility
+    // Check if we've received an 'end' event - this is more reliable than isRunning
+    // since isRunning checks process state which may have a slight delay
+    const hasEndEvent = allEvents.some(e => e.type === "end")
+    const isCompleted = !isRunning || hasEndEvent
+
+    // Clean up cache when completed
+    if (isCompleted) {
+      backgroundSessionEvents.delete(backgroundSessionId)
+    }
 
     return {
-      status: isRunning ? "running" : "completed",
+      status: isCompleted ? "completed" : "running",
       content,
       toolCalls,
       contentBlocks,
-      error,
+      error: undefined,
       sessionId: sessionId || undefined,
     }
   } catch (err) {
+    // Clean up cache on error
+    backgroundSessionEvents.delete(backgroundSessionId)
     return {
       status: "error",
       content: "",
@@ -385,6 +402,15 @@ export async function pollBackgroundAgent(
       contentBlocks: [],
       error: err instanceof Error ? err.message : "Unknown error polling background session",
     }
+  }
+}
+
+// Export for testing/cleanup purposes
+export function clearBackgroundSessionCache(backgroundSessionId?: string) {
+  if (backgroundSessionId) {
+    backgroundSessionEvents.delete(backgroundSessionId)
+  } else {
+    backgroundSessionEvents.clear()
   }
 }
 
