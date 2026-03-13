@@ -200,61 +200,27 @@ export function ChatPanel({
     gitActions.setCommitDiffMessage(msg)
   }, [gitActions])
 
-  // Perform the actual agent switch
-  const performAgentSwitch = useCallback(async (agent: Agent) => {
-    // Update local state immediately
+  // Apply agent switch in local state only; persisted to server when user sends
+  const performAgentSwitch = useCallback((agent: Agent) => {
     onUpdateBranch(branch.id, { agent, model: defaultAgentModel[agent] })
-
-    // Persist to server and clear session ID to start fresh
-    try {
-      await fetch("/api/branches", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          branchId: branch.id,
-          agent,
-          model: defaultAgentModel[agent],
-          clearSession: true, // Signal to clear the session ID
-        }),
-      })
-    } catch (err) {
-      console.error("Failed to update agent:", err)
-    }
   }, [branch.id, onUpdateBranch])
 
-  // Handle agent change request
-  const handleAgentChange = useCallback(async (agent: Agent) => {
-    // If switching to the same agent, do nothing
+  // Handle agent change: only warn when switching to a *different* agent; no warning when changing back to current
+  const handleAgentChange = useCallback((agent: Agent) => {
     const currentAgent = (branch.agent || "claude-code") as Agent
     if (agent === currentAgent) return
 
-    // If there are messages, show confirmation dialog
     if (branch.messages.length > 0) {
       setPendingAgentSwitch(agent)
       return
     }
 
-    // No messages, switch immediately - inline the logic to avoid initialization order issues
     onUpdateBranch(branch.id, { agent, model: defaultAgentModel[agent] })
-    try {
-      await fetch("/api/branches", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          branchId: branch.id,
-          agent,
-          model: defaultAgentModel[agent],
-          clearSession: true,
-        }),
-      })
-    } catch (err) {
-      console.error("Failed to update agent:", err)
-    }
   }, [branch.id, branch.agent, branch.messages.length, onUpdateBranch])
 
   // Handle agent switch confirmation
-  const handleAgentSwitchConfirm = useCallback(async (agent: Agent) => {
-    await performAgentSwitch(agent)
+  const handleAgentSwitchConfirm = useCallback((agent: Agent) => {
+    performAgentSwitch(agent)
     setPendingAgentSwitch(null)
   }, [performAgentSwitch])
 
@@ -263,24 +229,9 @@ export function ChatPanel({
     setPendingAgentSwitch(null)
   }, [])
 
-  // Handle model change
-  const handleModelChange = useCallback(async (model: string) => {
-    // Update local state immediately
+  // Handle model change (local state only; persisted when user sends)
+  const handleModelChange = useCallback((model: string) => {
     onUpdateBranch(branch.id, { model })
-
-    // Persist to server
-    try {
-      await fetch("/api/branches", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          branchId: branch.id,
-          model,
-        }),
-      })
-    } catch (err) {
-      console.error("Failed to update model:", err)
-    }
   }, [branch.id, onUpdateBranch])
 
   return (
