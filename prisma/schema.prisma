@@ -137,10 +137,11 @@ model Sandbox {
   branchId String @unique
   branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
-  contextId         String?
-  sessionId         String?
-  previewUrlPattern String?
-  status            String  @default("creating") // "creating" | "running" | "stopped" | "error"
+  contextId           String?
+  sessionId           String?
+  backgroundSessionId String? // Reused across messages to maintain conversation context
+  previewUrlPattern   String?
+  status              String  @default("creating") // "creating" | "running" | "stopped" | "error"
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

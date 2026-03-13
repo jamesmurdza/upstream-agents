@@ -145,12 +145,14 @@ export async function POST(req: Request) {
             completedAt: new Date(),
           },
         }),
-        // Update sandbox (status + sessionId)
+        // Update sandbox (status + sessionId + backgroundSessionId)
+        // backgroundSessionId is reused across messages for conversation context
         prisma.sandbox.update({
           where: { id: sandbox.id },
           data: {
             status: "idle",
             ...(outputData.sessionId && { sessionId: outputData.sessionId }),
+            backgroundSessionId: execution.executionId, // Store for reuse on next message
           },
         }),
         // Update branch status

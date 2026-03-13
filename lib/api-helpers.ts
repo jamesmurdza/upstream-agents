@@ -29,6 +29,7 @@ export interface SandboxWithCredentials {
   status: string
   contextId: string | null
   sessionId: string | null
+  backgroundSessionId: string | null
   previewUrlPattern: string | null
   lastActiveAt: Date | null
   user: {

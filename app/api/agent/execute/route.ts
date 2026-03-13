@@ -69,6 +69,8 @@ export async function POST(req: Request) {
     }
 
     // 6. Start background agent via SDK
+    // Pass backgroundSessionId from database to reuse the same session directory
+    // This ensures meta.json with sessionId is available for conversation context
     const { executionId, backgroundSessionId } = await startBackgroundAgent(
       sandbox,
       {
@@ -77,9 +79,16 @@ export async function POST(req: Request) {
         previewUrlPattern:
           previewUrlPattern || sandboxRecord.previewUrlPattern || undefined,
         sessionId: resumeSessionId,
+        backgroundSessionId: sandboxRecord.backgroundSessionId || undefined,
         env,
       }
     )
+
+    console.log("[agent/execute] started background agent", {
+      sandboxId,
+      executionId,
+      backgroundSessionId,
+    })
 
     // 7. Create AgentExecution record with SDK's execution ID
     await prisma.agentExecution.create({

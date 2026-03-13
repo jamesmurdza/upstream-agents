@@ -39,6 +39,7 @@ export interface AgentSessionOptions {
 
 export interface BackgroundAgentOptions extends AgentSessionOptions {
   prompt: string
+  backgroundSessionId?: string // Reuse existing background session for conversation continuity
 }
 
 export interface AgentEvent {
@@ -324,15 +325,26 @@ export async function startBackgroundAgent(
   )
 
   // Cast sandbox for SDK version compatibility
+  // IMPORTANT: Pass backgroundSessionId to reuse the same session directory across messages
+  // This ensures the SDK can read meta.json from the existing session and maintain conversation context
   const bgSessionOptions: BackgroundSessionOptions = {
     sandbox: sandbox as unknown as BackgroundSessionOptions['sandbox'],
     systemPrompt,
     model: options.model,
     sessionId: options.sessionId,
     env: options.env,
+    backgroundSessionId: options.backgroundSessionId, // Reuse existing session if provided
   }
 
   const bgSession = await sdkCreateBackgroundSession("claude", bgSessionOptions)
+
+  console.log("[agent-session] startBackgroundAgent", {
+    repoPath: options.repoPath,
+    model: options.model,
+    sessionId: options.sessionId,
+    backgroundSessionId: options.backgroundSessionId,
+    resolvedBackgroundSessionId: bgSession.id,
+  })
 
   const result = await bgSession.start(options.prompt)
 
