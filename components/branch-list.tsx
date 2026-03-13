@@ -330,6 +330,11 @@ export function BranchList({
                         <span className="text-[11px] text-muted-foreground">
                           {branch.status === BRANCH_STATUS.CREATING ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
                         </span>
+                        {branch.lastActivity && (
+                          <span className="ml-auto text-[10px] text-muted-foreground/60">
+                            {branch.lastActivity}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </button>
