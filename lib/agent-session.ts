@@ -298,15 +298,6 @@ export async function createAgentSession(
   const agent = options.agent || "claude-code"
   const provider = getProviderForAgent(agent)
 
-  console.log("[agent-session] createAgentSession", {
-    repoPath: options.repoPath,
-    previewUrlPattern: options.previewUrlPattern,
-    model: options.model,
-    sessionId: options.sessionId,
-    agent,
-    provider,
-  })
-
   const session = await sdkCreateSession(provider, sessionOptions)
 
   return { session, sandbox }
@@ -317,15 +308,11 @@ export async function* runAgentQuery(
   sandbox: DaytonaSandbox,
   prompt: string
 ): AsyncGenerator<AgentEvent> {
-  console.log("[agent-session] runAgentQuery start", { prompt })
   for await (const event of session.run(prompt)) {
     const transformed = transformEvent(event)
     if (transformed) {
       // Persist session ID when received
       if (transformed.type === "session" && transformed.sessionId) {
-        console.log("[agent-session] session event", {
-          sessionId: transformed.sessionId,
-        })
         await persistSessionId(sandbox, transformed.sessionId)
       }
       yield transformed
@@ -352,14 +339,6 @@ export async function startBackgroundAgent(
   // Map agent type to SDK provider name (handles legacy "claude" values)
   const agent = options.agent || "claude-code"
   const provider = getProviderForAgent(agent)
-
-  console.log("[agent-session] startBackgroundAgent", {
-    repoPath: options.repoPath,
-    model: options.model,
-    agent,
-    provider,
-    backgroundSessionId: options.backgroundSessionId,
-  })
 
   // Pass undefined for model if "default" to let SDK choose
   const modelToUse = options.model === "default" ? undefined : options.model

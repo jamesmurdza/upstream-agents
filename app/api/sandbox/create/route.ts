@@ -163,12 +163,6 @@ export async function POST(req: Request) {
           `cd ${repoPath} && git log -1 --format='%h' 2>&1`
         )
         const headCommit = headResult.exitCode ? null : headResult.result.trim()
-        console.log(
-          "[sandbox-create] Captured headCommit:",
-          headCommit,
-          "exitCode:",
-          headResult.exitCode
-        )
 
         sendProgress(controller, "Preparing agent environment...")
 
@@ -237,10 +231,6 @@ export async function POST(req: Request) {
           },
         })
 
-        console.log(
-          "[sandbox-create] Sending done event with startCommit:",
-          headCommit
-        )
         sendDone(controller, {
           sandboxId: sandbox.id,
           previewUrlPattern,

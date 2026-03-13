@@ -54,16 +54,6 @@ export async function POST(req: Request) {
   const model = sandboxRecord.branch?.model || undefined
 
   try {
-    console.log("[agent/execute] start", {
-      sandboxId,
-      messageId,
-      prompt,
-      repoName: actualRepoName,
-      dbSessionId: sandboxRecord.sessionId,
-      agent,
-      model,
-    })
-
     // 4. Ensure sandbox is ready
     const { sandbox, resumeSessionId, env } = await ensureSandboxReady(
       daytonaApiKey,
