@@ -12,6 +12,7 @@ interface BackgroundExecutionPollerProps {
   onForceSave: () => void
   onCommitsDetected?: () => void
   streamingMessageIdRef?: React.MutableRefObject<string | null>
+  globalActiveBranchIdRef?: React.MutableRefObject<string | null>
 }
 
 /** Renders nothing; runs useExecutionPolling so non-active RUNNING branches keep receiving updates. */
@@ -24,6 +25,7 @@ export function BackgroundExecutionPoller({
   onForceSave,
   onCommitsDetected,
   streamingMessageIdRef,
+  globalActiveBranchIdRef,
 }: BackgroundExecutionPollerProps) {
   useExecutionPolling({
     branch,
@@ -34,6 +36,7 @@ export function BackgroundExecutionPoller({
     onForceSave,
     onCommitsDetected,
     streamingMessageIdRef,
+    globalActiveBranchIdRef,
   })
   return null
 }

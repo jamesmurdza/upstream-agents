@@ -15,6 +15,8 @@ interface UseExecutionPollingOptions {
   onCommitsDetected?: () => void
   /** Ref to signal that streaming is active - used by sync to avoid overwriting */
   streamingMessageIdRef?: React.MutableRefObject<string | null>
+  /** Ref to the globally selected branch id – used for unread when polling a non-active branch */
+  globalActiveBranchIdRef?: React.MutableRefObject<string | null>
 }
 
 /**
@@ -30,6 +32,7 @@ export function useExecutionPolling({
   onForceSave,
   onCommitsDetected,
   streamingMessageIdRef,
+  globalActiveBranchIdRef,
 }: UseExecutionPollingOptions) {
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const currentExecutionIdRef = useRef<string | null>(null)
@@ -68,6 +71,8 @@ export function useExecutionPolling({
     }
   }, [])
 
+  const LOG_PREFIX = "[execution-poll]"
+
   // Start polling for execution status via HTTP snapshots
   const startPolling = useCallback((messageId: string, executionId?: string) => {
     pollingBranchIdRef.current = branch.id
@@ -75,6 +80,8 @@ export function useExecutionPolling({
       streamingMessageIdRef.current = messageId
     }
     currentMessageIdRef.current = messageId
+
+    console.log(LOG_PREFIX, "start", { branchId: branch.id, messageId, executionId })
 
     // Clear any existing polling interval
     if (pollingRef.current) {
@@ -100,6 +107,12 @@ export function useExecutionPolling({
           if (res.status === 404 && data.error === "Execution not found") {
             notFoundRetries++
             if (notFoundRetries >= MAX_NOT_FOUND_RETRIES) {
+              console.warn(LOG_PREFIX, "gave up after 404s", {
+                branchId: pollingBranchIdRef.current,
+                messageId,
+                executionId,
+                retries: notFoundRetries,
+              })
               if (pollingRef.current) {
                 clearInterval(pollingRef.current)
                 pollingRef.current = null
@@ -112,7 +125,7 @@ export function useExecutionPolling({
             }
             return
           }
-          console.error("Polling error:", data.error)
+          console.error(LOG_PREFIX, "poll error", data.error)
           return
         }
 
@@ -182,6 +195,16 @@ export function useExecutionPolling({
         ) {
           if (completionHandled) return
           completionHandled = true
+
+          const completedBranchIdForLog = pollingBranchIdRef.current
+          const viewingBranchId = globalActiveBranchIdRef?.current ?? activeBranchIdRef.current
+          const unread = viewingBranchId !== completedBranchIdForLog
+          console.log(LOG_PREFIX, "done", {
+            branchId: completedBranchIdForLog,
+            status: data.status,
+            unread,
+            error: data.status === EXECUTION_STATUS.ERROR ? data.error : undefined,
+          })
 
           if (pollingRef.current) {
             clearInterval(pollingRef.current)
@@ -275,13 +298,13 @@ export function useExecutionPolling({
             }
           }
 
-          const completedBranchId = pollingBranchIdRef.current
+          const completedBranchId = completedBranchIdForLog ?? pollingBranchIdRef.current
           if (completedBranchId) {
             onUpdateBranch(completedBranchId, {
               status: "idle",
               lastActivity: "now",
               lastActivityTs: Date.now(),
-              unread: activeBranchIdRef.current !== completedBranchId,
+              unread,
             })
           }
           try {
@@ -304,7 +327,7 @@ export function useExecutionPolling({
           }
         }
       } catch (err) {
-        console.error("Polling failed:", err)
+        console.error(LOG_PREFIX, "poll threw", { branchId: pollingBranchIdRef.current, err })
       }
     }
 
@@ -322,6 +345,7 @@ export function useExecutionPolling({
     if (pollingRef.current) {
       clearInterval(pollingRef.current)
       pollingRef.current = null
+      console.log(LOG_PREFIX, "stop (user)", { branchId: pollingBranchIdRef.current })
     }
     if (currentMessageIdRef.current && pollingBranchIdRef.current) {
       // Use ref to get current messages to avoid dependency issues
@@ -350,6 +374,7 @@ export function useExecutionPolling({
 
     const currentStatus = branch.status
     const currentMessages = branch.messages
+    console.log("[execution-poll] resume check", { branchId: branch.id, status: currentStatus })
 
     fetch("/api/sandbox/status", {
       method: "POST",
@@ -364,6 +389,7 @@ export function useExecutionPolling({
           if (currentMessages && currentMessages.length > 0) {
             const lastAssistantMsg = [...currentMessages].reverse().find(m => m.role === "assistant" && !m.commitHash)
             if (lastAssistantMsg) {
+              console.log("[execution-poll] resume from last message", { branchId: branch.id, messageId: lastAssistantMsg.id })
               currentMessageIdRef.current = lastAssistantMsg.id
               startPollingRef.current(lastAssistantMsg.id)
             } else {
@@ -378,6 +404,11 @@ export function useExecutionPolling({
               .then((r) => r.json())
               .then((execData) => {
                 if (execData.execution && execData.execution.status === EXECUTION_STATUS.RUNNING) {
+                  console.log("[execution-poll] resume from execution/active", {
+                    branchId: branch.id,
+                    messageId: execData.execution.messageId,
+                    executionId: execData.execution.executionId,
+                  })
                   currentMessageIdRef.current = execData.execution.messageId
                   currentExecutionIdRef.current = execData.execution.executionId
                   startPollingRef.current(execData.execution.messageId, execData.execution.executionId)

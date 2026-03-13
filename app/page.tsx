@@ -199,6 +199,7 @@ export default function Home() {
               onForceSave={() => {}}
               onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}
               streamingMessageIdRef={streamingMessageIdRef}
+              globalActiveBranchIdRef={activeBranchIdRef}
             />
           ))
       )}
