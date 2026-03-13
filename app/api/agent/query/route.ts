@@ -44,9 +44,13 @@ export async function POST(req: Request) {
   const daytonaApiKey = getDaytonaApiKey()
   if (isDaytonaKeyError(daytonaApiKey)) return daytonaApiKey
 
-  // Decrypt user's Anthropic credentials
-  const { anthropicApiKey, anthropicAuthToken, anthropicAuthType } =
+  // Decrypt user's credentials (Anthropic, OpenAI, and OpenRouter)
+  const { anthropicApiKey, anthropicAuthToken, anthropicAuthType, openaiApiKey, openrouterApiKey } =
     decryptUserCredentials(sandboxRecord.user.credentials)
+
+  // Get agent and model from branch for API key selection
+  const agent = sandboxRecord.branch?.agent as "claude-code" | "opencode" | undefined
+  const model = sandboxRecord.branch?.model || undefined
 
   // Determine repo name from database or request
   const actualRepoName = repoName || sandboxRecord.branch?.repo?.name || "repo"
@@ -103,7 +107,11 @@ export async function POST(req: Request) {
           anthropicApiKey,
           anthropicAuthType,
           anthropicAuthToken,
-          sandboxRecord.sessionId || undefined // Pass database session ID for resumption
+          sandboxRecord.sessionId || undefined, // Pass database session ID for resumption
+          openaiApiKey,
+          agent,
+          model,
+          openrouterApiKey
         )
 
         // Update last activity
