@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && npm run build-sdk",
+    "build-sdk": "cd node_modules/@jamesmurdza/coding-agents-sdk && npm install && npm run build || true",
     "start": "next start",
     "lint": "eslint ."
   },

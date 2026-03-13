@@ -6,6 +6,7 @@ import {
   isAuthError,
   getDaytonaApiKey,
   isDaytonaKeyError,
+  decryptUserCredentials,
   badRequest,
   notFound,
   unauthorized,
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
     return badRequest("Missing executionId or messageId")
   }
 
-  // 2. Find the execution record
+  // 2. Find the execution record with user credentials for env
   const execution = await prisma.agentExecution.findFirst({
     where: executionId ? { executionId } : { messageId },
     include: {
@@ -31,7 +32,16 @@ export async function POST(req: Request) {
         include: {
           branch: {
             include: {
-              sandbox: true,
+              sandbox: {
+                include: {
+                  user: {
+                    include: {
+                      credentials: true,
+                    },
+                  },
+                },
+              },
+              repo: true,
             },
           },
         },
@@ -79,10 +89,22 @@ export async function POST(req: Request) {
       }
     }
 
-    // 6. Poll via SDK helper
+    // 6. Build poll options (SDK needs session config to reattach to background session)
+    const repoName = execution.message.branch.repo?.name || "repo"
+    const repoPath = `/home/daytona/${repoName}`
+    const previewUrlPattern = sandbox.previewUrlPattern || undefined
+
+    // Decrypt user credentials for env vars
+    const { anthropicApiKey } =
+      decryptUserCredentials(sandbox.user.credentials)
+    const env: Record<string, string> = {}
+    if (anthropicApiKey) env.ANTHROPIC_API_KEY = anthropicApiKey
+
+    // Poll via SDK helper with full options
     const outputData = await pollBackgroundAgent(
       sandboxInstance,
-      execution.executionId
+      execution.executionId,
+      { repoPath, previewUrlPattern, env }
     )
 
     // 7. Only update DB on completion/error (not on every poll)

@@ -347,15 +347,32 @@ export async function startBackgroundAgent(
 // This is needed because SDK's getEvents() returns only NEW events since last poll
 const backgroundSessionEvents = new Map<string, Event[]>()
 
+export interface PollBackgroundOptions {
+  repoPath: string
+  previewUrlPattern?: string
+  model?: string
+  env?: Record<string, string>
+}
+
 export async function pollBackgroundAgent(
   sandbox: DaytonaSandbox,
-  backgroundSessionId: string
+  backgroundSessionId: string,
+  options: PollBackgroundOptions
 ): Promise<BackgroundPollResult> {
   try {
+    const systemPrompt = buildSystemPrompt(
+      options.repoPath,
+      options.previewUrlPattern
+    )
+
     // Cast sandbox for SDK version compatibility
+    // Must pass full session options when reattaching - SDK recreates the provider
     const bgSession = await sdkGetBackgroundSession({
       sandbox: sandbox as unknown as NonNullable<BackgroundSessionOptions['sandbox']>,
       backgroundSessionId,
+      systemPrompt,
+      model: options.model,
+      env: options.env,
     })
 
     const isRunning = await bgSession.isRunning()
