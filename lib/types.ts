@@ -37,10 +37,25 @@ export const agentModels: Record<Agent, ModelOption[]> = {
     { value: "haiku", label: "Haiku" },
   ],
   "opencode": [
+    // Free models
     { value: "opencode/big-pickle", label: "Big Pickle (Free)" },
-    { value: "anthropic/claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
-    { value: "openai/gpt-4o", label: "GPT-4o" },
-    { value: "google/gemini-2.0-flash-exp", label: "Gemini 2.0 Flash" },
+    { value: "opencode/mimo-v2-flash-free", label: "Mimo v2 Flash (Free)" },
+    { value: "opencode/nemotron-3-super-free", label: "Nemotron 3 Super (Free)" },
+    // Anthropic models (requires Anthropic API key)
+    { value: "opencode/claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
+    { value: "opencode/claude-sonnet-4", label: "Claude Sonnet 4" },
+    { value: "opencode/claude-opus-4-5", label: "Claude Opus 4.5" },
+    { value: "opencode/claude-haiku-4-5", label: "Claude Haiku 4.5" },
+    // OpenAI models (requires OpenAI API key)
+    { value: "opencode/gpt-5.4-pro", label: "GPT-5.4 Pro" },
+    { value: "opencode/gpt-5.3-codex", label: "GPT-5.3 Codex" },
+    { value: "opencode/gpt-5.1-codex", label: "GPT-5.1 Codex" },
+    { value: "opencode/gpt-5", label: "GPT-5" },
+    // Other models (requires OpenRouter API key)
+    { value: "opencode/gemini-3-pro", label: "Gemini 3 Pro" },
+    { value: "opencode/gemini-3-flash", label: "Gemini 3 Flash" },
+    { value: "opencode/kimi-k2.5", label: "Kimi K2.5" },
+    { value: "opencode/minimax-m2.5", label: "MiniMax M2.5" },
   ],
 }
 
