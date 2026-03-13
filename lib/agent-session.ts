@@ -379,6 +379,7 @@ export async function startBackgroundAgent(
         model: modelToUse,
         sessionId: options.sessionId,
         env: options.env,
+        skipInstall: true, // TEMP: bypass install
       })
 
   const result = await bgSession.start(options.prompt)
