@@ -398,6 +398,13 @@ export async function startBackgroundAgent(
 // this map for cross-instance state.
 const backgroundSessionEvents = new Map<string, Event[]>()
 
+// Last snapshot payload per execution; skip DB append when unchanged (e.g. agent thinking).
+const lastSnapshotByExecutionId = new Map<string, string>()
+
+export function clearLastSnapshotForExecution(agentExecutionId: string): void {
+  lastSnapshotByExecutionId.delete(agentExecutionId)
+}
+
 export interface PollBackgroundOptions {
   repoPath: string
   previewUrlPattern?: string
@@ -448,22 +455,21 @@ export async function pollBackgroundAgent(
 
     const { content, toolCalls, contentBlocks } = buildContentBlocks(allEvents)
 
-    // Persist snapshot to AgentEvent for SSE streaming if execution id provided.
-    // We store the full snapshot so SSE consumers can simply take the latest
-    // event rather than reconstructing from low-level SDK events.
+    // Persist snapshot to AgentEvent only when it changed (reduces writes while agent is idle).
     if (options.agentExecutionId) {
-      try {
-        await appendEvent(options.agentExecutionId, "content", {
-          content,
-          toolCalls,
-          contentBlocks,
-        })
-      } catch (error) {
-        console.error(
-          "[agent-session] failed to append agent event",
-          { agentExecutionId: options.agentExecutionId },
-          error,
-        )
+      const payload = { content, toolCalls, contentBlocks }
+      const key = JSON.stringify(payload)
+      if (lastSnapshotByExecutionId.get(options.agentExecutionId) !== key) {
+        lastSnapshotByExecutionId.set(options.agentExecutionId, key)
+        try {
+          await appendEvent(options.agentExecutionId, "content", payload)
+        } catch (error) {
+          console.error(
+            "[agent-session] failed to append agent event",
+            { agentExecutionId: options.agentExecutionId },
+            error,
+          )
+        }
       }
     }
 

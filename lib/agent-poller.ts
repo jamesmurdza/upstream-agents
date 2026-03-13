@@ -1,7 +1,7 @@
 import type { Sandbox as DaytonaSandbox } from "@daytonaio/sdk"
 import { prisma } from "@/lib/prisma"
 import type { Agent } from "@/lib/types"
-import { pollBackgroundAgent, type PollBackgroundOptions } from "@/lib/agent-session"
+import { pollBackgroundAgent, clearLastSnapshotForExecution, type PollBackgroundOptions } from "@/lib/agent-session"
 import { flushEvents, cleanupEvents } from "@/lib/agent-events"
 
 // Track active pollers to ensure a single background loop per AgentExecution.
@@ -39,6 +39,7 @@ export async function startAgentPoller(options: StartAgentPollerOptions): Promis
         })
 
         if (result.status === "completed" || result.status === "error") {
+          clearLastSnapshotForExecution(agentExecutionId)
           // Ensure all buffered events are visible to SSE consumers.
           await flushEvents(agentExecutionId)
 
@@ -103,8 +104,8 @@ export async function startAgentPoller(options: StartAgentPollerOptions): Promis
             await prisma.$transaction(updates)
           }
 
-          // Schedule cleanup of ephemeral AgentEvent rows after a short delay,
-          // so clients have time to consume the "complete" event.
+          // Schedule cleanup of ephemeral AgentEvent rows after a short delay;
+          // client stops polling on completed so 15s is enough.
           setTimeout(() => {
             cleanupEvents(agentExecutionId).catch((error) => {
               console.error(
@@ -113,7 +114,7 @@ export async function startAgentPoller(options: StartAgentPollerOptions): Promis
                 error,
               )
             })
-          }, 60_000)
+          }, 15_000)
 
           break
         }
