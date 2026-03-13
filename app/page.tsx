@@ -211,7 +211,10 @@ export default function Home() {
             userName={session?.user?.name || null}
             userLogin={session?.user?.githubLogin || null}
             onSelectRepo={selectRepo}
-            onSelectBranch={selectBranch}
+            onSelectBranch={(branchId) => {
+                handleUpdateBranch(branchId, { unread: false })
+                selectBranch(branchId)
+              }}
             onRemoveRepo={handleRemoveRepo}
             onOpenSettings={() => setSettingsOpen(true)}
             onOpenAddRepo={() => setAddRepoOpen(true)}
@@ -229,7 +232,10 @@ export default function Home() {
             <BranchList
               repo={activeRepo}
               activeBranchId={activeBranchId}
-              onSelectBranch={selectBranch}
+              onSelectBranch={(branchId) => {
+                handleUpdateBranch(branchId, { unread: false })
+                selectBranch(branchId)
+              }}
               onAddBranch={handleAddBranch}
               onRemoveBranch={(branchId, deleteRemote) => handleRemoveBranch(branchId, deleteRemote, activeBranchId ?? undefined)}
               onUpdateBranch={handleUpdateBranch}
@@ -286,9 +292,7 @@ export default function Home() {
                   onUpdateMessage={(messageId, updates) =>
                     handleUpdateMessage(activeBranch.id, messageId, updates)
                   }
-                  onUpdateBranch={(updates) =>
-                    handleUpdateBranch(activeBranch.id, updates)
-                  }
+                  onUpdateBranch={handleUpdateBranch}
                   onSaveDraftForBranch={handleSaveDraftForBranch}
                   onForceSave={() => {}}
                   onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}
@@ -318,9 +322,7 @@ export default function Home() {
               onUpdateMessage={(messageId, updates) =>
                 handleUpdateMessage(activeBranch.id, messageId, updates)
               }
-              onUpdateBranch={(updates) =>
-                handleUpdateBranch(activeBranch.id, updates)
-              }
+              onUpdateBranch={handleUpdateBranch}
               onSaveDraftForBranch={handleSaveDraftForBranch}
               onForceSave={() => {}}
               onCommitsDetected={() => setGitHistoryRefreshTrigger((n) => n + 1)}

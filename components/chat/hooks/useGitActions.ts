@@ -11,7 +11,7 @@ interface UseGitActionsOptions {
   repoName: string
   repoFullName: string
   repoOwner: string
-  onUpdateBranch: (updates: Partial<Branch>) => void
+  onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
   onAddMessage: (message: Message) => Promise<string>
   onToggleGitHistory: () => void
 }
@@ -91,7 +91,7 @@ export function useGitActions({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      onUpdateBranch({ status: isStopped ? BRANCH_STATUS.IDLE : BRANCH_STATUS.STOPPED })
+      onUpdateBranch(branch.id, { status: isStopped ? BRANCH_STATUS.IDLE : BRANCH_STATUS.STOPPED })
     } catch {
       // ignore
     } finally {
@@ -119,7 +119,7 @@ export function useGitActions({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      onUpdateBranch({ prUrl: data.url })
+      onUpdateBranch(branch.id, { prUrl: data.url })
       window.open(data.url, "_blank")
     } catch {
       // Silently fail

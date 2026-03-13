@@ -9,7 +9,7 @@ interface UseBranchRenamingOptions {
   branch: Branch
   repoName: string
   repoFullName: string
-  onUpdateBranch: (updates: Partial<Branch>) => void
+  onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
   addSystemMessage: (content: string) => void
 }
 
@@ -49,7 +49,7 @@ export function useBranchRenaming({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      onUpdateBranch({ name: newName })
+      onUpdateBranch(branch.id, { name: newName })
       setRenaming(false)
     } catch (err: unknown) {
       addSystemMessage(`Rename failed: ${err instanceof Error ? err.message : "Unknown error"}`)

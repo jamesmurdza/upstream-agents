@@ -37,7 +37,7 @@ interface ChatPanelProps {
   onToggleGitHistory: () => void
   onAddMessage: (message: Message) => Promise<string>
   onUpdateMessage: (messageId: string, updates: Partial<Message>) => void
-  onUpdateBranch: (updates: Partial<Branch>) => void
+  onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
   onSaveDraftForBranch?: (branchId: string, draftPrompt: string) => void
   onForceSave: () => void
   onCommitsDetected?: () => void
@@ -144,7 +144,7 @@ export function ChatPanel({
     await onAddMessage(userMsg)
     setInput("")
 
-    onUpdateBranch({ status: BRANCH_STATUS.RUNNING, draftPrompt: "" })
+    onUpdateBranch(branch.id, { status: BRANCH_STATUS.RUNNING, draftPrompt: "" })
 
     const assistantMsg: Message = {
       id: generateId(),
@@ -180,7 +180,7 @@ export function ChatPanel({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error"
       onUpdateMessage(messageId, { content: `Error: ${message}` })
-      onUpdateBranch({ status: BRANCH_STATUS.IDLE })
+      onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
       currentMessageIdRef.current = null
       currentExecutionIdRef.current = null
     }
@@ -201,7 +201,7 @@ export function ChatPanel({
   // Perform the actual agent switch
   const performAgentSwitch = useCallback(async (agent: Agent) => {
     // Update local state immediately
-    onUpdateBranch({ agent, model: defaultAgentModel[agent] })
+    onUpdateBranch(branch.id, { agent, model: defaultAgentModel[agent] })
 
     // Persist to server and clear session ID to start fresh
     try {
@@ -233,7 +233,7 @@ export function ChatPanel({
     }
 
     // No messages, switch immediately - inline the logic to avoid initialization order issues
-    onUpdateBranch({ agent, model: defaultAgentModel[agent] })
+    onUpdateBranch(branch.id, { agent, model: defaultAgentModel[agent] })
     try {
       await fetch("/api/branches", {
         method: "PATCH",
@@ -264,7 +264,7 @@ export function ChatPanel({
   // Handle model change
   const handleModelChange = useCallback(async (model: string) => {
     // Update local state immediately
-    onUpdateBranch({ model })
+    onUpdateBranch(branch.id, { model })
 
     // Persist to server
     try {

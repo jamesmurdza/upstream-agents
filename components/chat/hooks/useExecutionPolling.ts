@@ -7,7 +7,7 @@ interface UseExecutionPollingOptions {
   branch: Branch
   repoName: string
   onUpdateMessage: (messageId: string, updates: Partial<Message>) => void
-  onUpdateBranch: (updates: Partial<Branch>) => void
+  onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
   onAddMessage: (message: Message) => Promise<string>
   onForceSave: () => void
   onCommitsDetected?: () => void
@@ -34,6 +34,7 @@ export function useExecutionPolling({
   const currentMessageIdRef = useRef<string | null>(null)
   const startingCommitRef = useRef<string | null>(branch.startCommit || null)
   const startPollingRef = useRef<(messageId: string, executionId?: string) => void>(() => {})
+  const pollingBranchIdRef = useRef<string | null>(null)
   // Use refs to always get the latest branch name/sandboxId in the polling callback
   // This prevents stale closures when the branch is renamed during polling
   const branchNameRef = useRef(branch.name)
@@ -45,6 +46,8 @@ export function useExecutionPolling({
   // This prevents the polling callback from being recreated on every message update
   const branchMessagesRef = useRef(branch.messages)
   branchMessagesRef.current = branch.messages
+  const activeBranchIdRef = useRef(branch.id)
+  activeBranchIdRef.current = branch.id
 
   // Update startingCommitRef when branch changes
   useEffect(() => {
@@ -65,7 +68,7 @@ export function useExecutionPolling({
 
   // Start polling for execution status via HTTP snapshots
   const startPolling = useCallback((messageId: string, executionId?: string) => {
-    // Signal that streaming is starting (used by sync to avoid overwriting)
+    pollingBranchIdRef.current = branch.id
     if (streamingMessageIdRef) {
       streamingMessageIdRef.current = messageId
     }
@@ -101,7 +104,9 @@ export function useExecutionPolling({
               }
               currentExecutionIdRef.current = null
               currentMessageIdRef.current = null
-              onUpdateBranch({ status: BRANCH_STATUS.IDLE })
+              if (pollingBranchIdRef.current) {
+                onUpdateBranch(pollingBranchIdRef.current, { status: BRANCH_STATUS.IDLE })
+              }
             }
             return
           }
@@ -256,11 +261,15 @@ export function useExecutionPolling({
             }
           }
 
-          onUpdateBranch({
-            status: "idle",
-            lastActivity: "now",
-            lastActivityTs: Date.now(),
-          })
+          const completedBranchId = pollingBranchIdRef.current
+          if (completedBranchId) {
+            onUpdateBranch(completedBranchId, {
+              status: "idle",
+              lastActivity: "now",
+              lastActivityTs: Date.now(),
+              unread: activeBranchIdRef.current !== completedBranchId,
+            })
+          }
           try {
             const ctx = new AudioContext()
             const osc = ctx.createOscillator()
@@ -315,7 +324,9 @@ export function useExecutionPolling({
     if (streamingMessageIdRef) {
       streamingMessageIdRef.current = null
     }
-    onUpdateBranch({ status: BRANCH_STATUS.IDLE })
+    if (pollingBranchIdRef.current) {
+      onUpdateBranch(pollingBranchIdRef.current, { status: BRANCH_STATUS.IDLE })
+    }
   }, [onUpdateMessage, onUpdateBranch, streamingMessageIdRef])
 
   // Check and resume polling on mount/branch switch
@@ -334,7 +345,7 @@ export function useExecutionPolling({
       .then((r) => r.json())
       .then((data) => {
         if (data.state && data.state !== "started") {
-          onUpdateBranch({ status: BRANCH_STATUS.STOPPED })
+          onUpdateBranch(branch.id, { status: BRANCH_STATUS.STOPPED })
         } else if (currentStatus === BRANCH_STATUS.RUNNING && !pollingRef.current) {
           if (currentMessages && currentMessages.length > 0) {
             const lastAssistantMsg = [...currentMessages].reverse().find(m => m.role === "assistant" && !m.commitHash)
@@ -342,7 +353,7 @@ export function useExecutionPolling({
               currentMessageIdRef.current = lastAssistantMsg.id
               startPollingRef.current(lastAssistantMsg.id)
             } else {
-              onUpdateBranch({ status: BRANCH_STATUS.IDLE })
+              onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
             }
           } else {
             fetch("/api/agent/execution/active", {
@@ -357,11 +368,11 @@ export function useExecutionPolling({
                   currentExecutionIdRef.current = execData.execution.executionId
                   startPollingRef.current(execData.execution.messageId, execData.execution.executionId)
                 } else {
-                  onUpdateBranch({ status: BRANCH_STATUS.IDLE })
+                  onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
                 }
               })
               .catch(() => {
-                onUpdateBranch({ status: BRANCH_STATUS.IDLE })
+                onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
               })
           }
         }
