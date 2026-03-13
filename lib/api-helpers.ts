@@ -136,11 +136,17 @@ export async function requireAuth(): Promise<AuthResult | Response> {
 }
 
 /**
- * Helper to check if requireAuth returned an error response
+ * Generic type guard for any result that may be an error Response
+ * Works with requireAuth, getDaytonaApiKey, requireGitHubAuth, etc.
  */
-export function isAuthError(result: AuthResult | Response): result is Response {
+export function isErrorResponse<T>(result: T | Response): result is Response {
   return result instanceof Response
 }
+
+// Legacy aliases for backwards compatibility
+export const isAuthError = isErrorResponse
+export const isDaytonaKeyError = isErrorResponse
+export const isGitHubAuthError = isErrorResponse
 
 // =============================================================================
 // Environment Variable Helpers
@@ -156,13 +162,6 @@ export function getDaytonaApiKey(): string | Response {
     return serverConfigError("DAYTONA_API_KEY")
   }
   return key
-}
-
-/**
- * Helper to check if getDaytonaApiKey returned an error response
- */
-export function isDaytonaKeyError(result: string | Response): result is Response {
-  return result instanceof Response
 }
 
 // =============================================================================
@@ -195,13 +194,6 @@ export async function requireGitHubAuth(): Promise<GitHubAuthResult | Response> 
   }
 
   return { userId: session.user.id, token }
-}
-
-/**
- * Helper to check if requireGitHubAuth returned an error response
- */
-export function isGitHubAuthError(result: GitHubAuthResult | Response): result is Response {
-  return result instanceof Response
 }
 
 // =============================================================================
