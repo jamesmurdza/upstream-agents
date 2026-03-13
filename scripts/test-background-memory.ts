@@ -63,11 +63,14 @@ async function main() {
     const systemPrompt =
       "You are a helpful coding assistant. Answer succinctly."
 
-    const bg = await createBackgroundSession("claude", {
-      sandbox,
-      systemPrompt,
-      timeout: 120,
-    })
+    const bg = await createBackgroundSession(
+      "claude",
+      {
+        sandbox: sandbox as any,
+        systemPrompt,
+        timeout: 120,
+      } as any
+    )
 
     console.log("Background session ID:", bg.id)
 
