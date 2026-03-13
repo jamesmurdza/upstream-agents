@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn, formatRelativeTime } from "@/lib/utils"
 import type { Repo, Branch } from "@/lib/types"
 import { agentLabels } from "@/lib/types"
 import { generateId } from "@/lib/store"
@@ -464,9 +464,9 @@ export function MobileSidebarDrawer({
                             <span className="text-[10px] text-muted-foreground">
                               {branch.status === BRANCH_STATUS.CREATING ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
                             </span>
-                            {branch.lastActivity && (
+                            {branch.lastActivityTs && (
                               <span className="ml-auto text-[10px] text-muted-foreground/60">
-                                {branch.lastActivity}
+                                {formatRelativeTime(branch.lastActivityTs)}
                               </span>
                             )}
                           </div>
