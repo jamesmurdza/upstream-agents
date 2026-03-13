@@ -162,6 +162,45 @@ export function isDaytonaKeyError(result: string | Response): result is Response
 }
 
 // =============================================================================
+// GitHub Token Helpers
+// =============================================================================
+
+export interface GitHubAuthResult {
+  userId: string
+  token: string
+}
+
+/**
+ * Gets the authenticated user's GitHub token
+ * Returns userId and token or an error Response
+ * Combines session check, account lookup, and token validation in one call
+ */
+export async function requireGitHubAuth(): Promise<GitHubAuthResult | Response> {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return unauthorized()
+  }
+
+  const account = await prisma.account.findFirst({
+    where: { userId: session.user.id, provider: "github" },
+  })
+  const token = account?.access_token
+
+  if (!token) {
+    return Response.json({ error: "GitHub account not linked" }, { status: 401 })
+  }
+
+  return { userId: session.user.id, token }
+}
+
+/**
+ * Helper to check if requireGitHubAuth returned an error response
+ */
+export function isGitHubAuthError(result: GitHubAuthResult | Response): result is Response {
+  return result instanceof Response
+}
+
+// =============================================================================
 // Credential Helpers
 // =============================================================================
 
