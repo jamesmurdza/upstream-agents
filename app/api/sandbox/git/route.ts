@@ -10,9 +10,8 @@ import {
   isDaytonaKeyError,
   internalError,
 } from "@/lib/api-helpers"
-import { TIMEOUTS } from "@/lib/constants"
-
-export const maxDuration = TIMEOUTS.GIT_OPERATION / 1000 // Convert ms to seconds
+// Git operation timeout - 60 seconds (must be literal for Next.js static analysis)
+export const maxDuration = 60
 
 /**
  * Verifies we're on the correct branch (no checkout).

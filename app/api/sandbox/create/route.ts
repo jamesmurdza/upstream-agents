@@ -12,9 +12,10 @@ import {
   decryptUserCredentials,
 } from "@/lib/api-helpers"
 import { createSSEStream, sendProgress, sendError, sendDone } from "@/lib/streaming-helpers"
-import { TIMEOUTS, SANDBOX_CONFIG, PATHS } from "@/lib/constants"
+import { SANDBOX_CONFIG, PATHS } from "@/lib/constants"
 
-export const maxDuration = TIMEOUTS.SANDBOX_CREATE / 1000 // Convert ms to seconds
+// Sandbox creation timeout - 300 seconds (must be literal for Next.js static analysis)
+export const maxDuration = 300
 
 export async function POST(req: Request) {
   // 1. Authenticate

@@ -17,9 +17,10 @@ import {
   sendError,
   createContentAccumulator,
 } from "@/lib/streaming-helpers"
-import { TIMEOUTS, PATHS } from "@/lib/constants"
+import { PATHS } from "@/lib/constants"
 
-export const maxDuration = TIMEOUTS.AGENT_QUERY / 1000 // Convert ms to seconds
+// Agent query timeout - 300 seconds (must be literal for Next.js static analysis)
+export const maxDuration = 300
 
 export async function POST(req: Request) {
   // 1. Authenticate

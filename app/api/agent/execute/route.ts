@@ -15,10 +15,11 @@ import {
   updateSandboxAndBranchStatus,
   resetSandboxStatus,
 } from "@/lib/api-helpers"
-import { TIMEOUTS, PATHS } from "@/lib/constants"
+import { PATHS } from "@/lib/constants"
 import type { Agent } from "@/lib/types"
 
-export const maxDuration = TIMEOUTS.AGENT_EXECUTE / 1000 // Only needs to start the background process
+// Agent execution timeout - 60 seconds (must be literal for Next.js static analysis)
+export const maxDuration = 60
 
 export async function POST(req: Request) {
   // 1. Authenticate
