@@ -96,7 +96,7 @@ export async function PATCH(req: Request) {
   const { userId } = authResult
 
   const body = await req.json()
-  const { branchId, status, prUrl, name, draftPrompt } = body
+  const { branchId, status, prUrl, name, draftPrompt, agent, model } = body
 
   if (!branchId) {
     return badRequest("Missing branch ID")
@@ -115,6 +115,8 @@ export async function PATCH(req: Request) {
       ...(prUrl !== undefined && { prUrl }),
       ...(name && { name }),
       ...(draftPrompt !== undefined && { draftPrompt }),
+      ...(agent && { agent }),
+      ...(model !== undefined && { model }),
     },
     include: {
       sandbox: true,

@@ -1,7 +1,8 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import type { Branch, Message } from "@/lib/types"
+import type { Agent, Branch, Message } from "@/lib/types"
+import { defaultAgentModel } from "@/lib/types"
 import { generateId } from "@/lib/store"
 import { BRANCH_STATUS } from "@/lib/constants"
 import { Terminal } from "lucide-react"
@@ -189,6 +190,47 @@ export function ChatPanel({
     gitActions.setCommitDiffMessage(msg)
   }, [gitActions])
 
+  // Handle agent change
+  const handleAgentChange = useCallback(async (agent: Agent) => {
+    // Update local state immediately
+    onUpdateBranch({ agent, model: defaultAgentModel[agent] })
+
+    // Persist to server
+    try {
+      await fetch("/api/branches", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          branchId: branch.id,
+          agent,
+          model: defaultAgentModel[agent],
+        }),
+      })
+    } catch (err) {
+      console.error("Failed to update agent:", err)
+    }
+  }, [branch.id, onUpdateBranch])
+
+  // Handle model change
+  const handleModelChange = useCallback(async (model: string) => {
+    // Update local state immediately
+    onUpdateBranch({ model })
+
+    // Persist to server
+    try {
+      await fetch("/api/branches", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          branchId: branch.id,
+          model,
+        }),
+      })
+    } catch (err) {
+      console.error("Failed to update model:", err)
+    }
+  }, [branch.id, onUpdateBranch])
+
   return (
     <TooltipProvider delayDuration={0}>
       <div className={cn(
@@ -225,6 +267,8 @@ export function ChatPanel({
           onInputChange={setInput}
           onSend={handleSend}
           onStop={handleStop}
+          onAgentChange={handleAgentChange}
+          onModelChange={handleModelChange}
           isMobile={isMobile}
         />
       </div>
