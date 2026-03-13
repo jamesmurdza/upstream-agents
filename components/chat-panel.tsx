@@ -194,16 +194,24 @@ export function ChatPanel({
     gitActions.setCommitDiffMessage(msg)
   }, [gitActions])
 
-  // Handle agent change
-  const handleAgentChange = useCallback(async (agent: Agent) => {
-    // Warn user if they have messages and are switching agents
+  // Handle agent change request
+  const handleAgentChange = useCallback((agent: Agent) => {
+    // If switching to the same agent, do nothing
+    const currentAgent = (branch.agent || "claude-code") as Agent
+    if (agent === currentAgent) return
+
+    // If there are messages, show confirmation dialog
     if (branch.messages.length > 0) {
-      const confirmed = window.confirm(
-        "Switching agents mid-conversation will reset the context. Your previous messages will remain visible but the new agent won't have access to them. Continue?"
-      )
-      if (!confirmed) return
+      setPendingAgentSwitch(agent)
+      return
     }
 
+    // No messages, switch immediately
+    performAgentSwitch(agent)
+  }, [branch.agent, branch.messages.length])
+
+  // Perform the actual agent switch
+  const performAgentSwitch = useCallback(async (agent: Agent) => {
     // Update local state immediately
     onUpdateBranch({ agent, model: defaultAgentModel[agent] })
 
@@ -222,7 +230,18 @@ export function ChatPanel({
     } catch (err) {
       console.error("Failed to update agent:", err)
     }
-  }, [branch.id, branch.messages.length, onUpdateBranch])
+  }, [branch.id, onUpdateBranch])
+
+  // Handle agent switch confirmation
+  const handleAgentSwitchConfirm = useCallback((agent: Agent) => {
+    performAgentSwitch(agent)
+    setPendingAgentSwitch(null)
+  }, [performAgentSwitch])
+
+  // Handle agent switch cancellation
+  const handleAgentSwitchCancel = useCallback(() => {
+    setPendingAgentSwitch(null)
+  }, [])
 
   // Handle model change
   const handleModelChange = useCallback(async (model: string) => {
@@ -292,6 +311,14 @@ export function ChatPanel({
         repoOwner={repoOwner}
         repoName={repoName}
         gitActions={gitActions}
+      />
+
+      {/* Agent Switch Confirmation Dialog */}
+      <SwitchAgentDialog
+        newAgent={pendingAgentSwitch}
+        currentAgent={(branch.agent || "claude-code") as Agent}
+        onClose={handleAgentSwitchCancel}
+        onConfirm={handleAgentSwitchConfirm}
       />
     </TooltipProvider>
   )
