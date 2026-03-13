@@ -8,7 +8,8 @@ interface UseExecutionPollingOptions {
   repoName: string
   onUpdateMessage: (messageId: string, updates: Partial<Message>) => void
   onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
-  onAddMessage: (message: Message) => Promise<string>
+  /** Add message to a specific branch - branchId is required to avoid race conditions when user switches branches during execution */
+  onAddMessage: (branchId: string, message: Message) => Promise<string>
   onForceSave: () => void
   onCommitsDetected?: () => void
   /** Ref to signal that streaming is active - used by sync to avoid overwriting */
@@ -238,18 +239,23 @@ export function useExecutionPolling({
                   (c) => !chatCommits.has(c.shortHash),
                 )
 
-                for (const c of [...newCommits].reverse()) {
-                  onAddMessage({
-                    id: generateId(),
-                    role: "assistant",
-                    content: "",
-                    timestamp: new Date().toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }),
-                    commitHash: c.shortHash,
-                    commitMessage: c.message,
-                  })
+                // Use pollingBranchIdRef to ensure commits go to the correct branch
+                // even if user switched branches during execution
+                const targetBranchId = pollingBranchIdRef.current
+                if (targetBranchId) {
+                  for (const c of [...newCommits].reverse()) {
+                    onAddMessage(targetBranchId, {
+                      id: generateId(),
+                      role: "assistant",
+                      content: "",
+                      timestamp: new Date().toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }),
+                      commitHash: c.shortHash,
+                      commitMessage: c.message,
+                    })
+                  }
                 }
                 if (newCommits.length > 0) {
                   startingCommitRef.current = allCommits[0].shortHash

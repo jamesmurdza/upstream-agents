@@ -288,7 +288,7 @@ export default function Home() {
                   repoOwner={activeRepo.owner}
                   gitHistoryOpen={gitHistoryOpen}
                   onToggleGitHistory={() => setGitHistoryOpen((v) => !v)}
-                  onAddMessage={(msg) => handleAddMessage(activeBranch.id, msg)}
+                  onAddMessage={handleAddMessage}
                   onUpdateMessage={(messageId, updates) =>
                     handleUpdateMessage(activeBranch.id, messageId, updates)
                   }
@@ -318,7 +318,7 @@ export default function Home() {
               repoOwner={activeRepo.owner}
               gitHistoryOpen={gitHistoryOpen}
               onToggleGitHistory={() => setGitHistoryOpen((v) => !v)}
-              onAddMessage={(msg) => handleAddMessage(activeBranch.id, msg)}
+              onAddMessage={handleAddMessage}
               onUpdateMessage={(messageId, updates) =>
                 handleUpdateMessage(activeBranch.id, messageId, updates)
               }

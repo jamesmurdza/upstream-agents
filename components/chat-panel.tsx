@@ -35,7 +35,8 @@ interface ChatPanelProps {
   repoOwner: string
   gitHistoryOpen: boolean
   onToggleGitHistory: () => void
-  onAddMessage: (message: Message) => Promise<string>
+  /** Add message to a specific branch - branchId param ensures correct branch even during branch switches */
+  onAddMessage: (branchId: string, message: Message) => Promise<string>
   onUpdateMessage: (messageId: string, updates: Partial<Message>) => void
   onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
   onSaveDraftForBranch?: (branchId: string, draftPrompt: string) => void
@@ -141,7 +142,7 @@ export function ChatPanel({
       content: prompt,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
-    await onAddMessage(userMsg)
+    await onAddMessage(branch.id, userMsg)
     setInput("")
 
     onUpdateBranch(branch.id, { status: BRANCH_STATUS.RUNNING, draftPrompt: "" })
@@ -153,7 +154,7 @@ export function ChatPanel({
       toolCalls: [],
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
-    const messageId = await onAddMessage(assistantMsg)
+    const messageId = await onAddMessage(branch.id, assistantMsg)
     currentMessageIdRef.current = messageId
 
     try {

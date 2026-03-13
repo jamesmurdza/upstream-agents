@@ -12,7 +12,8 @@ interface UseGitActionsOptions {
   repoFullName: string
   repoOwner: string
   onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
-  onAddMessage: (message: Message) => Promise<string>
+  /** Add message to a specific branch - branchId param ensures correct branch */
+  onAddMessage: (branchId: string, message: Message) => Promise<string>
   onToggleGitHistory: () => void
 }
 
@@ -45,13 +46,14 @@ export function useGitActions({
   const [sandboxToggleLoading, setSandboxToggleLoading] = useState(false)
 
   const addSystemMessage = useCallback((content: string) => {
-    onAddMessage({
+    // System messages go to the current branch (user-initiated git actions)
+    onAddMessage(branch.id, {
       id: generateId(),
       role: "assistant",
       content,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     })
-  }, [onAddMessage])
+  }, [branch.id, onAddMessage])
 
   const fetchBranches = useCallback(async () => {
     setBranchesLoading(true)
