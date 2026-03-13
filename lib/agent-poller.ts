@@ -26,9 +26,6 @@ export async function startAgentPoller(options: StartAgentPollerOptions): Promis
 
   const pollerPromise = (async () => {
     try {
-      // Poll the Daytona background session until completion; each poll updates
-      // execution.latestSnapshot when content changes. On completion, persist
-      // to Message and clear snapshot.
       for (;;) {
         const result = await pollBackgroundAgent(sandbox, backgroundSessionId, {
           ...(pollOptions as PollBackgroundOptions),
@@ -38,8 +35,6 @@ export async function startAgentPoller(options: StartAgentPollerOptions): Promis
         if (result.status === "completed" || result.status === "error") {
           clearLastSnapshotForExecution(agentExecutionId)
 
-          // Load execution with its message so we can persist the final content
-          // and mark execution/branch/sandbox as idle.
           const execution = await prisma.agentExecution.findUnique({
             where: { id: agentExecutionId },
             include: {
@@ -50,12 +45,17 @@ export async function startAgentPoller(options: StartAgentPollerOptions): Promis
           if (execution) {
             const updates: any[] = []
 
-            // Update message content/toolCalls/contentBlocks with the final snapshot.
+            // When the agent stopped with an error, show a message in the chat.
+            const content =
+              result.status === "error" && result.error
+                ? `${result.content || ""}\n\n[Agent stopped: ${result.error}]`
+                : (result.content || "")
+
             updates.push(
               prisma.message.update({
                 where: { id: execution.messageId },
                 data: {
-                  content: result.content || "",
+                  content,
                   toolCalls:
                     result.toolCalls && result.toolCalls.length > 0
                       ? result.toolCalls
@@ -106,7 +106,42 @@ export async function startAgentPoller(options: StartAgentPollerOptions): Promis
         await sleep(500)
       }
     } catch (error) {
-      console.error("[agent-poller] unhandled poller error", { agentExecutionId }, error)
+      // Poller crashed (e.g. DB error, sandbox gone) – persist a message so the user sees it in chat.
+      try {
+        const execution = await prisma.agentExecution.findUnique({
+          where: { id: agentExecutionId },
+          include: { message: true },
+        })
+        if (execution) {
+          const errMsg = error instanceof Error ? error.message : "Unknown error"
+          await prisma.$transaction([
+            prisma.message.update({
+              where: { id: execution.messageId },
+              data: {
+                content: `${execution.message.content || ""}\n\n[Agent stopped unexpectedly: ${errMsg}]`,
+              },
+            }),
+            prisma.agentExecution.update({
+              where: { id: execution.id },
+              data: { status: "error", completedAt: new Date(), latestSnapshot: null },
+            }),
+            prisma.sandbox.updateMany({
+              where: { id: execution.sandboxId },
+              data: { status: "idle" },
+            }),
+            ...(execution.message?.branchId
+              ? [
+                  prisma.branch.updateMany({
+                    where: { id: execution.message.branchId },
+                    data: { status: "idle" },
+                  }),
+                ]
+              : []),
+          ])
+        }
+      } catch (e) {
+        console.error("[agent-poller] loop error and failed to persist stop message", { agentExecutionId }, e)
+      }
     } finally {
       activePollers.delete(agentExecutionId)
     }

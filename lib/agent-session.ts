@@ -491,7 +491,8 @@ export async function pollBackgroundAgent(
       sessionId: sessionId || undefined,
     }
   } catch (err) {
-    // On transient errors, fall back to whatever we've accumulated so far.
+    // Sandbox/SDK error (e.g. disconnect, process gone) – return error so poller persists and shows in chat.
+    const msg = err instanceof Error ? err.message : "Unknown error polling background session"
     const cachedEvents = backgroundSessionEvents.get(backgroundSessionId) || []
     const { content, toolCalls, contentBlocks } = buildContentBlocks(cachedEvents)
 
@@ -500,7 +501,7 @@ export async function pollBackgroundAgent(
       content,
       toolCalls,
       contentBlocks,
-      error: err instanceof Error ? err.message : "Unknown error polling background session",
+      error: msg,
     }
   }
 }
