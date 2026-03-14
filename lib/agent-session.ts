@@ -24,7 +24,7 @@ import {
   type BackgroundSessionOptions,
 } from "@jamesmurdza/coding-agents-sdk"
 import type { Sandbox as DaytonaSandbox } from "@daytonaio/sdk"
-import { type Agent, getProviderForAgent } from "@/lib/types"
+import { type Agent, getProviderForModel } from "@/lib/types"
 import { PATHS, SANDBOX_CONFIG } from "@/lib/constants"
 import { updateSnapshot, getAccumulatedEvents } from "@/lib/agent-events"
 
@@ -300,9 +300,10 @@ export async function createAgentSession(
     env: options.env,
   }
 
-  // Map agent type to SDK provider name (handles legacy "claude" values)
+  // Map agent/model to SDK provider name
+  // Models prefixed with "openai/" use openai provider, "anthropic/"/"claude" use claude provider
   const agent = options.agent || "claude-code"
-  const provider = getProviderForAgent(agent)
+  const provider = getProviderForModel(options.model, agent)
 
   const session = await sdkCreateSession(provider, sessionOptions)
 
@@ -342,9 +343,10 @@ export async function startBackgroundAgent(
   // Cast sandbox for SDK version compatibility
   const sandboxForSdk = sandbox as unknown as NonNullable<BackgroundSessionOptions['sandbox']>
 
-  // Map agent type to SDK provider name (handles legacy "claude" values)
+  // Map agent/model to SDK provider name
+  // Models prefixed with "openai/" use openai provider, "anthropic/"/"claude" use claude provider
   const agent = options.agent || "claude-code"
-  const provider = getProviderForAgent(agent)
+  const provider = getProviderForModel(options.model, agent)
 
   // Pass undefined for model if "default" to let SDK choose
   const modelToUse = options.model === "default" ? undefined : options.model

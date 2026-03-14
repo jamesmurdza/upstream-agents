@@ -3,7 +3,7 @@ import { type BranchStatus, type AnthropicAuthType as ConstantsAnthropicAuthType
 export type Agent = "claude-code" | "opencode"
 
 // SDK provider names (must match ProviderName from SDK)
-export type ProviderName = "claude" | "codex" | "opencode" | "gemini"
+export type ProviderName = "claude" | "codex" | "opencode" | "gemini" | "openai"
 
 // SDK provider mapping
 export const agentToProvider: Record<Agent, ProviderName> = {
@@ -21,6 +21,35 @@ export function getProviderForAgent(agent: string | undefined): ProviderName {
   }
   // Fallback for any other value
   return "claude"
+}
+
+/**
+ * Get the correct provider based on the model string.
+ * Models prefixed with "openai/" should use the openai provider.
+ * Models prefixed with "anthropic/" or containing "claude" should use the anthropic/claude provider.
+ * Otherwise, fall back to the agent's default provider.
+ */
+export function getProviderForModel(model: string | undefined, agent: string | undefined): ProviderName {
+  if (!model) {
+    return getProviderForAgent(agent)
+  }
+
+  // Check model prefix to determine provider
+  if (model.startsWith("openai/")) {
+    return "openai"
+  }
+
+  if (model.startsWith("anthropic/") || model.includes("claude")) {
+    return "claude"
+  }
+
+  // For opencode/* models, use opencode provider
+  if (model.startsWith("opencode/")) {
+    return "opencode"
+  }
+
+  // Fall back to agent's default provider
+  return getProviderForAgent(agent)
 }
 
 // Model configurations per agent
