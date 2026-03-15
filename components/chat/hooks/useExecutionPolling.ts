@@ -273,8 +273,19 @@ export function useExecutionPolling({
                 return block
               },
             )
+            let finalContent = data.content || ""
+            const hasNoOutput =
+              !finalContent &&
+              finalToolCalls.length === 0 &&
+              finalContentBlocks.length === 0
+            if (
+              data.status === EXECUTION_STATUS.COMPLETED &&
+              hasNoOutput
+            ) {
+              finalContent = STOPPED_WITHOUT_END_NOTE.trim()
+            }
             const savePromise = onUpdateMessage(targetBranchId, messageId, {
-              content: data.content || "",
+              content: finalContent,
               toolCalls: finalToolCalls,
               contentBlocks:
                 finalContentBlocks.length > 0 ? finalContentBlocks : undefined,
