@@ -90,6 +90,19 @@ export function useExecutionPolling({
     const MAX_NOT_FOUND_RETRIES = 10
     let completionHandled = false
 
+    const STOPPED_WITHOUT_END_NOTE =
+      "\n\n---\n*Agent stopped without completing (process may have ended or connection lost).*"
+
+    const appendStoppedWithoutEndNote = () => {
+      const targetBranchId = pollingBranchIdRef.current
+      if (!targetBranchId) return
+      const lastMsg = branchMessagesRef.current.find((m) => m.id === messageId)
+      const currentContent = lastMsg?.content ?? ""
+      onUpdateMessage(targetBranchId, messageId, {
+        content: currentContent + STOPPED_WITHOUT_END_NOTE,
+      })
+    }
+
     const poll = async () => {
       try {
         const res = await fetch("/api/agent/status", {
@@ -110,6 +123,7 @@ export function useExecutionPolling({
               }
               currentExecutionIdRef.current = null
               currentMessageIdRef.current = null
+              appendStoppedWithoutEndNote()
               if (pollingBranchIdRef.current) {
                 onUpdateBranch(pollingBranchIdRef.current, { status: BRANCH_STATUS.IDLE })
               }
@@ -136,6 +150,7 @@ export function useExecutionPolling({
           currentExecutionIdRef.current = null
           currentMessageIdRef.current = null
           if (streamingMessageIdRef) streamingMessageIdRef.current = null
+          appendStoppedWithoutEndNote()
           if (pollingBranchIdRef.current) {
             onUpdateBranch(pollingBranchIdRef.current, { status: BRANCH_STATUS.IDLE })
           }
