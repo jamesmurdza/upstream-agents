@@ -4,15 +4,28 @@ import { cn } from "@/lib/utils"
 import type { Agent, Branch, UserCredentialFlags } from "@/lib/types"
 import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials } from "@/lib/types"
 import { BRANCH_STATUS } from "@/lib/constants"
-import { Send, Terminal, ChevronDown, Sparkles, Check, Lock } from "lucide-react"
-import { forwardRef, useEffect, useCallback } from "react"
+import { Send, Terminal, ChevronDown, Sparkles, Check, Lock, Settings } from "lucide-react"
+import { forwardRef, useEffect, useCallback, useState } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command"
 
 // ============================================================================
 // Chat Input Component
@@ -44,6 +57,9 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
 
     // Filter models based on available credentials
     const availableModels = getAvailableModels(currentAgent, credentials)
+
+    // Model combobox state
+    const [modelOpen, setModelOpen] = useState(false)
 
     const canSend = input.trim() && branch.status !== BRANCH_STATUS.RUNNING && branch.status !== BRANCH_STATUS.CREATING && branch.sandboxId
     const isReady = branch.sandboxId && (branch.status !== BRANCH_STATUS.CREATING)
