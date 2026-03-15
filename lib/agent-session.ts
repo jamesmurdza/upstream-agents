@@ -178,8 +178,13 @@ export function transformEvent(event: Event): AgentEvent | null {
     case "session":
       return { type: "session", sessionId: (event as SessionEvent).id }
 
-    case "end":
+    case "end": {
+      const endEvent = event as EndEvent
+      if (endEvent.error) {
+        return { type: "error", message: endEvent.error }
+      }
       return { type: "done" }
+    }
 
     case "tool_delta":
     case "tool_end":
@@ -475,8 +480,20 @@ export async function pollBackgroundAgent(
     }
 
     // Completed = process not running or we saw an event with type === "end" (SDK turns step_finish/reason=stop into end)
-    const hasEndEvent = allEvents.some(e => e.type === "end")
+    const endEvent = allEvents.find((e): e is EndEvent => e.type === "end")
+    const hasEndEvent = !!endEvent
     const isCompleted = !isRunning || hasEndEvent
+
+    if (endEvent?.error) {
+      return {
+        status: "error",
+        content,
+        toolCalls,
+        contentBlocks,
+        error: endEvent.error,
+        sessionId: sessionId || undefined,
+      }
+    }
 
     return {
       status: isCompleted ? "completed" : "running",

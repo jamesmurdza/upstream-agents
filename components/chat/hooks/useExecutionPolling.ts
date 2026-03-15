@@ -232,7 +232,8 @@ export function useExecutionPolling({
                 content = content ? `${content}\n\n[Agent crashed: ${crashMsg}]` : `[Agent crashed: ${crashMsg}]`
                 if (output) content += `\n\nOutput:\n${output}`
               } else if (data.error) {
-                content = content ? `${content}\n\nError: ${data.error}` : `Error: ${data.error}`
+                const runFailed = `Run failed: ${data.error}`
+                content = content ? `${content}\n\n${runFailed}` : runFailed
               }
               if (content !== (data.content ?? "")) {
                 onUpdateMessage(targetBranchId, messageId, { content })
