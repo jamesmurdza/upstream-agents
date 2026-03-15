@@ -3,7 +3,7 @@ import { type BranchStatus, type AnthropicAuthType as ConstantsAnthropicAuthType
 export type Agent = "claude-code" | "opencode"
 
 // SDK provider names (must match ProviderName from SDK)
-export type ProviderName = "claude" | "codex" | "opencode" | "gemini" | "openai" | "anthropic"
+export type ProviderName = "claude" | "codex" | "opencode" | "gemini"
 
 // SDK provider mapping
 export const agentToProvider: Record<Agent, ProviderName> = {
@@ -24,48 +24,17 @@ export function getProviderForAgent(agent: string | undefined): ProviderName {
 }
 
 /**
- * Determines the SDK provider based on the model string.
- * Models prefixed with "openai/" should use the "openai" provider directly.
- * Models prefixed with "anthropic/" should use the "anthropic" provider directly.
- * OpenCode models (opencode/...) that are Claude-based should use "anthropic" provider.
- * OpenCode models that are GPT-based should use "openai" provider.
- * Otherwise, use the agent's default provider.
+ * Determines the SDK provider based on the model string and agent.
+ * The OpenCode provider handles all model routing internally via the model string
+ * (e.g., "opencode/gpt-5.1-codex" or "openai/gpt-4o").
+ * This function just returns the correct provider for the SDK.
  */
 export function getProviderForModel(model: string | undefined, agent: Agent | undefined): ProviderName {
-  if (!model) {
-    return getProviderForAgent(agent)
-  }
-
-  const [prefix, modelName] = model.split("/")
-
-  // Direct provider prefixes
-  if (prefix === "openai") {
-    return "openai" as ProviderName
-  }
-  if (prefix === "anthropic") {
-    return "anthropic" as ProviderName
-  }
-
-  // OpenCode models - determine provider by model name
-  if (prefix === "opencode") {
-    const nameLower = modelName?.toLowerCase() || ""
-
-    // Claude family models -> anthropic provider
-    if (nameLower.includes("claude") || nameLower.includes("sonnet") ||
-        nameLower.includes("opus") || nameLower.includes("haiku")) {
-      return "anthropic" as ProviderName
-    }
-
-    // GPT/Codex models -> openai provider
-    if (nameLower.includes("gpt") || nameLower.includes("codex") || nameLower.startsWith("o3")) {
-      return "openai" as ProviderName
-    }
-
-    // Free models and others -> opencode provider
+  // For OpenCode agent, always use the opencode provider - it handles model routing
+  if (agent === "opencode") {
     return "opencode"
   }
-
-  // Fallback to agent's provider
+  // For other agents, use the agent's provider
   return getProviderForAgent(agent)
 }
 
