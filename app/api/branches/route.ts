@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       baseBranch,
       startCommit,
       status: "idle",
-      agent: "claude-code",
+      agent: "opencode", // Default to opencode (has free models, no API key required)
     },
     include: INCLUDE_BRANCH_WITH_MESSAGES,
   })
