@@ -30,7 +30,7 @@ export function getProviderForAgent(agent: string | undefined): ProviderName {
 export interface ModelOption {
   value: string
   label: string
-  requiresKey?: "anthropic" | "openai" | "openrouter" | "none" // Which API key is required
+  requiresKey?: "anthropic" | "openai" | "opencode" | "none" // Which API key is required
 }
 
 export const agentModels: Record<Agent, ModelOption[]> = {
@@ -46,16 +46,16 @@ export const agentModels: Record<Agent, ModelOption[]> = {
     { value: "opencode/nemotron-3-super-free", label: "Nemotron 3 Super (Free)", requiresKey: "none" },
     { value: "opencode/minimax-m2.5-free", label: "MiniMax M2.5 (Free)", requiresKey: "none" },
     { value: "opencode/mimo-v2-flash-free", label: "MiMo v2 Flash (Free)", requiresKey: "none" },
-    // Paid models (requires OpenRouter API key)
-    { value: "opencode/claude-sonnet-4", label: "Claude Sonnet 4", requiresKey: "openrouter" },
-    { value: "opencode/claude-sonnet-4-5", label: "Claude Sonnet 4.5", requiresKey: "openrouter" },
-    { value: "opencode/claude-haiku-4-5", label: "Claude Haiku 4.5", requiresKey: "openrouter" },
-    { value: "opencode/claude-opus-4-5", label: "Claude Opus 4.5", requiresKey: "openrouter" },
-    { value: "opencode/gpt-5", label: "GPT-5", requiresKey: "openrouter" },
-    { value: "opencode/gpt-5-codex", label: "GPT-5 Codex", requiresKey: "openrouter" },
-    { value: "opencode/gpt-5-nano", label: "GPT-5 Nano", requiresKey: "openrouter" },
-    { value: "opencode/gemini-3-flash", label: "Gemini 3 Flash", requiresKey: "openrouter" },
-    { value: "opencode/gemini-3-pro", label: "Gemini 3 Pro", requiresKey: "openrouter" },
+    // Paid models (requires OpenCode API key)
+    { value: "opencode/claude-sonnet-4", label: "Claude Sonnet 4", requiresKey: "opencode" },
+    { value: "opencode/claude-sonnet-4-5", label: "Claude Sonnet 4.5", requiresKey: "opencode" },
+    { value: "opencode/claude-haiku-4-5", label: "Claude Haiku 4.5", requiresKey: "opencode" },
+    { value: "opencode/claude-opus-4-5", label: "Claude Opus 4.5", requiresKey: "opencode" },
+    { value: "opencode/gpt-5", label: "GPT-5", requiresKey: "opencode" },
+    { value: "opencode/gpt-5-codex", label: "GPT-5 Codex", requiresKey: "opencode" },
+    { value: "opencode/gpt-5-nano", label: "GPT-5 Nano", requiresKey: "opencode" },
+    { value: "opencode/gemini-3-flash", label: "Gemini 3 Flash", requiresKey: "opencode" },
+    { value: "opencode/gemini-3-pro", label: "Gemini 3 Pro", requiresKey: "opencode" },
   ],
 }
 
@@ -70,7 +70,7 @@ export interface UserCredentialFlags {
   hasAnthropicApiKey?: boolean
   hasAnthropicAuthToken?: boolean
   hasOpenaiApiKey?: boolean
-  hasOpenrouterApiKey?: boolean
+  hasOpencodeApiKey?: boolean
 }
 
 /**
@@ -107,7 +107,7 @@ export function getAvailableModels(
  * Check if user has credentials for a specific model.
  * Returns true if the model can be used, false if credentials are missing.
  *
- * Note: For OpenCode agent, paid models require an OpenRouter API key.
+ * Note: For OpenCode agent, paid models require an OpenCode API key.
  * Claude Code agent can use either Anthropic API key or subscription.
  */
 export function hasCredentialsForModel(
@@ -127,8 +127,8 @@ export function hasCredentialsForModel(
       return !!(credentials?.hasAnthropicApiKey || credentials?.hasAnthropicAuthToken)
     case "openai":
       return !!credentials?.hasOpenaiApiKey
-    case "openrouter":
-      return !!credentials?.hasOpenrouterApiKey
+    case "opencode":
+      return !!credentials?.hasOpencodeApiKey
     default:
       return true
   }
@@ -226,6 +226,7 @@ export interface Settings {
   anthropicAuthType: AnthropicAuthType
   anthropicAuthToken: string
   daytonaApiKey: string
+  opencodeApiKey: string
 }
 
 export const agentLabels: Record<Agent, string> = {
@@ -249,4 +250,5 @@ export const defaultSettings: Settings = {
   anthropicAuthType: "api-key",
   anthropicAuthToken: "",
   daytonaApiKey: "",
+  opencodeApiKey: "",
 }

@@ -15,7 +15,7 @@ interface SettingsModalProps {
     hasAnthropicApiKey: boolean
     hasAnthropicAuthToken: boolean
     hasOpenaiApiKey: boolean
-    hasOpenrouterApiKey: boolean
+    hasOpencodeApiKey: boolean
     hasDaytonaApiKey: boolean
     sandboxAutoStopInterval?: number
   } | null
@@ -27,7 +27,7 @@ interface SettingsModalProps {
 }
 
 // Track which keys should be cleared on save
-type ClearableKey = "anthropicApiKey" | "anthropicAuthToken" | "openaiApiKey" | "openrouterApiKey" | "daytonaApiKey"
+type ClearableKey = "anthropicApiKey" | "anthropicAuthToken" | "openaiApiKey" | "opencodeApiKey" | "daytonaApiKey"
 
 export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate, highlightField, onClearHighlight }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("agents")
@@ -38,7 +38,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
 
   // Other API keys
   const [openaiApiKey, setOpenaiApiKey] = useState("")
-  const [openrouterApiKey, setOpenrouterApiKey] = useState("")
+  const [opencodeApiKey, setOpencodeApiKey] = useState("")
 
   // Sandbox settings
   const [sandboxAutoStopInterval, setSandboxAutoStopInterval] = useState(5)
@@ -61,7 +61,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       setAnthropicApiKey("")
       setAnthropicAuthToken("")
       setOpenaiApiKey("")
-      setOpenrouterApiKey("")
+      setOpencodeApiKey("")
       setDaytonaApiKey("")
       setKeysToClear(new Set())
       const interval = credentials?.sandboxAutoStopInterval ?? 5
@@ -77,7 +77,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
   useEffect(() => {
     if (highlightField && open) {
       // Switch to agents tab if highlighting an agent-related field
-      if (["anthropicApiKey", "anthropicAuthToken", "openaiApiKey", "openrouterApiKey"].includes(highlightField)) {
+      if (["anthropicApiKey", "anthropicAuthToken", "openaiApiKey", "opencodeApiKey"].includes(highlightField)) {
         setActiveTab("agents")
       }
       // Scroll field into view after a short delay to allow tab switch
@@ -107,7 +107,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
     const newAnthropicKey = anthropicApiKey.trim()
     const newAuthToken = anthropicAuthToken.trim()
     const newOpenaiKey = openaiApiKey.trim()
-    const newOpenrouterKey = openrouterApiKey.trim()
+    const newOpencodeKey = opencodeApiKey.trim()
     const newDaytonaKey = daytonaApiKey.trim()
     const autoStopChanged = sandboxAutoStopInterval !== initialAutoStopInterval
 
@@ -122,7 +122,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       newAnthropicKey ||
       newAuthToken ||
       newOpenaiKey ||
-      newOpenrouterKey ||
+      newOpencodeKey ||
       newDaytonaKey ||
       autoStopChanged ||
       keysToClear.size > 0
@@ -149,8 +149,8 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       if (newOpenaiKey) {
         payload.openaiApiKey = newOpenaiKey
       }
-      if (newOpenrouterKey) {
-        payload.openrouterApiKey = newOpenrouterKey
+      if (newOpencodeKey) {
+        payload.opencodeApiKey = newOpencodeKey
       }
       if (newDaytonaKey) {
         payload.daytonaApiKey = newDaytonaKey
