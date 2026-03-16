@@ -9,6 +9,7 @@ import {
   removeBranchFromRepo,
 } from "@/lib/state-utils"
 import { PATHS } from "@/lib/constants"
+import { saveRepoOrder, loadRepoOrder } from "@/lib/store"
 
 interface UseRepoOperationsOptions {
   repos: TransformedRepo[]
@@ -48,7 +49,12 @@ export function useRepoOperations({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Failed to add repository")
       const transformed = transformRepo(data.repo)
-      setRepos((prev) => [...prev, transformed])
+      setRepos((prev) => {
+        const newRepos = [...prev, transformed]
+        // Update saved order to include the new repo at the end
+        saveRepoOrder(newRepos.map((r) => r.id))
+        return newRepos
+      })
       selectRepo(transformed.id)
       setActiveBranchId(null)
     },
@@ -74,7 +80,13 @@ export function useRepoOperations({
     // Delete repo from database
     fetch(`/api/repos?id=${repoId}`, { method: "DELETE" }).catch(() => {})
 
-    setRepos((prev) => removeRepo(prev, repoId))
+    setRepos((prev) => {
+      const newRepos = removeRepo(prev, repoId)
+      // Update saved order to remove the deleted repo
+      const currentOrder = loadRepoOrder()
+      saveRepoOrder(currentOrder.filter((id) => id !== repoId))
+      return newRepos
+    })
     if (activeRepoId === repoId) {
       const remaining = repos.filter((r) => r.id !== repoId)
       selectRepo(remaining[0]?.id ?? "")
@@ -82,9 +94,14 @@ export function useRepoOperations({
     }
   }, [repos, activeRepoId, setRepos, selectRepo, setActiveBranchId])
 
-  // Reorder repos (drag and drop)
+  // Reorder repos (drag and drop) - persists order to localStorage
   const handleReorderRepos = useCallback((fromIndex: number, toIndex: number) => {
-    setRepos((prev) => reorderRepos(prev, fromIndex, toIndex))
+    setRepos((prev) => {
+      const reordered = reorderRepos(prev, fromIndex, toIndex)
+      // Save the new order to localStorage so it persists across page loads
+      saveRepoOrder(reordered.map((r) => r.id))
+      return reordered
+    })
   }, [setRepos])
 
   // Add a new branch to the active repo
