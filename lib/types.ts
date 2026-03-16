@@ -40,21 +40,30 @@ export const agentModels: Record<Agent, ModelOption[]> = {
     { value: "haiku", label: "Haiku", requiresKey: "anthropic" },
   ],
   "opencode": [
-    // Free models - no API key needed
+    // Free models (opencode/) - no API key needed
     { value: "opencode/big-pickle", label: "Big Pickle (Free)", requiresKey: "none" },
     { value: "opencode/nemotron-3-super-free", label: "Nemotron 3 Super (Free)", requiresKey: "none" },
     { value: "opencode/minimax-m2.5-free", label: "MiniMax M2.5 (Free)", requiresKey: "none" },
     { value: "opencode/mimo-v2-flash-free", label: "MiMo v2 Flash (Free)", requiresKey: "none" },
-    // Paid models (requires OpenCode API key)
+    // Paid opencode/ models (requires OpenCode API key)
     { value: "opencode/claude-sonnet-4", label: "Claude Sonnet 4", requiresKey: "opencode" },
     { value: "opencode/claude-sonnet-4-5", label: "Claude Sonnet 4.5", requiresKey: "opencode" },
+    { value: "opencode/claude-sonnet-4-6", label: "Claude Sonnet 4.6", requiresKey: "opencode" },
     { value: "opencode/claude-haiku-4-5", label: "Claude Haiku 4.5", requiresKey: "opencode" },
     { value: "opencode/claude-opus-4-5", label: "Claude Opus 4.5", requiresKey: "opencode" },
+    { value: "opencode/claude-opus-4-6", label: "Claude Opus 4.6", requiresKey: "opencode" },
     { value: "opencode/gpt-5", label: "GPT-5", requiresKey: "opencode" },
     { value: "opencode/gpt-5-codex", label: "GPT-5 Codex", requiresKey: "opencode" },
     { value: "opencode/gpt-5-nano", label: "GPT-5 Nano", requiresKey: "opencode" },
     { value: "opencode/gemini-3-flash", label: "Gemini 3 Flash", requiresKey: "opencode" },
     { value: "opencode/gemini-3-pro", label: "Gemini 3 Pro", requiresKey: "opencode" },
+    { value: "opencode/kimi-k2.5", label: "Kimi K2.5", requiresKey: "opencode" },
+    // Anthropic direct models (requires Anthropic API key, not subscription)
+    { value: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5 (Anthropic)", requiresKey: "anthropic" },
+    { value: "anthropic/claude-sonnet-4-6", label: "Claude Sonnet 4.6 (Anthropic)", requiresKey: "anthropic" },
+    { value: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5 (Anthropic)", requiresKey: "anthropic" },
+    { value: "anthropic/claude-opus-4-5", label: "Claude Opus 4.5 (Anthropic)", requiresKey: "anthropic" },
+    { value: "anthropic/claude-opus-4-6", label: "Claude Opus 4.6 (Anthropic)", requiresKey: "anthropic" },
   ],
 }
 

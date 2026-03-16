@@ -27,15 +27,26 @@ function getEnvForModel(
     return env
   }
 
-  // For OpenCode agent, use OpenCode API key for paid models
-  // Model format: "opencode/model-name" (e.g., "opencode/big-pickle", "opencode/claude-sonnet-4")
+  // For OpenCode agent, determine API key based on model prefix
   if (agent === "opencode") {
-    // Free models don't need an API key
-    const isFreeModel = model?.includes("-free") || model === "opencode/big-pickle"
+    const modelPrefix = model?.split("/")[0]
 
-    if (!isFreeModel && credentials.opencodeApiKey) {
-      // Paid models use OpenCode API key
-      env.OPENCODE_API_KEY = credentials.opencodeApiKey
+    if (modelPrefix === "anthropic") {
+      // anthropic/* models use Anthropic API key directly
+      if (credentials.anthropicApiKey) {
+        env.ANTHROPIC_API_KEY = credentials.anthropicApiKey
+      }
+    } else if (modelPrefix === "openai") {
+      // openai/* models use OpenAI API key directly
+      if (credentials.openaiApiKey) {
+        env.OPENAI_API_KEY = credentials.openaiApiKey
+      }
+    } else if (modelPrefix === "opencode") {
+      // opencode/* models - free ones don't need a key, paid ones use OpenCode API key
+      const isFreeModel = model?.includes("-free") || model === "opencode/big-pickle"
+      if (!isFreeModel && credentials.opencodeApiKey) {
+        env.OPENCODE_API_KEY = credentials.opencodeApiKey
+      }
     }
   }
 
