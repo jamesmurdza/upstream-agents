@@ -109,6 +109,13 @@ export function hasClaudeCodeCredentials(credentials: UserCredentialFlags | null
 }
 
 /**
+ * Check if user has credentials for Codex agent (requires OpenAI API key).
+ */
+export function hasCodexCredentials(credentials: UserCredentialFlags | null | undefined): boolean {
+  return !!credentials?.hasOpenaiApiKey
+}
+
+/**
  * Get all models for an agent (no filtering by credentials).
  * All models are shown in the UI regardless of API key availability.
  */
