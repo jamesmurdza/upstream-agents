@@ -92,7 +92,7 @@ export function useExecutionPolling({
     let completionHandled = false
 
     const STOPPED_WITHOUT_END_NOTE =
-      "\n\n---\n*Agent stopped without completing (process may have ended or connection lost).*"
+      "\n\n---\n*Agent stopped without responding. Please try again.*"
 
     const appendStoppedWithoutEndNote = () => {
       const targetBranchId = pollingBranchIdRef.current
