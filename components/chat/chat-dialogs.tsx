@@ -1,7 +1,7 @@
 "use client"
 
 import type { Branch } from "@/lib/types"
-import { Loader2, Copy, Check } from "lucide-react"
+import { Loader2, Copy, Check, RefreshCw } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -39,7 +39,7 @@ export function ChatDialogs({ branch, repoOwner, repoName, gitActions }: ChatDia
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-sm">
-              {gitActions.branchPickerModal?.action === "merge" && `Merge ${branch.name} into...`}
+              {gitActions.branchPickerModal?.action === "merge" && "Merge branches"}
               {gitActions.branchPickerModal?.action === "rebase" && `Rebase ${branch.name} onto...`}
             </DialogTitle>
           </DialogHeader>
@@ -49,7 +49,63 @@ export function ChatDialogs({ branch, repoOwner, repoName, gitActions }: ChatDia
             </div>
           ) : gitActions.remoteBranches.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2">No other branches found.</p>
+          ) : gitActions.branchPickerModal?.action === "merge" ? (
+            /* Merge: stacked vertical layout with swap */
+            <div className="flex flex-col items-center gap-1">
+              {/* Source (top) */}
+              {gitActions.mergeDirection === "from-current" ? (
+                <div className="w-full rounded-md bg-muted/50 px-3 py-2 text-sm font-medium text-center truncate">
+                  {branch.name}
+                </div>
+              ) : (
+                <Select value={gitActions.selectedBranch} onValueChange={gitActions.setSelectedBranch}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gitActions.remoteBranches.map((b) => (
+                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* Arrow with "into" and swap button */}
+              <div className="flex items-center justify-between w-full py-1">
+                <div className="flex-1" />
+                <span className="text-xs text-muted-foreground">into</span>
+                <div className="flex-1 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={gitActions.toggleMergeDirection}
+                    className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                    title="Swap merge direction"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Target (bottom) */}
+              {gitActions.mergeDirection === "from-current" ? (
+                <Select value={gitActions.selectedBranch} onValueChange={gitActions.setSelectedBranch}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gitActions.remoteBranches.map((b) => (
+                      <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="w-full rounded-md bg-muted/50 px-3 py-2 text-sm font-medium text-center truncate">
+                  {branch.name}
+                </div>
+              )}
+            </div>
           ) : (
+            /* Rebase: original simple dropdown */
             <Select value={gitActions.selectedBranch} onValueChange={gitActions.setSelectedBranch}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select branch" />
