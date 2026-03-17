@@ -186,12 +186,24 @@ export async function POST(req: Request) {
         await sandbox.git.createBranch(repoPath, newBranch)
         await sandbox.git.checkoutBranch(repoPath, newBranch)
 
-        // If starting from a specific commit, reset to it
+        // If starting from a specific commit, fetch it (in case it's not in the cloned branch) and reset to it
         if (startCommit) {
           sendProgress(controller, `Resetting to commit ${startCommit.slice(0, 7)}...`)
+          // Fetch the specific commit in case it's not part of the cloned branch history
+          // This handles the case where user branches from a commit that exists on a different branch
+          const authedUrl = cloneUrl.replace(
+            /^https:\/\//,
+            `https://x-access-token:${githubToken}@`
+          )
           await sandbox.process.executeCommand(
+            `cd ${repoPath} && git fetch ${authedUrl} ${startCommit} 2>&1`
+          )
+          const resetResult = await sandbox.process.executeCommand(
             `cd ${repoPath} && git reset --hard ${startCommit} 2>&1`
           )
+          if (resetResult.exitCode) {
+            throw new Error(`Failed to reset to commit ${startCommit.slice(0, 7)}: ${resetResult.result}`)
+          }
         }
 
         // Capture the current HEAD commit as the starting point for commit detection
