@@ -84,7 +84,7 @@ function ToolCallTimeline({ toolCalls }: { toolCalls: ToolCall[] }) {
 
 function TextBlockContent({ text }: { text: string }) {
   return (
-    <div className="rounded-lg px-4 py-2.5 text-sm leading-relaxed bg-secondary/60 text-foreground prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:text-xs prose-code:text-xs prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 break-words overflow-x-auto [&_pre]:overflow-x-auto [&_code]:break-all [&_table]:block [&_table]:overflow-x-auto [&_table]:max-w-full [&_table]:border-collapse [&_th]:px-3 [&_th]:py-1.5 [&_th]:text-left [&_th]:border-b [&_th]:border-border [&_td]:px-3 [&_td]:py-1.5 [&_td]:border-b [&_td]:border-border/50 [&_tr:last-child_td]:border-b-0 min-w-0">
+    <div className="rounded-lg px-4 py-2.5 text-sm leading-relaxed bg-secondary/60 text-foreground prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:text-xs prose-code:text-xs prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 break-words overflow-x-auto [&_pre]:overflow-x-auto [&_code]:break-all [&_table]:block [&_table]:overflow-x-auto [&_table]:max-w-full min-w-0">
       <Markdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -186,7 +186,7 @@ export function MessageBubble({ message, agent = "claude-code", agentLabel, onCo
               "rounded-lg px-4 py-2.5 text-sm leading-relaxed",
               isUser
                 ? "bg-primary/15 text-foreground whitespace-pre-wrap break-words"
-                : "bg-secondary/60 text-foreground prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:text-xs prose-code:text-xs prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 break-words overflow-x-auto [&_pre]:overflow-x-auto [&_code]:break-all [&_table]:block [&_table]:overflow-x-auto [&_table]:max-w-full [&_table]:border-collapse [&_th]:px-3 [&_th]:py-1.5 [&_th]:text-left [&_th]:border-b [&_th]:border-border [&_td]:px-3 [&_td]:py-1.5 [&_td]:border-b [&_td]:border-border/50 [&_tr:last-child_td]:border-b-0 min-w-0"
+                : "bg-secondary/60 text-foreground prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:text-xs prose-code:text-xs prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 break-words overflow-x-auto [&_pre]:overflow-x-auto [&_code]:break-all [&_table]:block [&_table]:overflow-x-auto [&_table]:max-w-full min-w-0"
             )}
           >
             {message.content ? (
