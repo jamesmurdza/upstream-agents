@@ -49,7 +49,8 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
   const [keysToClear, setKeysToClear] = useState<Set<ClearableKey>>(new Set())
 
   // UI state
-  const [copied, setCopied] = useState(false)
+  const [copiedAuth, setCopiedAuth] = useState(false)
+  const [copiedCredentials, setCopiedCredentials] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<{ message: string; isError: boolean } | null>(null)
   const [showDaytonaWarning, setShowDaytonaWarning] = useState(false)
@@ -390,7 +391,20 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
                   )}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  First sign in with <code className="text-[10px]">claude auth login</code>
+                  First sign in with{" "}
+                  <code
+                    className="text-[10px] cursor-pointer"
+                    onClick={() => {
+                      navigator.clipboard.writeText('claude auth login')
+                      setCopiedAuth(true)
+                      setTimeout(() => setCopiedAuth(false), 1500)
+                    }}
+                  >
+                    {copiedAuth
+                      ? <Check className="inline h-2.5 w-2.5 text-green-500 mr-1 align-middle" />
+                      : <Copy className="inline h-2.5 w-2.5 text-muted-foreground/60 mr-1 align-middle" />}
+                    claude auth login
+                  </code>
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   Then, paste the output of:{" "}
@@ -398,11 +412,11 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
                     className="text-[10px] cursor-pointer"
                     onClick={() => {
                       navigator.clipboard.writeText('security find-generic-password -s "Claude Code-credentials" -w')
-                      setCopied(true)
-                      setTimeout(() => setCopied(false), 1500)
+                      setCopiedCredentials(true)
+                      setTimeout(() => setCopiedCredentials(false), 1500)
                     }}
                   >
-                    {copied
+                    {copiedCredentials
                       ? <Check className="inline h-2.5 w-2.5 text-green-500 mr-1 align-middle" />
                       : <Copy className="inline h-2.5 w-2.5 text-muted-foreground/60 mr-1 align-middle" />}
                     security find-generic-password -s &quot;Claude Code-credentials&quot; -w
