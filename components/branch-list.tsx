@@ -46,6 +46,7 @@ export function BranchList({
   onClearPendingCommit,
   isMobile = false,
   credentials,
+  onOpenRepoSettings,
 }: BranchListProps) {
   const [search, setSearch] = useState("")
   const [branchFromOpen, setBranchFromOpen] = useState(false)
