@@ -11,6 +11,8 @@ interface UseBranchRenamingOptions {
   repoFullName: string
   onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
   addSystemMessage: (content: string) => void
+  /** Whether the user has an API key that supports branch name suggestion */
+  canSuggestName?: boolean
 }
 
 /**
@@ -22,10 +24,12 @@ export function useBranchRenaming({
   repoFullName,
   onUpdateBranch,
   addSystemMessage,
+  canSuggestName = false,
 }: UseBranchRenamingOptions) {
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState("")
   const [renameLoading, setRenameLoading] = useState(false)
+  const [suggesting, setSuggesting] = useState(false)
   const renameInputRef = useRef<HTMLInputElement>(null)
 
   const handleRename = useCallback(async () => {
@@ -70,6 +74,64 @@ export function useBranchRenaming({
     }
   }, [renameLoading])
 
+  /**
+   * Suggests a branch name based on conversation history using AI.
+   * Enters edit mode with the suggestion pre-filled.
+   */
+  const suggestBranchName = useCallback(async () => {
+    // Only allow if there are messages to base suggestion on
+    if (branch.messages.length === 0) {
+      addSystemMessage("No conversation history to generate a branch name suggestion from.")
+      return
+    }
+
+    setSuggesting(true)
+    setRenaming(true)
+    setRenameValue("loading...") // Show loading state
+
+    try {
+      const res = await fetch("/api/branches/suggest-name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branchId: branch.id }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate suggestion")
+      }
+
+      const suggestedName = data.suggestedName
+      setRenameValue(suggestedName)
+      // Focus the input with cursor at the end after React re-renders
+      requestAnimationFrame(() => {
+        const input = renameInputRef.current
+        if (input) {
+          input.focus()
+          const len = suggestedName.length
+          input.setSelectionRange(len, len)
+        }
+      })
+    } catch (err: unknown) {
+      // On error, fall back to current branch name
+      const fallbackName = branch.name
+      setRenameValue(fallbackName)
+      addSystemMessage(`Suggestion failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+      // Still focus the input on error
+      requestAnimationFrame(() => {
+        const input = renameInputRef.current
+        if (input) {
+          input.focus()
+          const len = fallbackName.length
+          input.setSelectionRange(len, len)
+        }
+      })
+    } finally {
+      setSuggesting(false)
+    }
+  }, [branch.id, branch.name, branch.messages.length, addSystemMessage])
+
   return {
     renaming,
     setRenaming,
@@ -80,5 +142,9 @@ export function useBranchRenaming({
     handleRename,
     startRenaming,
     cancelRenaming,
+    // Suggestion features
+    suggesting,
+    suggestBranchName,
+    canSuggestName: canSuggestName && branch.messages.length > 0,
   }
 }

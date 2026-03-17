@@ -117,12 +117,16 @@ export function ChatPanel({
     onToggleGitHistory,
   })
 
+  // User can suggest branch names if they have an Anthropic or OpenAI API key
+  const canSuggestName = !!(credentials?.hasAnthropicApiKey || credentials?.hasOpenaiApiKey)
+
   const renaming = useBranchRenaming({
     branch,
     repoName,
     repoFullName,
     onUpdateBranch,
     addSystemMessage: gitActions.addSystemMessage,
+    canSuggestName,
   })
 
   // Track scroll position

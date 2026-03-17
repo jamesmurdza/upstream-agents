@@ -15,6 +15,7 @@ import {
   FolderSync,
   Play,
   Pause,
+  Sparkles,
 } from "lucide-react"
 import {
   Tooltip,
@@ -78,24 +79,40 @@ export function ChatHeader({
                 if (e.key === "Escape") renaming.cancelRenaming()
               }}
               onBlur={renaming.cancelRenaming}
-              disabled={renaming.renameLoading}
-              className="h-6 bg-transparent border border-border/30 rounded px-1.5 text-xs font-mono text-foreground focus:outline-none focus:border-border/60 min-w-[3ch]"
+              disabled={renaming.renameLoading || renaming.suggesting}
+              className="h-6 bg-transparent border border-border/30 rounded px-1.5 text-xs font-mono text-foreground focus:outline-none focus:border-border/60 min-w-[3ch] disabled:text-muted-foreground"
               autoFocus
             />
           </div>
-          {renaming.renameLoading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
+          {(renaming.renameLoading || renaming.suggesting) && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
         </div>
       ) : (
-        <button
-          onClick={renaming.startRenaming}
-          className="flex items-center gap-1.5 min-w-0 ml-2.5 py-1 cursor-pointer group/branch"
-        >
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="shrink-0 text-muted-foreground">
-            <path fillRule="evenodd" d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25zM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zM3.5 3.25a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0z" />
-          </svg>
-          <span className="truncate text-xs font-mono text-muted-foreground">{branch.name}</span>
-          <Pencil className="h-2.5 w-2.5 shrink-0 text-muted-foreground/0 group-hover/branch:text-muted-foreground transition-colors" />
-        </button>
+        <div className="flex items-center gap-1 min-w-0 ml-2.5 group/branch-section">
+          <button
+            onClick={renaming.startRenaming}
+            className="flex items-center gap-1.5 min-w-0 py-1 cursor-pointer"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="shrink-0 text-muted-foreground">
+              <path fillRule="evenodd" d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25zM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5zM3.5 3.25a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0z" />
+            </svg>
+            <span className="truncate text-xs font-mono text-muted-foreground">{branch.name}</span>
+            <Pencil className="h-2.5 w-2.5 shrink-0 text-muted-foreground/0 group-hover/branch-section:text-muted-foreground transition-colors" />
+          </button>
+          {/* Magic wand button for AI-suggested branch name */}
+          {renaming.canSuggestName && (
+            <button
+              onClick={renaming.suggestBranchName}
+              disabled={renaming.suggesting}
+              className="cursor-pointer disabled:cursor-not-allowed"
+            >
+              {renaming.suggesting ? (
+                <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin text-muted-foreground" />
+              ) : (
+                <Sparkles className="h-2.5 w-2.5 shrink-0 text-muted-foreground/0 group-hover/branch-section:text-muted-foreground hover:text-foreground transition-colors" />
+              )}
+            </button>
+          )}
+        </div>
       )}
 
       <div className="flex items-center gap-0.5 shrink-0 overflow-x-auto ml-auto">
