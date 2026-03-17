@@ -1,10 +1,10 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import type { Agent, Branch, UserCredentialFlags, ModelOption } from "@/lib/types"
-import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials, hasCodexCredentials, hasCredentialsForModel, agentModels } from "@/lib/types"
+import type { Agent, Branch, UserCredentialFlags, ModelOption, ChatMode } from "@/lib/types"
+import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials, hasCodexCredentials, hasCredentialsForModel, agentModels, chatModeLabels, chatModeDescriptions, defaultChatMode } from "@/lib/types"
 import { BRANCH_STATUS } from "@/lib/constants"
-import { Send, ChevronDown, Sparkles, Check } from "lucide-react"
+import { Send, ChevronDown, Sparkles, Check, MessageCircle, Map, Bot } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
 import { forwardRef, useEffect, useCallback, useState, useMemo } from "react"
 import {
@@ -41,15 +41,31 @@ interface ChatInputProps {
   onStop: () => void
   onAgentChange?: (agent: Agent) => void
   onModelChange?: (model: string) => void
+  onModeChange?: (mode: ChatMode) => void
+  currentMode?: ChatMode
   onOpenSettings?: () => void
   onOpenSettingsWithHighlight?: (field: string) => void
   credentials?: UserCredentialFlags | null
   isMobile?: boolean
 }
 
+// Icon component for chat modes
+const ModeIcon = ({ mode, className }: { mode: ChatMode; className?: string }) => {
+  switch (mode) {
+    case "ask":
+      return <MessageCircle className={className} />
+    case "plan":
+      return <Map className={className} />
+    case "agent":
+      return <Bot className={className} />
+    default:
+      return <Bot className={className} />
+  }
+}
+
 export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
   function ChatInput(
-    { branch, input, onInputChange, onSend, onStop, onAgentChange, onModelChange, onOpenSettings, onOpenSettingsWithHighlight, credentials, isMobile },
+    { branch, input, onInputChange, onSend, onStop, onAgentChange, onModelChange, onModeChange, currentMode = defaultChatMode, onOpenSettings, onOpenSettingsWithHighlight, credentials, isMobile },
     ref
   ) {
     // Normalize agent value (handle legacy "claude" value from database)
@@ -176,29 +192,62 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
           </button>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          {/* Agent Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger className="group flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground data-[state=open]:text-foreground cursor-pointer">
-              <AgentIcon agent={currentAgent} className="h-2.5 w-2.5 shrink-0" />
-              <span>{agentLabels[currentAgent]}</span>
-              <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" sideOffset={4} className="min-w-[160px] rounded-lg border border-border/60 py-0.5 shadow-md">
-              {(Object.keys(agentLabels) as Agent[]).map((agent) => (
-                <DropdownMenuItem
-                  key={agent}
-                  onClick={() => handleAgentChange(agent)}
-                  className="flex items-center justify-between py-1.5 text-[11px] cursor-pointer"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <AgentIcon agent={agent} className="h-3 w-3 shrink-0" />
-                    {agentLabels[agent]}
-                  </span>
-                  {agent === currentAgent && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1">
+            {/* Agent Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="group flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground data-[state=open]:text-foreground cursor-pointer">
+                <AgentIcon agent={currentAgent} className="h-2.5 w-2.5 shrink-0" />
+                <span>{agentLabels[currentAgent]}</span>
+                <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" sideOffset={4} className="min-w-[160px] rounded-lg border border-border/60 py-0.5 shadow-md">
+                {(Object.keys(agentLabels) as Agent[]).map((agent) => (
+                  <DropdownMenuItem
+                    key={agent}
+                    onClick={() => handleAgentChange(agent)}
+                    className="flex items-center justify-between py-1.5 text-[11px] cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <AgentIcon agent={agent} className="h-3 w-3 shrink-0" />
+                      {agentLabels[agent]}
+                    </span>
+                    {agent === currentAgent && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <span className="text-muted-foreground/30">·</span>
+
+            {/* Mode Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="group flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground data-[state=open]:text-foreground cursor-pointer">
+                <ModeIcon mode={currentMode} className="h-2.5 w-2.5 shrink-0" />
+                <span>{chatModeLabels[currentMode]}</span>
+                <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" sideOffset={4} className="min-w-[180px] rounded-lg border border-border/60 py-0.5 shadow-md">
+                {(Object.keys(chatModeLabels) as ChatMode[]).map((mode) => (
+                  <DropdownMenuItem
+                    key={mode}
+                    onClick={() => onModeChange?.(mode)}
+                    className="flex items-center justify-between py-1.5 text-[11px] cursor-pointer"
+                  >
+                    <span className="flex flex-col gap-0.5">
+                      <span className="flex items-center gap-1.5">
+                        <ModeIcon mode={mode} className="h-3 w-3 shrink-0" />
+                        {chatModeLabels[mode]}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/70 ml-4.5">
+                        {chatModeDescriptions[mode]}
+                      </span>
+                    </span>
+                    {mode === currentMode && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {/* Model Combobox */}
           <Popover open={modelOpen} onOpenChange={setModelOpen}>

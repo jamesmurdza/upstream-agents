@@ -1,8 +1,8 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import type { Agent, Branch, Message, UserCredentialFlags } from "@/lib/types"
-import { defaultAgentModel, getDefaultModelForAgent } from "@/lib/types"
+import type { Agent, Branch, Message, UserCredentialFlags, ChatMode } from "@/lib/types"
+import { defaultAgentModel, getDefaultModelForAgent, defaultChatMode } from "@/lib/types"
 import { generateId } from "@/lib/store"
 import { BRANCH_STATUS } from "@/lib/constants"
 import { Terminal } from "lucide-react"
@@ -84,6 +84,9 @@ export function ChatPanel({
 
   // State for agent switch dialog
   const [pendingAgentSwitch, setPendingAgentSwitch] = useState<Agent | null>(null)
+
+  // State for chat mode
+  const [chatMode, setChatMode] = useState<ChatMode>(defaultChatMode)
 
   // Custom hooks
   const { input, setInput, isNearBottomRef } = useDraftSync({
@@ -299,6 +302,8 @@ export function ChatPanel({
           onStop={handleStop}
           onAgentChange={handleAgentChange}
           onModelChange={handleModelChange}
+          onModeChange={setChatMode}
+          currentMode={chatMode}
           onOpenSettings={onOpenSettings}
           onOpenSettingsWithHighlight={onOpenSettingsWithHighlight}
           credentials={credentials}

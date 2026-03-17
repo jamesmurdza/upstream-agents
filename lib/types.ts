@@ -2,6 +2,22 @@ import { type BranchStatus, type AnthropicAuthType as ConstantsAnthropicAuthType
 
 export type Agent = "claude-code" | "opencode" | "codex"
 
+export type ChatMode = "ask" | "plan" | "agent"
+
+export const chatModeLabels: Record<ChatMode, string> = {
+  "ask": "Ask",
+  "plan": "Plan",
+  "agent": "Agent",
+}
+
+export const chatModeDescriptions: Record<ChatMode, string> = {
+  "ask": "Quick questions and explanations",
+  "plan": "Plan and design before coding",
+  "agent": "Full autonomous coding agent",
+}
+
+export const defaultChatMode: ChatMode = "agent"
+
 // SDK provider names (must match ProviderName from SDK)
 export type ProviderName = "claude" | "codex" | "opencode" | "gemini"
 
