@@ -166,15 +166,20 @@ export function ChatHeader({
           const isActive = action.action === "log" && gitHistoryOpen
           const hasPR = action.action === "create-pr" && !!branch.prUrl
           const isPRLoading = action.action === "create-pr" && gitActions.actionLoading === "create-pr"
+          const isDiff = action.action === "diff"
+          const hasDiffChanges = isDiff && gitActions.hasChanges
+          // PR button should be enabled when it already has a PR URL (just opens the PR)
+          // Diff and Log can always be used while busy
+          const canUseWhileBusy = action.action === "log" || action.action === "diff" || hasPR
           return (
             <Tooltip key={action.label}>
               <TooltipTrigger asChild>
                 <button
                   onClick={() => gitActions.handleHeaderAction(action.action)}
-                  disabled={!isReady || (isBusy && action.action !== "log" && action.action !== "diff") || isPRLoading}
+                  disabled={!isReady || (isBusy && !canUseWhileBusy) || isPRLoading}
                   className={cn(
                     "flex cursor-pointer h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed",
-                    hasPR
+                    hasPR || hasDiffChanges
                       ? "text-green-400"
                       : isActive
                       ? "bg-accent text-foreground"

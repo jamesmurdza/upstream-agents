@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import type { Branch, Message } from "@/lib/types"
 import { generateId } from "@/lib/store"
 import { BRANCH_STATUS, PATHS } from "@/lib/constants"
@@ -43,6 +43,7 @@ export function useGitActions({
   const [rsyncCommand, setRsyncCommand] = useState("")
   const [rsyncCopied, setRsyncCopied] = useState(false)
   const [sandboxToggleLoading, setSandboxToggleLoading] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
 
   const addSystemMessage = useCallback((content: string) => {
     // System messages go to the current branch (user-initiated git actions)
@@ -53,6 +54,43 @@ export function useGitActions({
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     })
   }, [branch.id, onAddMessage])
+
+  // Check for changes between branch and base branch
+  const checkForChanges = useCallback(async () => {
+    if (!branch.sandboxId) {
+      setHasChanges(false)
+      return
+    }
+    const [owner, repo] = repoFullName.split("/")
+    try {
+      const res = await fetch("/api/github/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner,
+          repo,
+          base: branch.baseBranch,
+          head: branch.name,
+        }),
+      })
+      const data = await res.json()
+      // Check if there's any actual diff content
+      const hasDiff = data.diff && data.diff.trim() !== "" && data.diff !== "No differences found."
+      setHasChanges(hasDiff)
+    } catch {
+      setHasChanges(false)
+    }
+  }, [branch.sandboxId, branch.baseBranch, branch.name, repoFullName])
+
+  // Check for changes periodically and when branch status changes
+  useEffect(() => {
+    // Initial check
+    checkForChanges()
+
+    // Poll for changes every 30 seconds
+    const interval = setInterval(checkForChanges, 30000)
+    return () => clearInterval(interval)
+  }, [checkForChanges, branch.status])
 
   const fetchBranches = useCallback(async () => {
     setBranchesLoading(true)
@@ -322,6 +360,9 @@ export function useGitActions({
     rsyncCommand,
     rsyncCopied,
     setRsyncCopied,
+
+    // Changes detection
+    hasChanges,
 
     // Actions
     handleSandboxToggle,
