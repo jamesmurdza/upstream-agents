@@ -421,6 +421,16 @@ export function useExecutionPolling({
             loopCountRef.current < loopMaxIterationsRef.current &&
             !isLoopFinished(data.content)
 
+          console.log("[loop-check]", {
+            completedBranchId,
+            loopEnabled: loopEnabledRef.current,
+            loopCount: loopCountRef.current,
+            loopMaxIterations: loopMaxIterationsRef.current,
+            isFinished: isLoopFinished(data.content),
+            shouldContinueLoop,
+            contentPreview: data.content?.substring(0, 100),
+          })
+
           if (shouldContinueLoop && completedBranchId) {
             // Increment loop count and trigger continuation
             const newLoopCount = loopCountRef.current + 1

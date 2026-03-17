@@ -102,10 +102,18 @@ export function ChatPanel({
 
   // Loop continuation handler - sends the continuation message when loop should continue
   const handleLoopContinue = useCallback(async (branchId: string) => {
+    console.log("[handleLoopContinue] called with branchId:", branchId, "current branch.id:", branch.id)
     // We need to access branch data for the specific branchId
     // Since this is called after completion, branch state should be updated
-    if (branch.id !== branchId) return // Safety check
-    if (!branch.sandboxId) return
+    if (branch.id !== branchId) {
+      console.log("[handleLoopContinue] branch id mismatch, skipping")
+      return // Safety check
+    }
+    if (!branch.sandboxId) {
+      console.log("[handleLoopContinue] no sandboxId, skipping")
+      return
+    }
+    console.log("[handleLoopContinue] proceeding with loop continuation")
 
     const userMsg: Message = {
       id: generateId(),
