@@ -15,7 +15,7 @@ A sophisticated multi-tenant web application that enables users to run AI coding
 ### User Experience
 - **Slack-like Interface** - Repository sidebar with branch-based conversations
 - **Multi-tenant Architecture** - User data fully isolated, shared infrastructure
-- **Quota Enforcement** - Configurable concurrent sandbox limits (default: 5 per user)
+- **Quota Enforcement** - Configurable concurrent sandbox limits
 - **Encrypted Credentials** - API keys stored AES-encrypted in database
 - **Drag-and-Drop Reordering** - Customize repository order in sidebar
 - **Dark Mode Support** - Theme switching with next-themes
@@ -417,7 +417,7 @@ Models are configured per-branch in the chat header. The system automatically:
 
 | Resource | Default Limit | Configurable |
 |----------|---------------|--------------|
-| Concurrent sandboxes | 5 per user | Per-user override via admin |
+| Concurrent sandboxes | 10 per user | Per-user override via admin |
 | Auto-stop interval | 10 minutes | User settings (5-20 min) |
 | Sandbox statuses counted | CREATING, RUNNING, STOPPED | - |
 | Message history | Unlimited | - |
