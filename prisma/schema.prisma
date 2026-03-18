@@ -131,7 +131,8 @@ model RepoMcpServer {
   url     String  // MCP server URL (https://mcp.notion.com/mcp)
   iconUrl String? // Icon URL from registry
 
-  // OAuth tokens (encrypted)
+  // OAuth credentials
+  clientId     String?   // Client ID from dynamic registration
   accessToken  String?   @db.Text
   refreshToken String?   @db.Text
   tokenExpiry  DateTime?

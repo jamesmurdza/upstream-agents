@@ -1,12 +1,18 @@
 import { prisma } from "@/lib/prisma"
-import { encrypt } from "@/lib/encryption"
 import {
   requireAuth,
   isAuthError,
   badRequest,
   notFound,
 } from "@/lib/api-helpers"
-import { encodeOAuthState, type McpOAuthState } from "@/lib/mcp-oauth"
+import {
+  encodeOAuthState,
+  generateCodeVerifier,
+  generateCodeChallenge,
+  getOAuthEndpoints,
+  registerClient,
+  type McpOAuthState,
+} from "@/lib/mcp-oauth"
 
 // GET - Start OAuth flow for MCP server
 export async function GET(
@@ -76,43 +82,78 @@ export async function GET(
     serverId = newServer.id
   }
 
-  // Create OAuth state
-  const state: McpOAuthState = {
-    repoId,
-    serverId,
-    slug,
-    url,
-    name,
-    iconUrl: iconUrl || undefined,
-    timestamp: Date.now(),
+  try {
+    // Get OAuth endpoints via discovery or defaults
+    const endpoints = await getOAuthEndpoints(url)
+
+    // Get callback URL
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
+    const callbackUrl = `${baseUrl}/api/auth/mcp-callback`
+
+    // Check if we already have a client ID for this server (from previous registration)
+    let clientId = existing?.clientId || "sandboxed-agents"
+
+    // Try dynamic client registration if we don't have a client ID yet
+    if (!existing?.clientId && endpoints.registrationEndpoint) {
+      const registration = await registerClient(endpoints.registrationEndpoint, callbackUrl)
+      if (registration) {
+        clientId = registration.client_id
+        // Store the client ID for future use
+        await prisma.repoMcpServer.update({
+          where: { id: serverId },
+          data: { clientId },
+        })
+      }
+    }
+
+    // Generate PKCE code verifier and challenge
+    const codeVerifier = generateCodeVerifier()
+    const codeChallenge = generateCodeChallenge(codeVerifier)
+
+    // Create OAuth state
+    const state: McpOAuthState = {
+      repoId,
+      serverId,
+      slug,
+      url,
+      name,
+      iconUrl: iconUrl || undefined,
+      timestamp: Date.now(),
+      codeVerifier,
+      clientId,
+    }
+
+    const encodedState = encodeOAuthState(state)
+
+    // Build the OAuth authorization URL
+    const authUrl = new URL(endpoints.authorizationEndpoint)
+    authUrl.searchParams.set("response_type", "code")
+    authUrl.searchParams.set("client_id", clientId)
+    authUrl.searchParams.set("redirect_uri", callbackUrl)
+    authUrl.searchParams.set("state", encodedState)
+    authUrl.searchParams.set("code_challenge", codeChallenge)
+    authUrl.searchParams.set("code_challenge_method", "S256")
+
+    return Response.json({
+      authUrl: authUrl.toString(),
+      serverId,
+      state: encodedState,
+    })
+  } catch (err) {
+    console.error("[MCP OAuth] Failed to start OAuth flow:", err)
+
+    // Update server status
+    await prisma.repoMcpServer.update({
+      where: { id: serverId },
+      data: {
+        status: "error",
+        lastError: "Failed to start OAuth flow",
+      },
+    })
+
+    return Response.json(
+      { error: "Failed to start OAuth flow" },
+      { status: 500 }
+    )
   }
-
-  const encodedState = encodeOAuthState(state)
-
-  // Get the callback URL
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
-  const callbackUrl = `${baseUrl}/api/auth/mcp-callback`
-
-  // For MCP OAuth, we redirect to the MCP server's OAuth endpoint
-  // The MCP server URL typically follows the pattern: https://mcp.service.com/mcp
-  // The OAuth endpoint is typically at: https://mcp.service.com/oauth/authorize
-  // However, MCP servers use dynamic discovery, so we'll use the standard MCP OAuth flow
-
-  // Build the OAuth authorization URL
-  // Most MCP servers follow OAuth 2.0 spec with authorization endpoint
-  const mcpServerUrl = new URL(url)
-  const oauthUrl = new URL(`${mcpServerUrl.origin}/oauth/authorize`)
-
-  oauthUrl.searchParams.set("response_type", "code")
-  oauthUrl.searchParams.set("redirect_uri", callbackUrl)
-  oauthUrl.searchParams.set("state", encodedState)
-  // Note: client_id is typically provided by the MCP server during registration
-  // For now, we use the app name as identifier - servers may use dynamic client registration
-  oauthUrl.searchParams.set("client_id", "sandboxed-agents")
-
-  return Response.json({
-    authUrl: oauthUrl.toString(),
-    serverId,
-    state: encodedState,
-  })
 }

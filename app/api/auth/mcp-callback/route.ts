@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { encrypt } from "@/lib/encryption"
-import { decodeOAuthState, type McpOAuthState } from "@/lib/mcp-oauth"
+import {
+  decodeOAuthState,
+  getOAuthEndpoints,
+  exchangeCodeForTokens,
+} from "@/lib/mcp-oauth"
 
 // GET - OAuth callback from MCP server
 export async function GET(req: Request) {
@@ -16,7 +20,7 @@ export async function GET(req: Request) {
 
   // Handle OAuth errors
   if (error) {
-    console.error("MCP OAuth error:", error, errorDescription)
+    console.error("[MCP OAuth] OAuth error:", error, errorDescription)
     return NextResponse.redirect(
       `${baseUrl}/mcp-callback?error=${encodeURIComponent(errorDescription || error)}`
     )
@@ -37,7 +41,14 @@ export async function GET(req: Request) {
     )
   }
 
-  const { serverId, slug, url } = oauthState
+  const { serverId, slug, url, codeVerifier, clientId } = oauthState
+
+  // Validate we have PKCE code verifier
+  if (!codeVerifier) {
+    return NextResponse.redirect(
+      `${baseUrl}/mcp-callback?error=${encodeURIComponent("Missing PKCE code verifier")}`
+    )
+  }
 
   try {
     // Verify server exists
@@ -52,30 +63,20 @@ export async function GET(req: Request) {
       )
     }
 
-    // Exchange code for tokens
-    const mcpServerUrl = new URL(url)
-    const tokenUrl = `${mcpServerUrl.origin}/oauth/token`
+    // Get OAuth endpoints
+    const endpoints = await getOAuthEndpoints(url)
     const callbackUrl = `${baseUrl}/api/auth/mcp-callback`
 
-    const tokenResponse = await fetch(tokenUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: callbackUrl,
-        client_id: "sandboxed-agents",
-        // Note: client_secret would be needed for confidential clients
-        // For public clients or dynamic registration, this may not be needed
-      }),
-    })
+    // Exchange code for tokens with PKCE
+    const tokens = await exchangeCodeForTokens(
+      endpoints.tokenEndpoint,
+      code,
+      codeVerifier,
+      callbackUrl,
+      clientId || "sandboxed-agents"
+    )
 
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text()
-      console.error("Token exchange failed:", errorText)
-
+    if (!tokens) {
       await prisma.repoMcpServer.update({
         where: { id: serverId },
         data: {
@@ -89,17 +90,16 @@ export async function GET(req: Request) {
       )
     }
 
-    const tokens = await tokenResponse.json()
-
     // Calculate token expiry
     const tokenExpiry = tokens.expires_in
       ? new Date(Date.now() + tokens.expires_in * 1000)
       : null
 
-    // Update server with tokens
+    // Update server with tokens and clientId
     await prisma.repoMcpServer.update({
       where: { id: serverId },
       data: {
+        clientId: clientId || "sandboxed-agents",
         accessToken: encrypt(tokens.access_token),
         refreshToken: tokens.refresh_token ? encrypt(tokens.refresh_token) : null,
         tokenExpiry,
@@ -113,7 +113,7 @@ export async function GET(req: Request) {
       `${baseUrl}/mcp-callback?success=true&server=${encodeURIComponent(slug)}`
     )
   } catch (err) {
-    console.error("MCP OAuth callback error:", err)
+    console.error("[MCP OAuth] OAuth callback error:", err)
 
     // Try to update server status
     try {
