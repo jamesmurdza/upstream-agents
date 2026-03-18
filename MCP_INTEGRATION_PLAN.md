@@ -8,80 +8,139 @@ Integrate remote MCP (Model Context Protocol) servers into the sandboxed-agents 
 
 ## Key Design Decisions
 
-### 1. Configuration Scope: **Per-User**
-- Each user configures their own MCP servers (like API keys in `UserCredentials`)
-- Servers available across all user's repos/branches
-- Encrypted storage following existing patterns
+### 1. Configuration Scope: **Per-Repository**
+- MCP servers configured at the repository level (like environment variables)
+- Different repos can have different MCP tools (frontend → Figma, backend → database MCP)
+- Stored in `Repo` model or separate `RepoMcpServer` model
+- Better security isolation and cleaner agent context
 
-### 2. Execution Model: **Inside Sandbox** (Primary)
+### 2. Credential Storage: **User-Level (Shared Across Repos)**
+- OAuth tokens and API keys stored per-user (like `UserCredentials`)
+- User authenticates once with Notion, can enable for multiple repos
+- Avoids re-authenticating the same service for each repo
+
+### 3. Execution Model: **Inside Sandbox** (Primary)
 - MCP tools execute from within the Daytona sandbox
 - Agents (Claude Code, OpenCode) have native MCP support
 - Write MCP config file to sandbox before agent starts
 - *Fallback*: Backend proxy available if needed for specific servers
 
-### 3. Authentication: **API Keys + OAuth 2.0**
-- Start with API key/header authentication (simpler)
-- Full OAuth 2.0 support with token storage and refresh
-- Encrypted storage for all credentials
+### 4. Authentication: **OAuth 2.0 Primary, API Keys Secondary**
+- Most commercial MCP servers use OAuth (Notion, Figma, GitHub, etc.)
+- OAuth tokens stored encrypted, auto-refreshed
+- API key fallback for servers that support it
 
-### 4. Transport: **HTTP (Primary) + SSE (Legacy)**
-- HTTP streamable transport is recommended
-- SSE supported for legacy servers
+### 5. Transport: **HTTP (Streamable)** Only
+- HTTP streamable transport is the standard for remote servers
+- SSE is deprecated - no need to support it initially
+- Simplifies implementation
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     User Account                             │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  McpCredential (per service, shared across repos)   │    │
+│  │  - Notion: OAuth token                              │    │
+│  │  - Figma: OAuth token                               │    │
+│  │  - Sentry: API key                                  │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                           │                                  │
+│           ┌───────────────┼───────────────┐                 │
+│           ▼               ▼               ▼                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │   Repo A    │  │   Repo B    │  │   Repo C    │         │
+│  │ (frontend)  │  │ (backend)   │  │ (mobile)    │         │
+│  │             │  │             │  │             │         │
+│  │ Enabled:    │  │ Enabled:    │  │ Enabled:    │         │
+│  │ - Figma ✓   │  │ - Sentry ✓  │  │ - Figma ✓   │         │
+│  │ - Notion ✓  │  │ - Notion ✓  │  │             │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Database Schema
 
-### New Model: `McpServerConfig`
+### New Model: `McpCredential` (User-Level)
+
+Stores authenticated MCP services per user (OAuth tokens, API keys).
 
 ```prisma
-model McpServerConfig {
+model McpCredential {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Server identification
-  name        String  // User-friendly name (e.g., "GitHub MCP")
-  url         String  // Server URL (https://mcp.example.com)
-  description String? @db.Text
+  // Service identification (from registry or custom)
+  slug        String  // "notion", "figma", "sentry", or custom slug
+  name        String  // Display name
+  url         String  // MCP server URL
+  iconUrl     String? // Icon from registry
 
-  // Transport
-  transportType String @default("http") // "http" | "sse"
-
-  // Authentication
-  authType String @default("none") // "none" | "api-key" | "oauth"
-
-  // API Key auth (encrypted)
-  apiKey       String? @db.Text
-  headerName   String? @default("Authorization")
-  headerPrefix String? @default("Bearer ")
-
-  // OAuth auth (encrypted)
-  oauthClientId     String? @db.Text
-  oauthClientSecret String? @db.Text
+  // Authentication (encrypted)
+  authType          String  @default("oauth") // "oauth" | "api-key"
   oauthAccessToken  String? @db.Text
   oauthRefreshToken String? @db.Text
   oauthTokenExpiry  DateTime?
-  oauthScopes       String?
+  apiKey            String? @db.Text
+  headerName        String? // For API key auth
+  headerPrefix      String? // "Bearer ", "Api-Key ", etc.
 
   // Status
-  status      String   @default("pending") // "pending" | "connected" | "error" | "oauth-required"
-  lastError   String?  @db.Text
-  lastChecked DateTime?
+  status    String   @default("connected") // "connected" | "expired" | "error"
+  lastError String?  @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, name])
+  // Relations
+  repoMcpServers RepoMcpServer[]
+
+  @@unique([userId, slug]) // One credential per service per user
   @@index([userId])
 }
 ```
 
-Add relation to User model:
+### New Model: `RepoMcpServer` (Repo-Level)
+
+Links MCP credentials to specific repositories.
+
+```prisma
+model RepoMcpServer {
+  id     String @id @default(cuid())
+  repoId String
+  repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  // Link to user's credential for this service
+  mcpCredentialId String
+  mcpCredential   McpCredential @relation(fields: [mcpCredentialId], references: [id], onDelete: Cascade)
+
+  // Enabled state (can disable without deleting)
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@unique([repoId, mcpCredentialId]) // One per repo-service combo
+  @@index([repoId])
+}
+```
+
+### Updated Models
+
 ```prisma
 model User {
   // ... existing fields ...
-  mcpServers McpServerConfig[]
+  mcpCredentials McpCredential[]
+}
+
+model Repo {
+  // ... existing fields ...
+  mcpServers RepoMcpServer[]
 }
 ```
 
@@ -89,58 +148,124 @@ model User {
 
 ## API Routes
 
-### MCP Server CRUD
+### User MCP Credentials (Account-Level)
 | Route | Method | Description |
 |-------|--------|-------------|
-| `/api/user/mcp-servers` | GET | List user's MCP servers (with `hasApiKey`, `hasOAuthToken` booleans) |
-| `/api/user/mcp-servers` | POST | Add new MCP server |
-| `/api/user/mcp-servers/[serverId]` | GET | Get server details |
-| `/api/user/mcp-servers/[serverId]` | PATCH | Update server config |
-| `/api/user/mcp-servers/[serverId]` | DELETE | Remove server |
-| `/api/user/mcp-servers/[serverId]/test` | POST | Test connection |
-
-### OAuth Flow
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/api/user/mcp-servers/[serverId]/oauth` | GET | Get OAuth authorization URL |
+| `/api/user/mcp-credentials` | GET | List user's authenticated MCP services |
+| `/api/user/mcp-credentials` | POST | Add new MCP credential (manual) |
+| `/api/user/mcp-credentials/[credentialId]` | DELETE | Remove credential |
+| `/api/user/mcp-credentials/[credentialId]/oauth` | GET | Start OAuth flow |
 | `/api/auth/mcp-callback` | GET | OAuth callback handler |
+
+### Repo MCP Servers (Repo-Level)
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/api/repo/[repoId]/mcp-servers` | GET | List MCP servers enabled for repo |
+| `/api/repo/[repoId]/mcp-servers` | POST | Enable MCP server for repo |
+| `/api/repo/[repoId]/mcp-servers/[serverId]` | DELETE | Disable MCP server for repo |
+
+### MCP Registry (Discovery)
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/api/mcp-registry` | GET | Proxy to Anthropic registry with search |
 
 ---
 
 ## UI Components
 
-### Settings Modal: New "MCP Servers" Tab
+### 1. Repo Settings Modal - New "MCP Servers" Tab
 
-Add fourth tab to existing settings modal (`components/settings-modal.tsx`):
+Extend existing `repo-settings-modal.tsx` with a second tab:
 
 ```
-Tabs: [Agents] [Sandboxes] [Automation] [MCP Servers]
+Tabs: [Environment Variables] [MCP Servers]
 ```
 
 #### MCP Tab Contents:
-1. **Server List**
-   - Name, URL, status indicator (green=connected, yellow=pending, red=error)
-   - Quick actions: Edit, Test, Delete
-   - "Connect" button for OAuth servers
 
-2. **Add Server Button** → Opens form:
-   - Name (required)
-   - URL (required, HTTPS validation)
-   - Description (optional)
-   - Transport Type (HTTP recommended / SSE deprecated)
-   - Authentication Method:
-     - None
-     - API Key → Key input, header name, prefix
-     - OAuth → Client ID/Secret or "Connect with OAuth" button
+**Section 1: Enabled Servers**
+- List of MCP servers enabled for this repo
+- Each shows: Icon, Name, Status indicator, Disable button
+- Empty state: "No MCP servers enabled for this repository"
 
-3. **Popular Servers** (optional enhancement):
-   - Quick-add buttons for common servers (GitHub, Sentry, Notion)
-   - Pre-filled URL, user provides credentials
+**Section 2: Available Servers**
+- Shows user's authenticated MCP credentials that aren't enabled for this repo
+- Each shows: Icon, Name, "Enable" button
+- If no authenticated credentials: "Connect an MCP service in account settings"
 
-### New Components to Create:
-- `components/mcp/mcp-server-list.tsx`
-- `components/mcp/mcp-server-form.tsx`
-- `components/mcp/mcp-oauth-connect.tsx`
+**Section 3: Browse Registry Button**
+- Opens registry browser modal
+- User can discover and connect new services
+
+### 2. Account Settings - MCP Credentials Section
+
+Add to existing settings modal or create new section:
+
+**Connected Services**
+- List of authenticated MCP services
+- Each shows: Icon, Name, Status, "Disconnect" button
+- "Connect New Service" button → Opens registry browser
+
+### 3. Registry Browser Modal
+
+```tsx
+// components/mcp/mcp-registry-browser.tsx
+interface McpRegistryBrowserProps {
+  onConnect: (server: RegistryServer) => void  // Triggers OAuth flow
+  connectedSlugs: string[]  // Already connected services
+}
+```
+
+**Features**:
+- Search bar with debounced search
+- Category filter chips (All, Productivity, Design, Development)
+- Server cards: Icon, Name, Description, Tools count, "Connect" button
+- Infinite scroll pagination
+- "Already connected" state for authenticated services
+
+### 4. New Components
+
+| Component | Purpose |
+|-----------|---------|
+| `components/mcp/mcp-server-list.tsx` | List of MCP servers (for repo settings) |
+| `components/mcp/mcp-credential-list.tsx` | List of credentials (for account settings) |
+| `components/mcp/mcp-registry-browser.tsx` | Browse + search registry |
+| `components/mcp/mcp-server-card.tsx` | Individual server card |
+
+---
+
+## User Flows
+
+### Flow 1: Connect New MCP Service
+
+```
+1. User opens Repo Settings → MCP Servers tab
+2. Clicks "Browse Registry"
+3. Searches for "Notion", clicks "Connect"
+4. OAuth popup opens → User authorizes
+5. Callback saves credential to McpCredential
+6. Automatically enables for current repo (RepoMcpServer)
+7. Shows success, server appears in "Enabled Servers"
+```
+
+### Flow 2: Enable Existing Service for Another Repo
+
+```
+1. User opens different Repo Settings → MCP Servers tab
+2. Sees Notion in "Available Servers" (already authenticated)
+3. Clicks "Enable"
+4. Creates RepoMcpServer link
+5. Notion now available in this repo's sandboxes
+```
+
+### Flow 3: Manage Account Credentials
+
+```
+1. User opens Account Settings → MCP Services
+2. Sees all connected services
+3. Can disconnect (deletes McpCredential + all RepoMcpServer links)
+4. Can connect new services from registry
+```
 
 ---
 
@@ -148,43 +273,41 @@ Tabs: [Agents] [Sandboxes] [Automation] [MCP Servers]
 
 ### Modify `lib/sandbox-resume.ts`
 
-Pass MCP configs to sandbox during `ensureSandboxReady()`:
-
 ```typescript
-// 1. Fetch user's MCP servers
-const mcpServers = await prisma.mcpServerConfig.findMany({
-  where: { userId, status: "connected" }
+// 1. Fetch repo's enabled MCP servers with credentials
+const repoMcpServers = await prisma.repoMcpServer.findMany({
+  where: { repoId, enabled: true },
+  include: { mcpCredential: true }
 })
 
-// 2. Decrypt credentials
-const decryptedConfigs = decryptMcpServerConfigs(mcpServers)
+// 2. Decrypt and build config
+const mcpConfig = buildMcpConfigJson(repoMcpServers)
 
-// 3. Build MCP config JSON for agent
-const mcpConfig = buildMcpConfigJson(decryptedConfigs)
-
-// 4. Write to sandbox
-await sandbox.process.executeCommand(
-  `mkdir -p ~/.claude && echo '${base64Encode(mcpConfig)}' | base64 -d > ~/.claude/mcp_servers.json`
-)
+// 3. Write to sandbox
+if (Object.keys(mcpConfig.mcpServers).length > 0) {
+  await sandbox.process.executeCommand(
+    `mkdir -p ~/.claude && echo '${base64Encode(JSON.stringify(mcpConfig))}' | base64 -d > ~/.claude/mcp_servers.json`
+  )
+}
 ```
 
-### MCP Config Format (Claude Code)
+### MCP Config Format
 
 ```json
 {
   "mcpServers": {
-    "github": {
+    "notion": {
       "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/",
+      "url": "https://mcp.notion.com/mcp",
       "headers": {
-        "Authorization": "Bearer <token>"
+        "Authorization": "Bearer <decrypted_token>"
       }
     },
-    "sentry": {
+    "figma": {
       "type": "http",
-      "url": "https://mcp.sentry.dev/mcp",
+      "url": "https://mcp.figma.com/mcp",
       "headers": {
-        "Authorization": "Bearer <token>"
+        "Authorization": "Bearer <decrypted_token>"
       }
     }
   }
@@ -193,56 +316,88 @@ await sandbox.process.executeCommand(
 
 ---
 
+## MCP Server Registry
+
+### Registry API
+
+**Endpoint**: `GET https://api.anthropic.com/mcp-registry/v0/servers?visibility=commercial`
+
+**Our Proxy**: `GET /api/mcp-registry?search=notion&limit=20`
+
+### Transformed Response
+
+```typescript
+interface RegistryServer {
+  slug: string           // "notion"
+  name: string           // "Notion"
+  description: string    // "Connect your Notion workspace..."
+  iconUrl: string        // "https://notion.so/logo.svg"
+  url: string            // "https://mcp.notion.com/mcp"
+  documentation: string  // Link to docs
+  tools: string[]        // ["search", "create-pages", ...]
+  requiresAuth: boolean  // true (most do)
+  useCases: string[]     // ["productivity"]
+}
+```
+
+---
+
 ## OAuth Flow
 
 ```
-1. User clicks "Connect with OAuth" for server
+1. User clicks "Connect" on Notion in registry
          ↓
-2. Frontend → GET /api/user/mcp-servers/[id]/oauth
+2. Frontend → GET /api/user/mcp-credentials/oauth?slug=notion&repoId=xxx
          ↓
-3. Backend returns authorization URL with:
-   - client_id, redirect_uri, state (encrypted), scope
+3. Backend:
+   - Looks up OAuth config for Notion from registry
+   - Generates state token with {userId, slug, repoId}
+   - Returns authorization URL
          ↓
-4. User authorizes in popup/redirect
+4. Frontend opens popup/redirect to Notion OAuth
          ↓
-5. Provider → GET /api/auth/mcp-callback?code=xxx&state=xxx
+5. User authorizes in Notion
          ↓
-6. Backend exchanges code for tokens, stores encrypted
+6. Notion → GET /api/auth/mcp-callback?code=xxx&state=xxx
          ↓
-7. Redirect to settings with success message
+7. Backend:
+   - Validates state
+   - Exchanges code for tokens
+   - Creates/updates McpCredential (encrypted)
+   - If repoId in state, creates RepoMcpServer
+   - Redirects with success
+         ↓
+8. Frontend shows success, refreshes lists
 ```
-
-### Token Refresh
-- Check token expiry before agent execution
-- Auto-refresh using stored refresh token
-- Update stored tokens after refresh
 
 ---
 
 ## Files to Create/Modify
 
-### New Files:
+### New Files
 | File | Purpose |
 |------|---------|
-| `app/api/user/mcp-servers/route.ts` | CRUD for MCP servers |
-| `app/api/user/mcp-servers/[serverId]/route.ts` | Individual server operations |
-| `app/api/user/mcp-servers/[serverId]/test/route.ts` | Connection testing |
-| `app/api/user/mcp-servers/[serverId]/oauth/route.ts` | OAuth initiation |
+| `app/api/user/mcp-credentials/route.ts` | CRUD for user's MCP credentials |
+| `app/api/user/mcp-credentials/[credentialId]/route.ts` | Individual credential ops |
+| `app/api/user/mcp-credentials/oauth/route.ts` | Start OAuth flow |
 | `app/api/auth/mcp-callback/route.ts` | OAuth callback |
-| `lib/mcp-client.ts` | MCP client for testing connections |
-| `lib/mcp-oauth.ts` | OAuth token management |
-| `components/mcp/mcp-server-list.tsx` | Server list UI |
-| `components/mcp/mcp-server-form.tsx` | Add/edit form |
+| `app/api/repo/[repoId]/mcp-servers/route.ts` | Repo MCP server management |
+| `app/api/mcp-registry/route.ts` | Registry proxy |
+| `lib/mcp-oauth.ts` | OAuth helpers, token refresh |
+| `components/mcp/mcp-server-list.tsx` | Server list for repo |
+| `components/mcp/mcp-credential-list.tsx` | Credential list for account |
+| `components/mcp/mcp-registry-browser.tsx` | Registry browser modal |
+| `components/mcp/mcp-server-card.tsx` | Server card component |
 
-### Modified Files:
+### Modified Files
 | File | Change |
 |------|--------|
-| `prisma/schema.prisma` | Add McpServerConfig model + User relation |
+| `prisma/schema.prisma` | Add McpCredential, RepoMcpServer models |
 | `lib/constants.ts` | Add MCP paths |
-| `lib/api-helpers.ts` | Add `decryptMcpServerConfigs()` |
+| `lib/api-helpers.ts` | Add MCP decryption helpers |
 | `lib/sandbox-resume.ts` | Write MCP config to sandbox |
-| `components/settings-modal.tsx` | Add MCP Servers tab |
-| `app/api/user/me/route.ts` | Include MCP server count/status |
+| `components/repo-settings-modal.tsx` | Add MCP Servers tab |
+| `components/settings-modal.tsx` | Add MCP Credentials section (optional) |
 
 ---
 
@@ -250,267 +405,78 @@ await sandbox.process.executeCommand(
 
 ### Phase 1: Foundation (2-3 days)
 - [ ] Add Prisma schema + migration
-- [ ] Create MCP server CRUD API routes
-- [ ] Add decryption helpers for MCP configs
+- [ ] Create MCP credential CRUD API routes
+- [ ] Create repo MCP server API routes
+- [ ] Add decryption helpers
 
-### Phase 2: UI (2 days)
-- [ ] Add "MCP Servers" tab to settings modal
+### Phase 2: OAuth Flow (2-3 days)
+- [ ] Implement OAuth initiation endpoint
+- [ ] Create callback handler with token exchange
+- [ ] Add token storage (encrypted)
+- [ ] Add token refresh logic
+
+### Phase 3: Repo Settings UI (2 days)
+- [ ] Add "MCP Servers" tab to repo settings modal
 - [ ] Create server list component
-- [ ] Create add/edit form with auth options
-- [ ] Add connection test UI
+- [ ] Create enable/disable functionality
+- [ ] Show available (authenticated) servers
 
-### Phase 3: Sandbox Integration (1-2 days)
+### Phase 4: Registry Browser (2 days)
+- [ ] Create registry proxy API
+- [ ] Build registry browser modal
+- [ ] Add search + category filtering
+- [ ] Connect OAuth flow to registry
+
+### Phase 5: Sandbox Integration (1-2 days)
 - [ ] Modify `ensureSandboxReady` to inject MCP configs
-- [ ] Create MCP config JSON builder
+- [ ] Build MCP config JSON generator
 - [ ] Test with Claude Code agent + real MCP server
 
-### Phase 4: OAuth (2 days)
-- [ ] Implement OAuth initiation endpoint
-- [ ] Create callback handler
-- [ ] Add token storage + refresh logic
-- [ ] Create OAuth connect UI
-
-### Phase 5: Polish (1 day)
-- [ ] Error handling improvements
-- [ ] Status indicators and feedback
+### Phase 6: Polish (1 day)
+- [ ] Error handling + status indicators
+- [ ] Token expiry handling + auto-refresh
 - [ ] End-to-end testing
+
+**Total: ~10-13 days**
 
 ---
 
-## Verification Plan
+## Other Recommendations
 
-### Manual Testing:
-1. Add API-key authenticated MCP server (e.g., with custom header)
-2. Test connection from UI
-3. Start agent session, verify MCP tools available
-4. Execute MCP tool from agent, verify results
+### 1. Start Simple - OAuth Only for Initial Launch
+Most commercial MCP servers (Notion, Figma, Canva, Slack, GitHub) use OAuth. Skip API key support initially to reduce complexity. Add later if needed.
 
-### OAuth Testing:
-1. Add OAuth MCP server (e.g., GitHub MCP)
-2. Complete OAuth flow
-3. Verify tokens stored and refreshed
-4. Test agent access to OAuth-protected server
+### 2. Pre-populate Popular Servers
+Instead of starting from empty, consider showing 5-10 popular servers in the UI even before browsing registry:
+- Notion, Figma, Canva, Slack, GitHub, Sentry, Linear
 
-### Integration Testing:
-1. Multiple MCP servers configured
-2. Agent uses tools from different servers in single session
-3. Token expiry and refresh during session
+### 3. Connection Testing
+Add a "Test Connection" button that calls `listTools()` on the MCP server to verify the token works. Show tool count on success.
+
+### 4. Token Expiry Handling
+- Check token expiry before each agent execution
+- Auto-refresh if expired and refresh token available
+- Show "Reconnect" button in UI if refresh fails
+
+### 5. Error Recovery
+When MCP server fails in sandbox:
+- Log error to `lastError` field
+- Show status indicator in UI
+- Don't block agent execution - just skip that server
+
+### 6. Future: Custom MCP Servers
+Allow users to add custom MCP servers by URL (not from registry). Useful for:
+- Self-hosted servers
+- Internal company tools
+- Development/testing
 
 ---
 
 ## Security Considerations
 
-1. **Encryption**: All secrets use AES encryption via `lib/encryption.ts`
-2. **OAuth State**: Encrypted to prevent CSRF attacks
-3. **HTTPS Only**: URL validation enforces HTTPS
-4. **Sandbox Isolation**: MCP calls from sandbox, not main app
-5. **Token Exposure**: Tokens only in sandbox, not browser
-
----
-
-## MCP Server Registry (Discovery)
-
-### Overview
-
-Anthropic maintains an official MCP server registry at `api.anthropic.com/mcp-registry`. Users can browse, search, and one-click add popular MCP servers instead of manually entering URLs.
-
-### Registry API
-
-**Endpoint**: `GET https://api.anthropic.com/mcp-registry/v0/servers`
-
-**Query Parameters**:
-| Parameter | Description |
-|-----------|-------------|
-| `search` | Substring search on server names |
-| `visibility` | Filter (use `commercial` for production servers) |
-| `limit` | Results per page (default: 50) |
-| `cursor` | Pagination token for next page |
-| `version` | Use `latest` for current versions |
-
-**Response Structure**:
-```json
-{
-  "servers": [
-    {
-      "server": {
-        "name": "com.notion/mcp",
-        "title": "Notion",
-        "description": "Connect your Notion workspace...",
-        "version": "1.0.1",
-        "remotes": [
-          { "type": "streamable-http", "url": "https://mcp.notion.com/mcp" }
-        ]
-      },
-      "_meta": {
-        "com.anthropic.api/mcp-registry": {
-          "displayName": "Notion",
-          "oneLiner": "Connect your Notion workspace to search, update...",
-          "iconUrl": "https://www.notion.so/images/notion-logo-block-main.svg",
-          "documentation": "https://developers.notion.com/docs/mcp",
-          "toolNames": ["search", "fetch", "create-pages", ...],
-          "isAuthless": false,
-          "worksWith": ["claude", "claude-api", "claude-code"],
-          "claudeCodeCopyText": "claude mcp add --transport http notion https://mcp.notion.com/mcp",
-          "useCases": ["productivity"],
-          "popularityScore": 19424,
-          "trendingScore": 81110
-        }
-      }
-    }
-  ],
-  "metadata": { "count": 50, "nextCursor": "..." }
-}
-```
-
-### API Route for Registry
-
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/api/mcp-registry` | GET | Proxy to Anthropic registry with search/pagination |
-| `/api/mcp-registry/[slug]` | GET | Get details for a specific server |
-
-**Why proxy?**
-- Add caching (registry doesn't change frequently)
-- Filter for Claude Code compatible servers (`worksWith` includes `claude-code`)
-- Transform response for frontend needs
-- Avoid CORS issues
-
-### Registry API Implementation
-
-```typescript
-// app/api/mcp-registry/route.ts
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const search = searchParams.get("search") || ""
-  const cursor = searchParams.get("cursor") || ""
-  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50)
-
-  // Fetch from Anthropic registry
-  const url = new URL("https://api.anthropic.com/mcp-registry/v0/servers")
-  url.searchParams.set("visibility", "commercial")
-  url.searchParams.set("limit", String(limit))
-  if (search) url.searchParams.set("search", search)
-  if (cursor) url.searchParams.set("cursor", cursor)
-
-  const response = await fetch(url, {
-    next: { revalidate: 300 } // Cache for 5 minutes
-  })
-
-  const data = await response.json()
-
-  // Transform and filter for Claude Code compatibility
-  const servers = data.servers
-    .filter(s => s._meta?.["com.anthropic.api/mcp-registry"]?.worksWith?.includes("claude-code"))
-    .map(s => ({
-      slug: s._meta?.["com.anthropic.api/mcp-registry"]?.slug,
-      name: s.server.title || s.server.name,
-      description: s._meta?.["com.anthropic.api/mcp-registry"]?.oneLiner || s.server.description,
-      iconUrl: s._meta?.["com.anthropic.api/mcp-registry"]?.iconUrl,
-      url: s.server.remotes?.[0]?.url,
-      transportType: s.server.remotes?.[0]?.type === "streamable-http" ? "http" : "sse",
-      documentation: s._meta?.["com.anthropic.api/mcp-registry"]?.documentation,
-      tools: s._meta?.["com.anthropic.api/mcp-registry"]?.toolNames || [],
-      requiresAuth: !s._meta?.["com.anthropic.api/mcp-registry"]?.isAuthless,
-      useCases: s._meta?.["com.anthropic.api/mcp-registry"]?.useCases || [],
-      popularityScore: s._meta?.["com.anthropic.api/mcp-registry"]?.popularityScore || 0,
-    }))
-
-  return Response.json({
-    servers,
-    nextCursor: data.metadata?.nextCursor
-  })
-}
-```
-
-### UI: Registry Browser Component
-
-```tsx
-// components/mcp/mcp-registry-browser.tsx
-interface McpRegistryBrowserProps {
-  onAddServer: (server: RegistryServer) => void
-  existingServerUrls: string[] // To show "Already added" state
-}
-```
-
-**Features**:
-1. **Search Bar** - Real-time search through registry
-2. **Server Cards** - Icon, name, description, tools count, "Add" button
-3. **Categories** - Filter by use case (productivity, design, development, etc.)
-4. **Infinite Scroll** - Load more with cursor pagination
-5. **Quick Add** - One-click add pre-fills URL and name, prompts for auth if needed
-
-### UI Flow
-
-```
-User opens MCP Servers tab
-         ↓
-Sees two sections:
-  1. "Your Servers" - List of configured servers
-  2. "Add Server" button + "Browse Registry" button
-         ↓
-Clicks "Browse Registry"
-         ↓
-Opens modal/drawer with:
-  - Search input
-  - Category chips (All, Productivity, Design, Development...)
-  - Grid of server cards
-         ↓
-User clicks "Add" on a server (e.g., Notion)
-         ↓
-If requiresAuth:
-  - Show auth form (OAuth connect button)
-Else:
-  - Add immediately, show success
-         ↓
-Server appears in "Your Servers" list
-```
-
-### New Files for Registry
-
-| File | Purpose |
-|------|---------|
-| `app/api/mcp-registry/route.ts` | Proxy + transform registry API |
-| `components/mcp/mcp-registry-browser.tsx` | Browsable registry UI |
-| `components/mcp/mcp-server-card.tsx` | Individual server card in registry |
-
-### Modified Phase Timeline
-
-Add to **Phase 2: UI**:
-- [ ] Create registry browser component
-- [ ] Add search and category filtering
-- [ ] Implement one-click add from registry
-
----
-
-## Updated Implementation Phases
-
-### Phase 1: Foundation (2-3 days)
-- [ ] Add Prisma schema + migration
-- [ ] Create MCP server CRUD API routes
-- [ ] Add decryption helpers for MCP configs
-
-### Phase 2: UI + Registry (3 days)
-- [ ] Add "MCP Servers" tab to settings modal
-- [ ] Create server list component
-- [ ] Create add/edit form with auth options
-- [ ] **Create registry browser with search**
-- [ ] **Implement one-click add from registry**
-- [ ] Add connection test UI
-
-### Phase 3: Sandbox Integration (1-2 days)
-- [ ] Modify `ensureSandboxReady` to inject MCP configs
-- [ ] Create MCP config JSON builder
-- [ ] Test with Claude Code agent + real MCP server
-
-### Phase 4: OAuth (2 days)
-- [ ] Implement OAuth initiation endpoint
-- [ ] Create callback handler
-- [ ] Add token storage + refresh logic
-- [ ] Create OAuth connect UI
-
-### Phase 5: Polish (1 day)
-- [ ] Error handling improvements
-- [ ] Status indicators and feedback
-- [ ] End-to-end testing
-
-**Updated Total: ~10-12 days**
+1. **Encryption**: All tokens use AES encryption via `lib/encryption.ts`
+2. **OAuth State**: Encrypted to prevent CSRF
+3. **HTTPS Only**: All MCP server URLs must be HTTPS
+4. **Sandbox Isolation**: Tokens only exist inside sandbox during execution
+5. **Token Scope**: OAuth scopes limited to what MCP server needs
+6. **Cascading Deletes**: Removing credential removes all repo links
