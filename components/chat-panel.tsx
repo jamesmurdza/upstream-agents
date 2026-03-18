@@ -85,6 +85,9 @@ export function ChatPanel({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const globalActiveBranchIdRef = useRef<string | null>(branch.id)
+  // Keep a ref to the current branch to avoid stale closures in callbacks
+  const branchRef = useRef(branch)
+  branchRef.current = branch
 
   // Keep global branch ID ref updated
   useEffect(() => {
@@ -101,11 +104,13 @@ export function ChatPanel({
   })
 
   // Loop continuation handler - sends the continuation message when loop should continue
+  // Uses branchRef to avoid stale closure issues when user switches branches during execution
   const handleLoopContinue = useCallback(async (branchId: string) => {
-    // We need to access branch data for the specific branchId
-    // Since this is called after completion, branch state should be updated
-    if (branch.id !== branchId) return // Safety check
-    if (!branch.sandboxId) return
+    // Access current branch data via ref to avoid stale closures
+    const currentBranch = branchRef.current
+    // Only continue if we're still on the same branch that triggered the loop
+    if (currentBranch.id !== branchId) return
+    if (!currentBranch.sandboxId) return
 
     const userMsg: Message = {
       id: generateId(),
@@ -132,16 +137,16 @@ export function ChatPanel({
     const messageId = await onAddMessage(branchId, assistantMsg)
 
     try {
-      const effectiveAgent = (branch.agent || "claude-code") as Agent
-      const effectiveModel = branch.model ?? getDefaultModelForAgent(effectiveAgent, credentials)
+      const effectiveAgent = (currentBranch.agent || "claude-code") as Agent
+      const effectiveModel = currentBranch.model ?? getDefaultModelForAgent(effectiveAgent, credentials)
 
       const response = await fetch("/api/agent/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sandboxId: branch.sandboxId,
+          sandboxId: currentBranch.sandboxId,
           prompt: LOOP_CONTINUATION_MESSAGE,
-          previewUrlPattern: branch.previewUrlPattern,
+          previewUrlPattern: currentBranch.previewUrlPattern,
           repoName,
           messageId,
           agent: effectiveAgent,
@@ -160,7 +165,7 @@ export function ChatPanel({
       onUpdateMessage(branchId, messageId, { content: `Error: ${message}` })
       onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE, loopCount: 0 })
     }
-  }, [branch, repoName, onAddMessage, onUpdateMessage, onUpdateBranch, credentials])
+  }, [repoName, onAddMessage, onUpdateMessage, onUpdateBranch, credentials])
 
   // Ref to hold startPolling so loop continue can use it
   const startPollingRef = useRef<(messageId: string, executionId?: string) => void>(() => {})
