@@ -219,15 +219,25 @@ export default function Home() {
     }
   }, [activeBranchId, activeRepoId, loadBranchMessages])
 
-  // Dynamic page title with agent counts
+  // Dynamic page title with org/repo and notification counts
   useEffect(() => {
     const allBranches = repos.flatMap((r) => r.branches)
     const running = allBranches.filter((b) => b.status === BRANCH_STATUS.RUNNING).length
-    const parts: string[] = []
-    if (running > 0) parts.push(`${running} running`)
-    if (running === 0) parts.push("0 running")
-    document.title = parts.join(", ")
-  }, [repos])
+    const unread = allBranches.filter((b) => b.unread).length
+    const totalNotifications = running + unread
+
+    const repoPrefix = activeRepo ? `${activeRepo.owner}/${activeRepo.name}` : null
+
+    if (repoPrefix) {
+      if (totalNotifications > 0) {
+        document.title = `${repoPrefix} (${totalNotifications}) – Upstream Agents`
+      } else {
+        document.title = `${repoPrefix} – Upstream Agents`
+      }
+    } else {
+      document.title = "Upstream Agents"
+    }
+  }, [repos, activeRepo])
 
   // No longer auto-open settings - users can use OpenCode with free models without API keys
 
