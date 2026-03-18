@@ -76,12 +76,19 @@ export async function generateCommitMessage(
   const result = await generateWithUserLLM({ userId, prompt })
 
   if (result.error || !result.text) {
+    console.log("[generateCommitMessage] LLM failed or unavailable:", {
+      error: result.error,
+      hasText: !!result.text,
+      diffLength: diff.length,
+    })
     return {
       message: DEFAULT_COMMIT_MESSAGE,
       isAiGenerated: false,
       reason: result.error || "llm_error",
     }
   }
+
+  console.log("[generateCommitMessage] AI generated message:", result.text)
 
   const sanitizedMessage = sanitizeCommitMessage(result.text)
 
