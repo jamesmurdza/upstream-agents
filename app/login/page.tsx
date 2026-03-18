@@ -1,14 +1,16 @@
 "use client"
 
 import { signIn } from "next-auth/react"
-import { Terminal } from "lucide-react"
 
 export default function LoginPage() {
+  const terminalArt = "<°))><"
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-6 p-8">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary">
-          <Terminal className="h-8 w-8 text-primary" />
+        <div className="flex h-16 w-32 items-center justify-center rounded-2xl bg-secondary">
+          <pre className="m-0 whitespace-pre text-center font-mono text-xl font-bold leading-none text-primary">
+            {terminalArt}
+          </pre>
         </div>
 
         <div className="flex flex-col items-center gap-2 text-center">
@@ -44,3 +46,4 @@ export default function LoginPage() {
     </div>
   )
 }
+
