@@ -14,7 +14,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold text-foreground">Upstream Agents</h1>
           <p className="text-sm text-muted-foreground max-w-sm">
-            Run Claude Code agents in isolated sandboxes connected to your GitHub repositories
+            Run AI coding agents in isolated sandboxes connected to your GitHub repositories
           </p>
         </div>
 
