@@ -1,6 +1,7 @@
 "use client"
 
 import { signIn } from "next-auth/react"
+import { Github } from "lucide-react"
 
 export default function LoginPage() {
   const terminalArt = "<°))><"
@@ -38,8 +39,9 @@ export default function LoginPage() {
           href="https://github.com/jamesmurdza/upstream-agents"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
+          <Github className="h-3.5 w-3.5" aria-hidden="true" focusable="false" />
           View on GitHub
         </a>
       </div>
