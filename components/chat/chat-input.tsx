@@ -216,8 +216,8 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
 
           {/* Right side: Model Combobox + Loop Toggle */}
           <div className="flex items-center gap-3">
-          {/* Model Combobox */}
-          <Popover open={modelOpen} onOpenChange={setModelOpen}>
+            {/* Model Combobox */}
+            <Popover open={modelOpen} onOpenChange={setModelOpen}>
             <PopoverTrigger className="group flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground data-[state=open]:text-foreground cursor-pointer">
               <Sparkles className="h-2.5 w-2.5 shrink-0" />
               <span>{getModelLabel(currentAgent, currentModel)}</span>
@@ -264,6 +264,39 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
               </Command>
             </PopoverContent>
           </Popover>
+
+            {/* Loop Toggle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleLoopToggle}
+                  className="group flex items-center gap-1.5 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+                >
+                  <Switch
+                    checked={branch.loopEnabled || false}
+                    onCheckedChange={handleLoopToggle}
+                    className="h-3 w-5 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-2 [&>span]:w-2 [&>span]:data-[state=checked]:translate-x-2.5 [&>span]:data-[state=unchecked]:translate-x-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <span className={cn(
+                    "transition-colors",
+                    branch.loopEnabled ? "text-foreground" : "text-muted-foreground"
+                  )}>
+                    Loop
+                  </span>
+                  {branch.loopEnabled && (
+                    <span className="rounded bg-primary/15 px-1 py-0.5 text-[10px] font-medium text-primary">
+                      {branch.loopCount || 0}/{branch.loopMaxIterations || defaultLoopMaxIterations}
+                    </span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                <p>Loop until agent says "FINISHED"</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </div>
     )
