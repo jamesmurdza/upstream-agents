@@ -305,3 +305,212 @@ await sandbox.process.executeCommand(
 3. **HTTPS Only**: URL validation enforces HTTPS
 4. **Sandbox Isolation**: MCP calls from sandbox, not main app
 5. **Token Exposure**: Tokens only in sandbox, not browser
+
+---
+
+## MCP Server Registry (Discovery)
+
+### Overview
+
+Anthropic maintains an official MCP server registry at `api.anthropic.com/mcp-registry`. Users can browse, search, and one-click add popular MCP servers instead of manually entering URLs.
+
+### Registry API
+
+**Endpoint**: `GET https://api.anthropic.com/mcp-registry/v0/servers`
+
+**Query Parameters**:
+| Parameter | Description |
+|-----------|-------------|
+| `search` | Substring search on server names |
+| `visibility` | Filter (use `commercial` for production servers) |
+| `limit` | Results per page (default: 50) |
+| `cursor` | Pagination token for next page |
+| `version` | Use `latest` for current versions |
+
+**Response Structure**:
+```json
+{
+  "servers": [
+    {
+      "server": {
+        "name": "com.notion/mcp",
+        "title": "Notion",
+        "description": "Connect your Notion workspace...",
+        "version": "1.0.1",
+        "remotes": [
+          { "type": "streamable-http", "url": "https://mcp.notion.com/mcp" }
+        ]
+      },
+      "_meta": {
+        "com.anthropic.api/mcp-registry": {
+          "displayName": "Notion",
+          "oneLiner": "Connect your Notion workspace to search, update...",
+          "iconUrl": "https://www.notion.so/images/notion-logo-block-main.svg",
+          "documentation": "https://developers.notion.com/docs/mcp",
+          "toolNames": ["search", "fetch", "create-pages", ...],
+          "isAuthless": false,
+          "worksWith": ["claude", "claude-api", "claude-code"],
+          "claudeCodeCopyText": "claude mcp add --transport http notion https://mcp.notion.com/mcp",
+          "useCases": ["productivity"],
+          "popularityScore": 19424,
+          "trendingScore": 81110
+        }
+      }
+    }
+  ],
+  "metadata": { "count": 50, "nextCursor": "..." }
+}
+```
+
+### API Route for Registry
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/api/mcp-registry` | GET | Proxy to Anthropic registry with search/pagination |
+| `/api/mcp-registry/[slug]` | GET | Get details for a specific server |
+
+**Why proxy?**
+- Add caching (registry doesn't change frequently)
+- Filter for Claude Code compatible servers (`worksWith` includes `claude-code`)
+- Transform response for frontend needs
+- Avoid CORS issues
+
+### Registry API Implementation
+
+```typescript
+// app/api/mcp-registry/route.ts
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const search = searchParams.get("search") || ""
+  const cursor = searchParams.get("cursor") || ""
+  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 50)
+
+  // Fetch from Anthropic registry
+  const url = new URL("https://api.anthropic.com/mcp-registry/v0/servers")
+  url.searchParams.set("visibility", "commercial")
+  url.searchParams.set("limit", String(limit))
+  if (search) url.searchParams.set("search", search)
+  if (cursor) url.searchParams.set("cursor", cursor)
+
+  const response = await fetch(url, {
+    next: { revalidate: 300 } // Cache for 5 minutes
+  })
+
+  const data = await response.json()
+
+  // Transform and filter for Claude Code compatibility
+  const servers = data.servers
+    .filter(s => s._meta?.["com.anthropic.api/mcp-registry"]?.worksWith?.includes("claude-code"))
+    .map(s => ({
+      slug: s._meta?.["com.anthropic.api/mcp-registry"]?.slug,
+      name: s.server.title || s.server.name,
+      description: s._meta?.["com.anthropic.api/mcp-registry"]?.oneLiner || s.server.description,
+      iconUrl: s._meta?.["com.anthropic.api/mcp-registry"]?.iconUrl,
+      url: s.server.remotes?.[0]?.url,
+      transportType: s.server.remotes?.[0]?.type === "streamable-http" ? "http" : "sse",
+      documentation: s._meta?.["com.anthropic.api/mcp-registry"]?.documentation,
+      tools: s._meta?.["com.anthropic.api/mcp-registry"]?.toolNames || [],
+      requiresAuth: !s._meta?.["com.anthropic.api/mcp-registry"]?.isAuthless,
+      useCases: s._meta?.["com.anthropic.api/mcp-registry"]?.useCases || [],
+      popularityScore: s._meta?.["com.anthropic.api/mcp-registry"]?.popularityScore || 0,
+    }))
+
+  return Response.json({
+    servers,
+    nextCursor: data.metadata?.nextCursor
+  })
+}
+```
+
+### UI: Registry Browser Component
+
+```tsx
+// components/mcp/mcp-registry-browser.tsx
+interface McpRegistryBrowserProps {
+  onAddServer: (server: RegistryServer) => void
+  existingServerUrls: string[] // To show "Already added" state
+}
+```
+
+**Features**:
+1. **Search Bar** - Real-time search through registry
+2. **Server Cards** - Icon, name, description, tools count, "Add" button
+3. **Categories** - Filter by use case (productivity, design, development, etc.)
+4. **Infinite Scroll** - Load more with cursor pagination
+5. **Quick Add** - One-click add pre-fills URL and name, prompts for auth if needed
+
+### UI Flow
+
+```
+User opens MCP Servers tab
+         ↓
+Sees two sections:
+  1. "Your Servers" - List of configured servers
+  2. "Add Server" button + "Browse Registry" button
+         ↓
+Clicks "Browse Registry"
+         ↓
+Opens modal/drawer with:
+  - Search input
+  - Category chips (All, Productivity, Design, Development...)
+  - Grid of server cards
+         ↓
+User clicks "Add" on a server (e.g., Notion)
+         ↓
+If requiresAuth:
+  - Show auth form (OAuth connect button)
+Else:
+  - Add immediately, show success
+         ↓
+Server appears in "Your Servers" list
+```
+
+### New Files for Registry
+
+| File | Purpose |
+|------|---------|
+| `app/api/mcp-registry/route.ts` | Proxy + transform registry API |
+| `components/mcp/mcp-registry-browser.tsx` | Browsable registry UI |
+| `components/mcp/mcp-server-card.tsx` | Individual server card in registry |
+
+### Modified Phase Timeline
+
+Add to **Phase 2: UI**:
+- [ ] Create registry browser component
+- [ ] Add search and category filtering
+- [ ] Implement one-click add from registry
+
+---
+
+## Updated Implementation Phases
+
+### Phase 1: Foundation (2-3 days)
+- [ ] Add Prisma schema + migration
+- [ ] Create MCP server CRUD API routes
+- [ ] Add decryption helpers for MCP configs
+
+### Phase 2: UI + Registry (3 days)
+- [ ] Add "MCP Servers" tab to settings modal
+- [ ] Create server list component
+- [ ] Create add/edit form with auth options
+- [ ] **Create registry browser with search**
+- [ ] **Implement one-click add from registry**
+- [ ] Add connection test UI
+
+### Phase 3: Sandbox Integration (1-2 days)
+- [ ] Modify `ensureSandboxReady` to inject MCP configs
+- [ ] Create MCP config JSON builder
+- [ ] Test with Claude Code agent + real MCP server
+
+### Phase 4: OAuth (2 days)
+- [ ] Implement OAuth initiation endpoint
+- [ ] Create callback handler
+- [ ] Add token storage + refresh logic
+- [ ] Create OAuth connect UI
+
+### Phase 5: Polish (1 day)
+- [ ] Error handling improvements
+- [ ] Status indicators and feedback
+- [ ] End-to-end testing
+
+**Updated Total: ~10-12 days**
