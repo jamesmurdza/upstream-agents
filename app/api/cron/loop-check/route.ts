@@ -99,6 +99,23 @@ export async function GET(req: Request) {
       const loopCount = branch.loopCount || 0
       const loopMaxIterations = branch.loopMaxIterations || 10
 
+      // Check execution duration - if less than 10 seconds, likely a failure
+      const LOOP_MIN_DURATION_MS = 10 * 1000 // 10 seconds
+      const executionDuration = execution.completedAt && execution.startedAt
+        ? execution.completedAt.getTime() - execution.startedAt.getTime()
+        : Infinity
+      const isTooFast = executionDuration < LOOP_MIN_DURATION_MS
+
+      if (isTooFast) {
+        console.log(`[cron/loop-check] Branch ${branch.id} execution too fast (${executionDuration}ms < ${LOOP_MIN_DURATION_MS}ms), ending loop`)
+        // Reset loop count and disable loop mode since it's probably failing
+        await prisma.branch.update({
+          where: { id: branch.id },
+          data: { loopCount: 0, loopEnabled: false },
+        })
+        continue
+      }
+
       if (loopCount >= loopMaxIterations) {
         console.log(`[cron/loop-check] Branch ${branch.id} reached max iterations (${loopCount}/${loopMaxIterations})`)
         // Reset loop count and disable loop

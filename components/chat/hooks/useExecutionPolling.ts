@@ -64,6 +64,7 @@ export function useExecutionPolling({
   const loopEnabledRef = useRef(branch.loopEnabled)
   const loopCountRef = useRef(branch.loopCount || 0)
   const loopMaxIterationsRef = useRef(branch.loopMaxIterations || 10)
+  const loopIterationStartRef = useRef<number | null>(null) // Track when current loop iteration started
   loopEnabledRef.current = branch.loopEnabled
   loopCountRef.current = branch.loopCount || 0
   loopMaxIterationsRef.current = branch.loopMaxIterations || 10
@@ -92,6 +93,8 @@ export function useExecutionPolling({
       streamingMessageIdRef.current = messageId
     }
     currentMessageIdRef.current = messageId
+    // Track when this execution started for loop timing detection
+    loopIterationStartRef.current = Date.now()
 
     // Clear any existing polling interval
     if (pollingRef.current) {
@@ -413,13 +416,21 @@ export function useExecutionPolling({
 
           const completedBranchId = completedBranchIdForLog ?? pollingBranchIdRef.current
 
+          // Check execution duration - if less than 10 seconds, likely a failure
+          const LOOP_MIN_DURATION_MS = 10 * 1000 // 10 seconds
+          const executionDuration = loopIterationStartRef.current
+            ? Date.now() - loopIterationStartRef.current
+            : Infinity
+          const isTooFast = executionDuration < LOOP_MIN_DURATION_MS
+
           // Check if loop mode should continue
           const shouldContinueLoop =
             completedBranchId &&
             loopEnabledRef.current &&
             data.status === EXECUTION_STATUS.COMPLETED &&
             loopCountRef.current < loopMaxIterationsRef.current &&
-            !isLoopFinished(data.content)
+            !isLoopFinished(data.content) &&
+            !isTooFast // Don't continue if response was too fast (likely failing)
 
           if (shouldContinueLoop && completedBranchId) {
             // Increment loop count and trigger continuation immediately
@@ -432,6 +443,36 @@ export function useExecutionPolling({
             })
             // Trigger loop continuation immediately
             onLoopContinue?.(completedBranchId)
+          } else if (isTooFast && loopEnabledRef.current && completedBranchId) {
+            // Execution was too fast - likely failing, disable loop mode
+            console.warn(`[execution-poll] Loop ended: response too fast (${executionDuration}ms < ${LOOP_MIN_DURATION_MS}ms)`)
+            onUpdateBranch(completedBranchId, {
+              status: "idle",
+              lastActivity: "now",
+              lastActivityTs: Date.now(),
+              unread,
+              loopCount: 0,
+              loopEnabled: false, // Disable loop mode since it's probably failing
+            })
+            // Play completion sound
+            try {
+              const ctx = new AudioContext()
+              const osc = ctx.createOscillator()
+              const gain = ctx.createGain()
+              osc.connect(gain)
+              gain.connect(ctx.destination)
+              osc.frequency.value = 880
+              osc.type = "sine"
+              gain.gain.setValueAtTime(0.15, ctx.currentTime)
+              gain.gain.exponentialRampToValueAtTime(
+                0.001,
+                ctx.currentTime + 0.3,
+              )
+              osc.start(ctx.currentTime)
+              osc.stop(ctx.currentTime + 0.3)
+            } catch {
+              // Ignore audio errors
+            }
           } else {
             // Normal completion - set status to idle
             if (completedBranchId) {
