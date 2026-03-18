@@ -119,9 +119,15 @@ export async function POST(req: Request) {
           `cd ${repoPath} && git status --porcelain 2>&1`
         )
         if (!statusResult.exitCode && statusResult.result.trim()) {
-          // Get the diff to generate an AI commit message
+          // Stage all changes first so we can get a complete diff
+          await sandbox.process.executeCommand(
+            `cd ${repoPath} && git add -A 2>&1`
+          )
+
+          // Get the staged diff to generate an AI commit message
+          // Use --cached to see what's staged, and --no-color for clean output
           const diffResult = await sandbox.process.executeCommand(
-            `cd ${repoPath} && git diff HEAD 2>&1`
+            `cd ${repoPath} && git diff --cached --no-color 2>&1`
           )
           const diff = diffResult.exitCode ? "" : diffResult.result
 
@@ -136,7 +142,7 @@ export async function POST(req: Request) {
           const escapedMessage = commitMessage.replace(/'/g, "'\\''")
 
           const commitResult = await sandbox.process.executeCommand(
-            `cd ${repoPath} && git add -A && git commit -m '${escapedMessage}' 2>&1`
+            `cd ${repoPath} && git commit -m '${escapedMessage}' 2>&1`
           )
           if (commitResult.exitCode) {
             return Response.json({ error: "Commit failed: " + commitResult.result }, { status: 500 })

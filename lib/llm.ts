@@ -34,8 +34,11 @@ export async function generateWithUserLLM(
 
     // If no API keys available, return error
     if (!anthropicApiKey && !openaiApiKey) {
+      console.log("[generateWithUserLLM] No API keys found for user:", userId)
       return { text: null, error: "no_api_key" }
     }
+
+    console.log("[generateWithUserLLM] Using:", anthropicApiKey ? "Anthropic" : "OpenAI")
 
     let text: string
 
