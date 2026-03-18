@@ -10,15 +10,7 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jet
 export const metadata: Metadata = {
   title: 'Sandboxed Agents',
   description: 'A Slack-like interface for running AI coding agents on your GitHub repositories.',
-  icons: {
-    icon: [
-      { url: '/favicon.ico', sizes: '16x16', type: 'image/x-icon' },
-      { url: '/icon.svg', type: 'image/svg+xml' },
-      { url: '/icon-dark-32x32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: dark)' },
-      { url: '/icon-light-32x32.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: light)' },
-    ],
-    apple: '/apple-icon.png',
-  },
+  icons: '/favicon.ico',
 }
 
 export const viewport: Viewport = {
