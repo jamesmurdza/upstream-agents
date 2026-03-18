@@ -89,15 +89,19 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
     return (
       <MessageListContainer ref={ref} onScroll={onScroll} isMobile={isMobile}>
         <div className="flex flex-col gap-5 min-w-0 w-full max-w-full">
-          {branch.messages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              agent={normalizedAgent as Agent}
-              onCommitClick={onCommitClick}
-              onBranchFromCommit={onBranchFromCommit}
-            />
-          ))}
+          {branch.messages.map((msg) => {
+            // Use message's agent if available, fall back to branch agent for legacy messages
+            const messageAgent = msg.agentId || normalizedAgent as Agent
+            return (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                agent={messageAgent}
+                onCommitClick={onCommitClick}
+                onBranchFromCommit={onBranchFromCommit}
+              />
+            )
+          })}
           {branch.status === BRANCH_STATUS.RUNNING && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />

@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect } from "react"
-import type { Branch, Message } from "@/lib/types"
+import type { Agent, Branch, Message } from "@/lib/types"
 import { generateId } from "@/lib/store"
 import { BRANCH_STATUS, EXECUTION_STATUS, PATHS } from "@/lib/constants"
 import { isLoopFinished, LOOP_CONTINUATION_MESSAGE } from "@/lib/types"
@@ -67,6 +67,10 @@ export function useExecutionPolling({
   loopEnabledRef.current = branch.loopEnabled
   loopCountRef.current = branch.loopCount || 0
   loopMaxIterationsRef.current = branch.loopMaxIterations || 10
+
+  // Track branch agent for commit messages
+  const branchAgentRef = useRef<Agent>((branch.agent || "claude-code") as Agent)
+  branchAgentRef.current = (branch.agent || "claude-code") as Agent
 
   // Update startingCommitRef when branch changes
   useEffect(() => {
@@ -398,6 +402,7 @@ export function useExecutionPolling({
                       }),
                       commitHash: c.shortHash,
                       commitMessage: c.message,
+                      agentId: branchAgentRef.current,
                     })
                   }
                 }

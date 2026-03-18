@@ -3,7 +3,7 @@
  * These are the "raw" shapes before transformation to frontend types
  */
 
-import type { Message, Branch } from "@/lib/types"
+import type { Message, Branch, Agent } from "@/lib/types"
 
 export interface DbSandbox {
   id: string
@@ -23,6 +23,7 @@ export interface DbMessage {
   timestamp: string | null
   commitHash: string | null
   commitMessage: string | null
+  agentId: string | null
 }
 
 /**
@@ -36,6 +37,7 @@ export interface DbMessageSummary {
   timestamp: string | null
   commitHash: string | null
   commitMessage: string | null
+  agentId: string | null
 }
 
 export interface DbBranch {
@@ -95,6 +97,7 @@ export function transformMessage(m: DbMessage): Message {
     timestamp: m.timestamp || "",
     commitHash: m.commitHash || undefined,
     commitMessage: m.commitMessage || undefined,
+    agentId: m.agentId as Agent | undefined,
   }
 }
 
@@ -111,6 +114,7 @@ export function transformMessageSummary(m: DbMessageSummary): Message {
     commitHash: m.commitHash || undefined,
     commitMessage: m.commitMessage || undefined,
     contentLoaded: false, // Flag to indicate content needs lazy loading
+    agentId: m.agentId as Agent | undefined,
   }
 }
 

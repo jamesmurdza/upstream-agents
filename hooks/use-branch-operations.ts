@@ -101,6 +101,7 @@ export function useBranchOperations({
           timestamp: message.timestamp,
           commitHash: message.commitHash,
           commitMessage: message.commitMessage,
+          agentId: message.agentId,
         }),
       })
 

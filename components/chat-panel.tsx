@@ -127,17 +127,19 @@ export function ChatPanel({
       lastActivityTs: now,
     })
 
+    const effectiveAgent = (currentBranch.agent || "claude-code") as Agent
+
     const assistantMsg: Message = {
       id: generateId(),
       role: "assistant",
       content: "",
       toolCalls: [],
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      agentId: effectiveAgent,
     }
     const messageId = await onAddMessage(branchId, assistantMsg)
 
     try {
-      const effectiveAgent = (currentBranch.agent || "claude-code") as Agent
       const effectiveModel = currentBranch.model ?? getDefaultModelForAgent(effectiveAgent, credentials)
 
       const response = await fetch("/api/agent/execute", {
@@ -254,18 +256,20 @@ export function ChatPanel({
       lastActivityTs: now,
     })
 
+    const effectiveAgent = (branch.agent || "claude-code") as Agent
+
     const assistantMsg: Message = {
       id: generateId(),
       role: "assistant",
       content: "",
       toolCalls: [],
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      agentId: effectiveAgent,
     }
     const messageId = await onAddMessage(branch.id, assistantMsg)
     currentMessageIdRef.current = messageId
 
     try {
-      const effectiveAgent = (branch.agent || "claude-code") as Agent
       const effectiveModel = branch.model ?? getDefaultModelForAgent(effectiveAgent, credentials)
 
       const response = await fetch("/api/agent/execute", {

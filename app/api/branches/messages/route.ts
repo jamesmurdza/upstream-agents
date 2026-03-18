@@ -57,6 +57,7 @@ export async function GET(req: Request) {
         timestamp: true,
         commitHash: true,
         commitMessage: true,
+        agentId: true,
       },
     }),
   })
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
   const { userId } = authResult
 
   const body = await req.json()
-  const { branchId, role, content, toolCalls, contentBlocks, timestamp, commitHash, commitMessage } = body
+  const { branchId, role, content, toolCalls, contentBlocks, timestamp, commitHash, commitMessage, agentId } = body
 
   if (!branchId || !role) {
     return badRequest("Missing required fields")
@@ -106,6 +107,7 @@ export async function POST(req: Request) {
       timestamp,
       commitHash,
       commitMessage,
+      agentId,
     },
   })
 
