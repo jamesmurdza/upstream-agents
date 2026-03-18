@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react"
 
-export default function McpCallbackPage() {
+function McpCallbackContent() {
   const searchParams = useSearchParams()
   const success = searchParams.get("success") === "true"
   const error = searchParams.get("error")
@@ -58,5 +58,22 @@ export default function McpCallbackPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function McpCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <McpCallbackContent />
+    </Suspense>
   )
 }
