@@ -1,4 +1,4 @@
-# Sandboxed Agents
+# Upstream Agents
 
 A sophisticated multi-tenant web application that enables users to run AI coding agents (Claude Code, OpenCode, Codex) in isolated Daytona sandboxes. Features a Slack-like interface for managing AI-powered coding agents across multiple GitHub repositories with real-time streaming output, background execution, and persistent chat history.
 
@@ -141,7 +141,7 @@ A sophisticated multi-tenant web application that enables users to run AI coding
 
 1. Go to GitHub → **Settings** → **Developer settings** → **OAuth Apps** → **New OAuth App**
 2. Fill in:
-   - **Application name**: `Sandboxed Agents`
+   - **Application name**: `Upstream Agents`
    - **Homepage URL**: `https://your-app.vercel.app`
    - **Authorization callback URL**: `https://your-app.vercel.app/api/auth/callback/github`
 3. Click **Register application**

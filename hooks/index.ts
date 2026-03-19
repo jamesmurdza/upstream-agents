@@ -5,6 +5,9 @@ export type { RepoData } from "./use-repo-data"
 export { useBranchSelection } from "./use-branch-selection"
 export type { BranchSelection } from "./use-branch-selection"
 
+export { useRepoNavigation } from "./use-repo-navigation"
+export type { RepoNavigation } from "./use-repo-navigation"
+
 export { useRepoOperations } from "./use-repo-operations"
 export type { RepoOperations } from "./use-repo-operations"
 

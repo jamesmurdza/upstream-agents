@@ -1,20 +1,23 @@
 "use client"
 
 import { signIn } from "next-auth/react"
-import { Terminal } from "lucide-react"
+import { Github } from "lucide-react"
 
 export default function LoginPage() {
+  const terminalArt = "<°))><"
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-6 p-8">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary">
-          <Terminal className="h-8 w-8 text-primary" />
+        <div className="flex h-16 w-32 items-center justify-center rounded-2xl bg-secondary">
+          <pre className="m-0 whitespace-pre text-center font-mono text-xl font-bold leading-none text-primary">
+            {terminalArt}
+          </pre>
         </div>
 
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-2xl font-bold text-foreground">Sandboxed Agents</h1>
+          <h1 className="text-2xl font-bold text-foreground">Upstream Agents</h1>
           <p className="text-sm text-muted-foreground max-w-sm">
-            Run Claude Code agents in isolated sandboxes connected to your GitHub repositories
+            Run AI coding agents in isolated sandboxes connected to your GitHub repositories
           </p>
         </div>
 
@@ -31,7 +34,18 @@ export default function LoginPage() {
         <p className="text-xs text-muted-foreground">
           We&apos;ll request access to your repositories for the agent to work with
         </p>
+
+        <a
+          href="https://github.com/jamesmurdza/upstream-agents"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Github className="h-3.5 w-3.5" aria-hidden="true" focusable="false" />
+          View on GitHub
+        </a>
       </div>
     </div>
   )
 }
+

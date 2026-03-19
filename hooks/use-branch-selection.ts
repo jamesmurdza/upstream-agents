@@ -1,44 +1,99 @@
 import { useState, useEffect, useRef, useMemo } from "react"
-import type { Branch, Repo } from "@/lib/types"
+import type { Repo } from "@/lib/types"
+
+interface RepoFromUrl {
+  owner: string
+  name: string
+}
 
 interface UseBranchSelectionOptions {
   repos: Repo[]
   loaded: boolean
+  repoFromUrl?: RepoFromUrl | null
 }
 
 /**
  * Manages active repo/branch selection state with auto-selection on load
+ * Supports URL-based repo selection via repoFromUrl parameter
  */
-export function useBranchSelection({ repos, loaded }: UseBranchSelectionOptions) {
+export function useBranchSelection({ repos, loaded, repoFromUrl }: UseBranchSelectionOptions) {
   const [activeRepoId, setActiveRepoId] = useState<string | null>(null)
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null)
+
+  // Track if we've done the initial URL-based selection
+  const initialSelectionDoneRef = useRef(false)
 
   // Keep a ref for accessing current value in callbacks without dependency
   const activeBranchIdRef = useRef(activeBranchId)
   activeBranchIdRef.current = activeBranchId
 
-  // Auto-select first repo/branch on load; never overwrite existing valid selection when list reorders
+  // Handle URL-based repo selection on initial load
   useEffect(() => {
     if (!loaded || repos.length === 0) return
+
+    // If URL specifies a repo, try to select it
+    if (repoFromUrl && !initialSelectionDoneRef.current) {
+      const matchingRepo = repos.find(
+        (r) =>
+          r.owner.toLowerCase() === repoFromUrl.owner.toLowerCase() &&
+          r.name.toLowerCase() === repoFromUrl.name.toLowerCase()
+      )
+
+      if (matchingRepo) {
+        setActiveRepoId(matchingRepo.id)
+        setActiveBranchId(matchingRepo.branches[0]?.id ?? null)
+        initialSelectionDoneRef.current = true
+        return
+      }
+      // If URL repo not found, we'll fall through to default selection
+      // The parent component should handle redirecting to /
+    }
+
+    // Auto-select first repo/branch on load if nothing selected
     const currentRepo = activeRepoId ? repos.find((r) => r.id === activeRepoId) : null
     const currentBranch =
       currentRepo && activeBranchId
         ? currentRepo.branches.find((b) => b.id === activeBranchId)
         : null
-    if (currentRepo && currentBranch) return
-    // Valid repo selected but no branch (e.g. just added repo) — only fix branch, don't change repo
-    if (currentRepo) {
-      setActiveBranchId(currentRepo.branches[0]?.id ?? null)
+
+    if (currentRepo && currentBranch) {
+      initialSelectionDoneRef.current = true
       return
     }
 
+    // Valid repo selected but no branch (e.g. just added repo) — only fix branch, don't change repo
+    if (currentRepo) {
+      setActiveBranchId(currentRepo.branches[0]?.id ?? null)
+      initialSelectionDoneRef.current = true
+      return
+    }
+
+    // No valid selection, select first repo
     setActiveRepoId(repos[0].id)
     if (repos[0].branches.length > 0) {
       setActiveBranchId(repos[0].branches[0].id)
     } else {
       setActiveBranchId(null)
     }
-  }, [loaded, repos, activeRepoId, activeBranchId])
+    initialSelectionDoneRef.current = true
+  }, [loaded, repos, activeRepoId, activeBranchId, repoFromUrl])
+
+  // Sync selection when URL changes (for browser back/forward)
+  useEffect(() => {
+    if (!loaded || repos.length === 0 || !initialSelectionDoneRef.current) return
+    if (!repoFromUrl) return // URL is at root, don't change selection
+
+    const matchingRepo = repos.find(
+      (r) =>
+        r.owner.toLowerCase() === repoFromUrl.owner.toLowerCase() &&
+        r.name.toLowerCase() === repoFromUrl.name.toLowerCase()
+    )
+
+    if (matchingRepo && matchingRepo.id !== activeRepoId) {
+      setActiveRepoId(matchingRepo.id)
+      setActiveBranchId(matchingRepo.branches[0]?.id ?? null)
+    }
+  }, [repoFromUrl, repos, loaded, activeRepoId])
 
   // Computed values
   const activeRepo = useMemo(

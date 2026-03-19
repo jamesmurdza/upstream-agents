@@ -15,6 +15,7 @@ import { AddRepoModal } from "@/components/add-repo-modal"
 import { MobileHeader } from "@/components/mobile-header"
 import { MobileSidebarDrawer } from "@/components/mobile-sidebar-drawer"
 import { DiffModal } from "@/components/diff-modal"
+import { MobileGitDialogs } from "@/components/mobile-git-dialogs"
 import { BRANCH_STATUS } from "@/lib/constants"
 import { Loader2 } from "lucide-react"
 
@@ -29,12 +30,14 @@ import {
   useSyncData,
   useCrossDeviceSync,
   useIsMobile,
+  useRepoNavigation,
 } from "@/hooks"
 
 export default function Home() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const isMobile = useIsMobile()
+  const { repoFromUrl, updateUrlToRepo } = useRepoNavigation()
 
   // Core data state
   const {
@@ -57,10 +60,22 @@ export default function Home() {
     activeBranchIdRef,
     activeRepo,
     activeBranch,
-    selectRepo,
+    selectRepo: selectRepoInternal,
     selectBranch,
     setActiveBranchId,
-  } = useBranchSelection({ repos, loaded })
+  } = useBranchSelection({ repos, loaded, repoFromUrl })
+
+  // Wrap selectRepo to also update URL (without triggering page reload)
+  const selectRepo = useCallback(
+    (repoId: string) => {
+      const repo = repos.find((r) => r.id === repoId)
+      if (repo) {
+        updateUrlToRepo(repo.owner, repo.name)
+      }
+      selectRepoInternal(repoId)
+    },
+    [repos, updateUrlToRepo, selectRepoInternal]
+  )
 
   // Repo operations
   const {
@@ -173,6 +188,31 @@ export default function Home() {
     }
   }, [status, router])
 
+  // Update URL when repo is auto-selected on root page
+  useEffect(() => {
+    if (!loaded || !activeRepo) return
+    // Only update if we're at root (no repo in URL)
+    if (!repoFromUrl) {
+      updateUrlToRepo(activeRepo.owner, activeRepo.name)
+    }
+  }, [loaded, activeRepo, repoFromUrl, updateUrlToRepo])
+
+  // Redirect to home if URL repo is not found in user's repos
+  useEffect(() => {
+    if (!loaded || repos.length === 0 || !repoFromUrl) return
+
+    const matchingRepo = repos.find(
+      (r) =>
+        r.owner.toLowerCase() === repoFromUrl.owner.toLowerCase() &&
+        r.name.toLowerCase() === repoFromUrl.name.toLowerCase()
+    )
+
+    if (!matchingRepo) {
+      // URL repo not found, redirect to home
+      router.replace("/")
+    }
+  }, [loaded, repos, repoFromUrl, router])
+
   // Load messages when active branch changes
   useEffect(() => {
     if (activeBranchId && activeRepoId) {
@@ -180,15 +220,25 @@ export default function Home() {
     }
   }, [activeBranchId, activeRepoId, loadBranchMessages])
 
-  // Dynamic page title with agent counts
+  // Dynamic page title with org/repo and notification counts
   useEffect(() => {
     const allBranches = repos.flatMap((r) => r.branches)
     const running = allBranches.filter((b) => b.status === BRANCH_STATUS.RUNNING).length
-    const parts: string[] = []
-    if (running > 0) parts.push(`${running} running`)
-    if (running === 0) parts.push("0 running")
-    document.title = parts.join(", ")
-  }, [repos])
+    const unread = allBranches.filter((b) => b.unread).length
+    const totalNotifications = running + unread
+
+    const repoPrefix = activeRepo ? `${activeRepo.owner}/${activeRepo.name}` : null
+
+    if (repoPrefix) {
+      if (totalNotifications > 0) {
+        document.title = `${repoPrefix} (${totalNotifications}) – Upstream Agents`
+      } else {
+        document.title = `${repoPrefix} – Upstream Agents`
+      }
+    } else {
+      document.title = "Upstream Agents"
+    }
+  }, [repos, activeRepo])
 
   // No longer auto-open settings - users can use OpenCode with free models without API keys
 
@@ -465,6 +515,24 @@ export default function Home() {
           repoName={activeRepo.name}
           branchName={activeBranch.name}
           baseBranch={activeBranch.baseBranch || activeRepo.defaultBranch}
+        />
+      )}
+
+      {/* Mobile Git Dialogs (Merge, Rebase, Tag, Reset) */}
+      {isMobile && activeRepo && activeBranch && activeBranch.sandboxId && (
+        <MobileGitDialogs
+          branch={activeBranch}
+          repoOwner={activeRepo.owner}
+          repoName={activeRepo.name}
+          mergeOpen={mobileUI.mobileMergeOpen}
+          rebaseOpen={mobileUI.mobileRebaseOpen}
+          tagOpen={mobileUI.mobileTagOpen}
+          resetOpen={mobileUI.mobileResetOpen}
+          onMergeClose={() => mobileUI.setMobileMergeOpen(false)}
+          onRebaseClose={() => mobileUI.setMobileRebaseOpen(false)}
+          onTagClose={() => mobileUI.setMobileTagOpen(false)}
+          onResetClose={() => mobileUI.setMobileResetOpen(false)}
+          onAddMessage={handleAddMessage}
         />
       )}
     </>
