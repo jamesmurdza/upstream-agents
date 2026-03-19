@@ -9,7 +9,7 @@ import { PATHS } from "@/lib/constants"
 export type UseGitDialogsReturn = ReturnType<typeof useGitDialogs>
 
 interface UseGitDialogsOptions {
-  branch: Branch
+  branch: Branch | null
   repoName: string
   repoOwner: string
   repoFullName: string
@@ -27,6 +27,11 @@ export function useGitDialogs({
   repoFullName,
   onAddMessage,
 }: UseGitDialogsOptions) {
+  const branchId = branch?.id ?? ""
+  const branchName = branch?.name ?? ""
+  const branchBaseName = branch?.baseBranch ?? ""
+  const sandboxId = branch?.sandboxId ?? ""
+
   // Dialog open states
   const [mergeOpen, setMergeOpen] = useState(false)
   const [rebaseOpen, setRebaseOpen] = useState(false)
@@ -45,30 +50,36 @@ export function useGitDialogs({
   const [tagNameInput, setTagNameInput] = useState("")
 
   const addSystemMessage = useCallback((content: string) => {
-    onAddMessage(branch.id, {
+    if (!branchId) return
+    onAddMessage(branchId, {
       id: generateId(),
       role: "assistant",
       content,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     })
-  }, [branch.id, onAddMessage])
+  }, [branchId, onAddMessage])
 
   const fetchBranches = useCallback(async () => {
+    if (!branch) {
+      setRemoteBranches([])
+      setSelectedBranch("")
+      return
+    }
     setBranchesLoading(true)
     try {
       const res = await fetch(
         `/api/github/branches?owner=${encodeURIComponent(repoOwner)}&repo=${encodeURIComponent(repoName)}`
       )
       const data = await res.json()
-      const branches = (data.branches || []).filter((b: string) => b !== branch.name)
+      const branches = (data.branches || []).filter((b: string) => b !== branchName)
       setRemoteBranches(branches)
-      setSelectedBranch(branches.includes(branch.baseBranch) ? branch.baseBranch : branches[0] || "")
+      setSelectedBranch(branches.includes(branchBaseName) ? branchBaseName : branches[0] || "")
     } catch {
       setRemoteBranches([])
     } finally {
       setBranchesLoading(false)
     }
-  }, [repoOwner, repoName, branch.name, branch.baseBranch])
+  }, [repoOwner, repoName, branch, branchName, branchBaseName])
 
   // Fetch branches when merge or rebase dialog opens
   useEffect(() => {
@@ -91,18 +102,18 @@ export function useGitDialogs({
   }, [])
 
   const handleMerge = useCallback(async () => {
-    if (!selectedBranch) return
+    if (!selectedBranch || !branch || !sandboxId) return
     setActionLoading(true)
 
-    const sourceBranch = mergeDirection === "from-current" ? branch.name : selectedBranch
-    const targetBranch = mergeDirection === "from-current" ? selectedBranch : branch.name
+    const sourceBranch = mergeDirection === "from-current" ? branchName : selectedBranch
+    const targetBranch = mergeDirection === "from-current" ? selectedBranch : branchName
 
     try {
       const res = await fetch("/api/sandbox/git", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sandboxId: branch.sandboxId,
+          sandboxId,
           repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
           action: "merge",
           targetBranch: targetBranch,
@@ -118,10 +129,10 @@ export function useGitDialogs({
     } finally {
       setActionLoading(false)
     }
-  }, [selectedBranch, branch.sandboxId, branch.name, repoName, addSystemMessage, mergeDirection])
+  }, [selectedBranch, branch, sandboxId, branchName, repoName, addSystemMessage, mergeDirection])
 
   const handleRebase = useCallback(async () => {
-    if (!selectedBranch) return
+    if (!selectedBranch || !branch || !sandboxId) return
     setActionLoading(true)
 
     try {
@@ -129,29 +140,29 @@ export function useGitDialogs({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sandboxId: branch.sandboxId,
+          sandboxId,
           repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
           action: "rebase",
           targetBranch: selectedBranch,
-          currentBranch: branch.name,
+          currentBranch: branchName,
           repoOwner: repoOwner,
           repoApiName: repoName,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      addSystemMessage(`Rebased **${branch.name}** onto **${selectedBranch}** and force-pushed.`)
+      addSystemMessage(`Rebased **${branchName}** onto **${selectedBranch}** and force-pushed.`)
       setRebaseOpen(false)
     } catch (err: unknown) {
       addSystemMessage(`Rebase failed: ${err instanceof Error ? err.message : "Unknown error"}`)
     } finally {
       setActionLoading(false)
     }
-  }, [selectedBranch, branch.sandboxId, branch.name, repoOwner, repoName, addSystemMessage])
+  }, [selectedBranch, branch, sandboxId, branchName, repoOwner, repoName, addSystemMessage])
 
   const handleTag = useCallback(async () => {
     const name = tagNameInput.trim()
-    if (!name) return
+    if (!name || !branch || !sandboxId) return
     setActionLoading(true)
 
     const [owner, repo] = repoFullName.split("/")
@@ -161,7 +172,7 @@ export function useGitDialogs({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sandboxId: branch.sandboxId,
+          sandboxId,
           repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
           action: "tag",
           tagName: name,
@@ -179,7 +190,7 @@ export function useGitDialogs({
     } finally {
       setActionLoading(false)
     }
-  }, [tagNameInput, branch.sandboxId, repoFullName, repoName, addSystemMessage])
+  }, [tagNameInput, branch, sandboxId, repoFullName, repoName, addSystemMessage])
 
   return {
     // Dialog open states
@@ -208,7 +219,7 @@ export function useGitDialogs({
     setTagNameInput,
 
     // Current branch info (for display)
-    branchName: branch.name,
+    branchName,
 
     // Actions
     handleMerge,
