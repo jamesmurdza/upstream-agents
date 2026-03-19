@@ -214,6 +214,7 @@ model Message {
   timestamp     String?
   commitHash    String?
   commitMessage String?
+  agentId       String? // Agent that created this message (e.g., "claude-code", "opencode", "codex")
 
   createdAt DateTime @default(now())
 

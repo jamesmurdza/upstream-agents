@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react"
-import type { Branch, Message } from "@/lib/types"
+import type { Agent, Branch, Message } from "@/lib/types"
 import { generateId } from "@/lib/store"
 import { BRANCH_STATUS, PATHS } from "@/lib/constants"
 import { useGitDialogs } from "@/components/git/hooks/useGitDialogs"
@@ -53,13 +53,16 @@ export function useGitActions({
 
   const addSystemMessage = useCallback((content: string) => {
     // System messages go to the current branch (user-initiated git actions)
+    // Include the current branch agent so the message displays correctly
+    const effectiveAgent = (branch.agent || "claude-code") as Agent
     onAddMessage(branch.id, {
       id: generateId(),
       role: "assistant",
       content,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      agentId: effectiveAgent,
     })
-  }, [branch.id, onAddMessage])
+  }, [branch.id, branch.agent, onAddMessage])
 
   // Check for changes between branch and base branch
   const checkForChanges = useCallback(async () => {
