@@ -675,10 +675,31 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
                       onClick={async () => {
                         const granted = await requestNotificationPermission()
                         setNotificationPermission(granted ? "granted" : "denied")
+                        // Show a test notification to confirm it works
+                        if (granted) {
+                          new Notification("Notifications enabled", {
+                            body: "You'll be notified when agents complete.",
+                            icon: "/android-chrome-192x192.png",
+                          })
+                        }
                       }}
                       className="text-[10px] text-primary hover:text-primary/80 transition-colors cursor-pointer"
                     >
                       Enable
+                    </button>
+                  )}
+                  {notificationPermission === "granted" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        new Notification("Test notification", {
+                          body: "Notifications are working!",
+                          icon: "/android-chrome-192x192.png",
+                        })
+                      }}
+                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      Test
                     </button>
                   )}
                 </div>
