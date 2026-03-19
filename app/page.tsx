@@ -379,7 +379,6 @@ export default function Home() {
               onSandboxToggle={handleMobileSandboxToggle}
               onMerge={() => mobileUI.setMobileMergeOpen(true)}
               onRebase={() => mobileUI.setMobileRebaseOpen(true)}
-              onReset={() => mobileUI.setMobileResetOpen(true)}
               onTag={() => mobileUI.setMobileTagOpen(true)}
               gitHistoryOpen={gitHistoryOpen}
               sandboxToggleLoading={mobileUI.mobileSandboxToggleLoading}
@@ -518,7 +517,7 @@ export default function Home() {
         />
       )}
 
-      {/* Mobile Git Dialogs (Merge, Rebase, Tag, Reset) */}
+      {/* Mobile Git Dialogs (Merge, Rebase, Tag) */}
       {isMobile && activeRepo && activeBranch && activeBranch.sandboxId && (
         <MobileGitDialogs
           branch={activeBranch}
@@ -527,11 +526,9 @@ export default function Home() {
           mergeOpen={mobileUI.mobileMergeOpen}
           rebaseOpen={mobileUI.mobileRebaseOpen}
           tagOpen={mobileUI.mobileTagOpen}
-          resetOpen={mobileUI.mobileResetOpen}
           onMergeClose={() => mobileUI.setMobileMergeOpen(false)}
           onRebaseClose={() => mobileUI.setMobileRebaseOpen(false)}
           onTagClose={() => mobileUI.setMobileTagOpen(false)}
-          onResetClose={() => mobileUI.setMobileResetOpen(false)}
           onAddMessage={handleAddMessage}
         />
       )}

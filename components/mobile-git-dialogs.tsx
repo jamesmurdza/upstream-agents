@@ -9,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog"
 import {
   Select,
@@ -30,12 +29,10 @@ interface MobileGitDialogsProps {
   mergeOpen: boolean
   rebaseOpen: boolean
   tagOpen: boolean
-  resetOpen: boolean
   // Close handlers
   onMergeClose: () => void
   onRebaseClose: () => void
   onTagClose: () => void
-  onResetClose: () => void
   // Message callback
   onAddMessage: (branchId: string, message: Message) => Promise<string>
 }
@@ -47,11 +44,9 @@ export function MobileGitDialogs({
   mergeOpen,
   rebaseOpen,
   tagOpen,
-  resetOpen,
   onMergeClose,
   onRebaseClose,
   onTagClose,
-  onResetClose,
   onAddMessage,
 }: MobileGitDialogsProps) {
   // Shared state
@@ -65,9 +60,6 @@ export function MobileGitDialogs({
 
   // Tag-specific state
   const [tagNameInput, setTagNameInput] = useState("")
-
-  // Reset-specific state
-  const [resetConfirmText, setResetConfirmText] = useState("")
 
   const addSystemMessage = useCallback((content: string) => {
     onAddMessage(branch.id, {
@@ -110,13 +102,6 @@ export function MobileGitDialogs({
       setTagNameInput("")
     }
   }, [tagOpen])
-
-  // Reset confirm text when dialog opens
-  useEffect(() => {
-    if (resetOpen) {
-      setResetConfirmText("")
-    }
-  }, [resetOpen])
 
   const handleMerge = async () => {
     if (!selectedBranch) return
@@ -201,30 +186,6 @@ export function MobileGitDialogs({
       onTagClose()
     } catch (err: unknown) {
       addSystemMessage(`Tag failed: ${err instanceof Error ? err.message : "Unknown error"}`)
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  const handleReset = async () => {
-    setActionLoading(true)
-
-    try {
-      const res = await fetch("/api/sandbox/git", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sandboxId: branch.sandboxId,
-          repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
-          action: "reset",
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      addSystemMessage("Reset to HEAD completed successfully.")
-      onResetClose()
-    } catch (err: unknown) {
-      addSystemMessage(`Reset failed: ${err instanceof Error ? err.message : "Unknown error"}`)
     } finally {
       setActionLoading(false)
     }
@@ -389,42 +350,6 @@ export function MobileGitDialogs({
             >
               {actionLoading && <Loader2 className="h-3 w-3 animate-spin" />}
               Create
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reset Dialog */}
-      <Dialog open={resetOpen} onOpenChange={(open) => { if (!open) { onResetClose(); setResetConfirmText("") } }}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-sm text-red-400">Reset to HEAD</DialogTitle>
-            <DialogDescription className="text-xs">
-              This will discard all uncommitted changes. Type <span className="font-mono font-semibold">reset</span> to confirm.
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            placeholder="Type 'reset' to confirm"
-            value={resetConfirmText}
-            onChange={(e) => setResetConfirmText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && resetConfirmText === "reset") handleReset() }}
-            className="h-8 text-xs font-mono"
-            autoFocus
-          />
-          <DialogFooter>
-            <button
-              onClick={() => { onResetClose(); setResetConfirmText("") }}
-              className="cursor-pointer rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleReset}
-              disabled={resetConfirmText !== "reset" || actionLoading}
-              className="cursor-pointer flex items-center gap-1.5 rounded-md bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600 disabled:opacity-50"
-            >
-              {actionLoading && <Loader2 className="h-3 w-3 animate-spin" />}
-              Reset
             </button>
           </DialogFooter>
         </DialogContent>

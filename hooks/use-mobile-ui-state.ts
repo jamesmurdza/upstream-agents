@@ -11,7 +11,6 @@ export function useMobileUIState() {
   const [mobileMergeOpen, setMobileMergeOpen] = useState(false)
   const [mobileRebaseOpen, setMobileRebaseOpen] = useState(false)
   const [mobileTagOpen, setMobileTagOpen] = useState(false)
-  const [mobileResetOpen, setMobileResetOpen] = useState(false)
 
   return {
     // Sidebar
@@ -35,8 +34,6 @@ export function useMobileUIState() {
     setMobileRebaseOpen,
     mobileTagOpen,
     setMobileTagOpen,
-    mobileResetOpen,
-    setMobileResetOpen,
   }
 }
 
