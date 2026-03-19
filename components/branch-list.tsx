@@ -70,6 +70,10 @@ export function BranchList({
   const [startCommit, setStartCommit] = useState<string | null>(null)
   const [githubBranches, setGithubBranches] = useState<string[]>([])
   const [githubBranchesLoading, setGithubBranchesLoading] = useState(false)
+  const [newBranchOpen, setNewBranchOpen] = useState(false)
+  const [newBranchName, setNewBranchName] = useState("")
+  const [branchPlaceholder, setBranchPlaceholder] = useState(() => randomBranchName())
+  const newBranchInputRef = useRef<HTMLInputElement>(null)
   const isResizing = useRef(false)
 
   const filtered = repo.branches
@@ -102,7 +106,16 @@ export function BranchList({
     setStartCommit(null)
     setNewBranchBase(repo.defaultBranch || "main")
     setGithubBranches([])
+    setNewBranchOpen(false)
+    setNewBranchName("")
   }, [repo.id, repo.defaultBranch])
+
+  // Focus input when new branch form opens
+  useEffect(() => {
+    if (newBranchOpen && newBranchInputRef.current) {
+      setTimeout(() => newBranchInputRef.current?.focus(), 100)
+    }
+  }, [newBranchOpen])
 
   const fetchGithubBranches = useCallback(async () => {
     setGithubBranchesLoading(true)
@@ -140,8 +153,8 @@ export function BranchList({
   const handleCreateBranch = useCallback(async (commitOverride?: string) => {
     if (creating) return
 
-    // Generate a new branch name
-    const branchName = randomBranchName()
+    // Use custom name or placeholder
+    const branchName = newBranchName.trim() || branchPlaceholder
 
     // Validate branch name using shared validation
     const validationError = validateBranchName(
@@ -177,6 +190,8 @@ export function BranchList({
 
     onAddBranch(branch)
     setStartCommit(null)
+    setNewBranchOpen(false)
+    setNewBranchName("")
 
     try {
       const res = await fetch("/api/sandbox/create", {
@@ -260,7 +275,7 @@ export function BranchList({
     } finally {
       setCreating(false)
     }
-  }, [newBranchBase, creating, repo, quota, onAddBranch, onUpdateBranch, onQuotaRefresh, startCommit, githubBranches, credentials])
+  }, [newBranchBase, creating, repo, quota, onAddBranch, onUpdateBranch, onQuotaRefresh, startCommit, githubBranches, credentials, newBranchName, branchPlaceholder])
 
   // Handle creating branch from a commit selected in git history
   useEffect(() => {
@@ -383,106 +398,150 @@ export function BranchList({
       {/* New Branch Section */}
       <div className="border-t border-border p-3">
         <div className="flex flex-col gap-2">
-          <button
-            onClick={() => handleCreateBranch()}
-            disabled={creating || githubBranchesLoading}
-            className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md bg-secondary px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-          >
-            {creating ? (
-              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-            ) : (
+          {!newBranchOpen ? (
+            <button
+              onClick={() => {
+                setNewBranchOpen(true)
+                setBranchPlaceholder(randomBranchName())
+                setNewBranchBase(repo.defaultBranch || "main")
+                setCreateError(null)
+                fetchGithubBranches()
+              }}
+              className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md bg-secondary px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
               <Plus className="h-3.5 w-3.5 shrink-0" />
-            )}
-            <span className="truncate">{creating ? "Creating..." : "New branch"}</span>
-          </button>
-
-          {createError && (
-            <p className="text-[11px] text-red-400">{createError}</p>
-          )}
-
-          {/* Starting branch selector */}
-          <Popover open={baseBranchOpen} onOpenChange={handleBaseBranchOpenChange}>
-            <PopoverTrigger className="group flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground data-[state=open]:text-foreground cursor-pointer">
-              <GitBranch className="h-2.5 w-2.5 shrink-0" />
-              <span>Starting branch: {newBranchBase}</span>
-              <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={4} className="w-[220px] p-0">
-              <Command shouldFilter={false}>
-                <CommandInput
-                  placeholder="Search branches..."
-                  className="h-8 text-[11px]"
-                  value={branchSearch}
-                  onValueChange={setBranchSearch}
+              <span className="truncate">New branch</span>
+            </button>
+          ) : (
+            <div className="rounded-lg border border-border bg-secondary/50 p-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">New branch</span>
+                  <button
+                    onClick={() => {
+                      setNewBranchOpen(false)
+                      setCreateError(null)
+                    }}
+                    className="flex h-5 w-5 cursor-pointer items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                <Input
+                  ref={newBranchInputRef}
+                  placeholder={branchPlaceholder}
+                  value={newBranchName}
+                  onChange={(e) => setNewBranchName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCreateBranch()
+                    if (e.key === "Escape") {
+                      setNewBranchOpen(false)
+                      setCreateError(null)
+                    }
+                  }}
+                  className="h-8 bg-background border-border text-xs font-mono placeholder:text-muted-foreground/40"
+                  disabled={creating}
                 />
-                <CommandList>
-                  {githubBranchesLoading ? (
-                    <div className="flex items-center justify-center gap-2 py-6 text-[11px] text-muted-foreground">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>Loading branches...</span>
-                    </div>
-                  ) : (
-                    <>
-                      {(() => {
-                        const defaultBranch = repo.defaultBranch || "main"
-                        const allBranches = githubBranches.length > 0 ? githubBranches : [defaultBranch]
 
-                        // Filter by search term
-                        const filteredBranches = branchSearch
-                          ? allBranches.filter(b => b.toLowerCase().includes(branchSearch.toLowerCase()))
-                          : allBranches
+                {/* Starting branch selector */}
+                <Popover open={baseBranchOpen} onOpenChange={handleBaseBranchOpenChange}>
+                  <PopoverTrigger className="group flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground data-[state=open]:text-foreground cursor-pointer">
+                    <GitBranch className="h-2.5 w-2.5 shrink-0" />
+                    <span>from {newBranchBase}</span>
+                    <ChevronDown className="h-2.5 w-2.5 shrink-0 opacity-50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                  </PopoverTrigger>
+                  <PopoverContent align="start" sideOffset={4} className="w-[220px] p-0">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search branches..."
+                        className="h-8 text-[11px]"
+                        value={branchSearch}
+                        onValueChange={setBranchSearch}
+                      />
+                      <CommandList>
+                        {githubBranchesLoading ? (
+                          <div className="flex items-center justify-center gap-2 py-6 text-[11px] text-muted-foreground">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span>Loading branches...</span>
+                          </div>
+                        ) : (
+                          <>
+                            {(() => {
+                              const defaultBranch = repo.defaultBranch || "main"
+                              const allBranches = githubBranches.length > 0 ? githubBranches : [defaultBranch]
 
-                        // Sort: default branch first, then rest alphabetically
-                        const sortedBranches = [...filteredBranches].sort((a, b) => {
-                          if (a === defaultBranch) return -1
-                          if (b === defaultBranch) return 1
-                          return a.localeCompare(b)
-                        })
+                              // Filter by search term
+                              const filteredBranches = branchSearch
+                                ? allBranches.filter(b => b.toLowerCase().includes(branchSearch.toLowerCase()))
+                                : allBranches
 
-                        if (sortedBranches.length === 0) {
-                          return (
-                            <div className="py-3 px-3 text-[11px] text-center text-muted-foreground">
-                              No branches found.
-                            </div>
-                          )
-                        }
+                              // Sort: default branch first, then rest alphabetically
+                              const sortedBranches = [...filteredBranches].sort((a, b) => {
+                                if (a === defaultBranch) return -1
+                                if (b === defaultBranch) return 1
+                                return a.localeCompare(b)
+                              })
 
-                        return (
-                          <CommandGroup>
-                            {sortedBranches.map((branch) => {
-                              const isDefault = branch === defaultBranch
-                              const isSelected = branch === newBranchBase
+                              if (sortedBranches.length === 0) {
+                                return (
+                                  <div className="py-3 px-3 text-[11px] text-center text-muted-foreground">
+                                    No branches found.
+                                  </div>
+                                )
+                              }
 
                               return (
-                                <CommandItem
-                                  key={branch}
-                                  value={branch}
-                                  onSelect={() => {
-                                    setNewBranchBase(branch)
-                                    setBaseBranchOpen(false)
-                                  }}
-                                  className="flex items-center justify-between text-[11px] cursor-pointer"
-                                >
-                                  <span className="flex items-center gap-1.5">
-                                    <GitBranch className="h-3 w-3 shrink-0" />
-                                    <span>{branch}</span>
-                                    {isDefault && (
-                                      <span className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground">default</span>
-                                    )}
-                                  </span>
-                                  {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
-                                </CommandItem>
+                                <CommandGroup>
+                                  {sortedBranches.map((branch) => {
+                                    const isDefault = branch === defaultBranch
+                                    const isSelected = branch === newBranchBase
+
+                                    return (
+                                      <CommandItem
+                                        key={branch}
+                                        value={branch}
+                                        onSelect={() => {
+                                          setNewBranchBase(branch)
+                                          setBaseBranchOpen(false)
+                                        }}
+                                        className="flex items-center justify-between text-[11px] cursor-pointer"
+                                      >
+                                        <span className="flex items-center gap-1.5">
+                                          <GitBranch className="h-3 w-3 shrink-0" />
+                                          <span>{branch}</span>
+                                          {isDefault && (
+                                            <span className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground">default</span>
+                                          )}
+                                        </span>
+                                        {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                                      </CommandItem>
+                                    )
+                                  })}
+                                </CommandGroup>
                               )
-                            })}
-                          </CommandGroup>
-                        )
-                      })()}
-                    </>
-                  )}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+                            })()}
+                          </>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
+                {createError && (
+                  <p className="text-[11px] text-red-400">{createError}</p>
+                )}
+
+                <button
+                  onClick={() => handleCreateBranch()}
+                  disabled={creating || githubBranchesLoading}
+                  className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {creating && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Create branch
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
