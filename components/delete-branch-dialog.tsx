@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Loader2 } from "lucide-react"
 import {
   Dialog,
@@ -244,53 +244,30 @@ interface UseDeleteBranchDialogOptions {
 export function useDeleteBranchDialog({ repo, onRemoveBranch }: UseDeleteBranchDialogOptions) {
   const [deletingBranch, setDeletingBranch] = useState<Branch | null>(null)
   const [deletingBranchId, setDeletingBranchId] = useState<string | null>(null)
-  // Used to ignore late-arriving background checks after the user closes/confirms the dialog.
-  const deleteRequestBranchIdRef = useRef<string | null>(null)
 
   // Handle delete button click - check if branch exists on GitHub first
   const handleDeleteClick = useCallback(async (branchId: string) => {
     const branch = repo.branches.find((b) => b.id === branchId)
     if (!branch) return
-    // Optimistically open the modal immediately for instant feedback.
-    deleteRequestBranchIdRef.current = branchId
-    setDeletingBranch(branch)
+
+    // Show the spinner first (row-level feedback).
     setDeletingBranchId(branchId)
 
-    // Background pre-check: if the branch doesn't exist on GitHub, we can skip showing the modal.
-    // DeleteBranchDialog already handles merge-status checking, but this avoids a modal for missing remote branches.
-    void (async () => {
-      try {
-        const baseBranch = branch.baseBranch || repo.defaultBranch || "main"
-        const res = await fetch(
-          `/api/github/check-merged?owner=${encodeURIComponent(repo.owner)}&repo=${encodeURIComponent(repo.name)}&branch=${encodeURIComponent(branch.name)}&baseBranch=${encodeURIComponent(baseBranch)}`
-        )
-        const data = await res.json()
-
-        if (!res.ok || !data.notFound) return
-
-        // Only auto-delete if the dialog is still open for the same branch.
-        if (deleteRequestBranchIdRef.current !== branchId) return
-        deleteRequestBranchIdRef.current = null
-        setDeletingBranch(null)
-        await onRemoveBranch(branchId, false)
-        setDeletingBranchId(null)
-      } catch {
-        // Ignore background pre-check errors; modal will handle merge-status.
-      }
-    })()
+    // Then open the modal on the next frame so React can paint the spinner immediately.
+    requestAnimationFrame(() => {
+      setDeletingBranch(branch)
+    })
   }, [repo, onRemoveBranch])
 
   const handleClose = useCallback(() => {
-    deleteRequestBranchIdRef.current = null
     setDeletingBranch(null)
     setDeletingBranchId(null)
   }, [])
 
   const handleConfirm = useCallback(
     async (branchId: string, deleteRemote: boolean) => {
-      deleteRequestBranchIdRef.current = null
-      setDeletingBranch(null)
       await onRemoveBranch(branchId, deleteRemote)
+      setDeletingBranch(null)
       setDeletingBranchId(null)
     },
     [onRemoveBranch]
