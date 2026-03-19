@@ -168,48 +168,6 @@ function getToolDetail(toolName: string, input: unknown): ToolDetailResult {
 }
 
 // =============================================================================
-// Event Transformation
-// =============================================================================
-
-export function transformEvent(event: Event): AgentEvent | null {
-  switch (event.type) {
-    case "token":
-      return { type: "token", content: (event as TokenEvent).text }
-
-    case "tool_start": {
-      const toolEvent = event as ToolStartEvent
-      const tool = mapToolName(toolEvent.name)
-      const { summary: detail, fullDetail } = getToolDetail(toolEvent.name, toolEvent.input)
-      const summary = detail ? `${tool}: ${detail}` : tool
-      const fullSummary = fullDetail ? `${tool}: ${fullDetail}` : undefined
-      return {
-        type: "tool",
-        toolCall: { tool, summary, fullSummary },
-      }
-    }
-
-    case "session":
-      return { type: "session", sessionId: (event as SessionEvent).id }
-
-    case "end": {
-      const endEvent = event as EndEvent & { error?: string }
-      if (endEvent.error) {
-        return { type: "error", message: endEvent.error }
-      }
-      return { type: "done" }
-    }
-
-    case "tool_delta":
-    case "tool_end":
-      // These events are for tool output streaming, not needed for UI
-      return null
-
-    default:
-      return null
-  }
-}
-
-// =============================================================================
 // ContentBlocks Builder (for background execution results)
 // =============================================================================
 

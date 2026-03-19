@@ -282,31 +282,6 @@ export async function refreshAccessToken(
 }
 
 /**
- * Decrypt MCP server tokens
- */
-export function decryptMcpTokens(server: {
-  accessToken: string | null
-  refreshToken: string | null
-}): {
-  accessToken: string | null
-  refreshToken: string | null
-} {
-  return {
-    accessToken: server.accessToken ? decrypt(server.accessToken) : null,
-    refreshToken: server.refreshToken ? decrypt(server.refreshToken) : null,
-  }
-}
-
-/**
- * Check if token is expired or will expire soon (within 5 minutes)
- */
-export function isTokenExpired(tokenExpiry: Date | null): boolean {
-  if (!tokenExpiry) return false
-  const expiryBuffer = 5 * 60 * 1000 // 5 minutes
-  return tokenExpiry.getTime() - Date.now() < expiryBuffer
-}
-
-/**
  * Refresh OAuth token for an MCP server
  * Returns true if refresh was successful, false otherwise
  */
