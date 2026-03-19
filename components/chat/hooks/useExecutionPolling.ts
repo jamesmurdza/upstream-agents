@@ -411,9 +411,11 @@ export function useExecutionPolling({
                 }
                 if (newCommits.length > 0) {
                   startingCommitRef.current = allCommits[0].shortHash
-                  onCommitsDetected?.()
                 }
               }
+              // Always trigger refresh after agent turn, even if no new commits detected
+              // This ensures any agent-made commits that were pushed are visible
+              onCommitsDetected?.()
             } catch {
               // Non-critical
             }
