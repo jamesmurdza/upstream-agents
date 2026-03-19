@@ -394,6 +394,7 @@ export default function Home() {
               sandboxToggleLoading={mobileUI.mobileSandboxToggleLoading}
               prLoading={mobileUI.mobilePrLoading}
               onUpdateBranch={handleUpdateBranch}
+              credentials={credentials}
             />
 
             {/* Chat content */}

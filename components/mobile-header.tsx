@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import type { Branch } from "@/lib/types"
+import type { Branch, UserCredentialFlags } from "@/lib/types"
 import { BRANCH_STATUS, PATHS } from "@/lib/constants"
 import {
   Menu,
@@ -18,6 +18,7 @@ import {
   Pencil,
   Check,
   X,
+  Sparkles,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -26,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 interface MobileHeaderProps {
   repoOwner: string | null
@@ -44,6 +45,7 @@ interface MobileHeaderProps {
   sandboxToggleLoading: boolean
   prLoading: boolean
   onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
+  credentials?: UserCredentialFlags | null
 }
 
 export function MobileHeader({
@@ -62,6 +64,7 @@ export function MobileHeader({
   sandboxToggleLoading,
   prLoading,
   onUpdateBranch,
+  credentials,
 }: MobileHeaderProps) {
   const isStopped = branch?.status === BRANCH_STATUS.STOPPED
   const isRunning = branch?.status === BRANCH_STATUS.RUNNING || branch?.status === BRANCH_STATUS.CREATING
@@ -72,7 +75,10 @@ export function MobileHeader({
   const [renameValue, setRenameValue] = useState("")
   const [renameLoading, setRenameLoading] = useState(false)
   const [renameError, setRenameError] = useState<string | null>(null)
+  const [suggesting, setSuggesting] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement>(null)
 
+  const canSuggestName = !!(credentials?.hasAnthropicApiKey || credentials?.hasOpenaiApiKey)
   const canRename = !!branch?.sandboxId && !isRunning
 
   useEffect(() => {
@@ -81,25 +87,82 @@ export function MobileHeader({
     setRenameValue("")
     setRenameError(null)
     setRenameLoading(false)
+    setSuggesting(false)
   }, [branch?.id])
 
   const startRenaming = useCallback(() => {
-    if (!branch || !canRename || renameLoading) return
+    if (!branch || !canRename || renameLoading || suggesting) return
     setRenaming(true)
     setRenameValue(branch.name)
     setRenameError(null)
-  }, [branch, canRename, renameLoading])
+    setSuggesting(false)
+  }, [branch, canRename, renameLoading, suggesting])
 
   const cancelRenaming = useCallback(() => {
     if (renameLoading) return
     setRenaming(false)
     setRenameValue("")
     setRenameError(null)
+    setSuggesting(false)
   }, [renameLoading])
+
+  const suggestBranchName = useCallback(async () => {
+    if (!branch || !canRename || renameLoading || suggesting) return
+    if (branch.messages.length === 0) return
+
+    setSuggesting(true)
+    setRenaming(true)
+    setRenameError(null)
+    setRenameValue("loading...")
+
+    try {
+      const res = await fetch("/api/branches/suggest-name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branchId: branch.id }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(
+          (data as { error?: string; message?: string }).error ||
+            (data as { error?: string; message?: string }).message ||
+            "Failed to generate suggestion",
+        )
+      }
+
+      const suggestedName = (data as { suggestedName?: string }).suggestedName
+      if (!suggestedName) throw new Error("Suggestion missing suggestedName")
+
+      setRenameValue(suggestedName)
+      requestAnimationFrame(() => {
+        const input = renameInputRef.current
+        if (input) {
+          input.focus()
+          const len = suggestedName.length
+          input.setSelectionRange(len, len)
+        }
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Suggestion failed"
+      setRenameError(message)
+      setRenameValue(branch.name)
+      requestAnimationFrame(() => {
+        const input = renameInputRef.current
+        if (input) {
+          input.focus()
+          const len = branch.name.length
+          input.setSelectionRange(len, len)
+        }
+      })
+    } finally {
+      setSuggesting(false)
+    }
+  }, [branch, canRename, renameLoading, suggesting])
 
   const submitRenaming = useCallback(async () => {
     if (!branch || !repoOwner || !repoName || !branch.sandboxId) return
-    if (!canRename || renameLoading) return
+    if (!canRename || renameLoading || suggesting) return
 
     const newName = renameValue.trim()
     if (!newName || newName === branch.name) return
@@ -135,7 +198,7 @@ export function MobileHeader({
     } finally {
       setRenameLoading(false)
     }
-  }, [branch, repoOwner, repoName, canRename, renameLoading, renameValue, onUpdateBranch])
+  }, [branch, repoOwner, repoName, canRename, renameLoading, suggesting, renameValue, onUpdateBranch])
 
   return (
     <header
@@ -166,6 +229,7 @@ export function MobileHeader({
                   <div className="flex min-w-0 flex-col">
                     <div className="flex min-w-0 items-center gap-1.5">
                       <input
+                        ref={renameInputRef}
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         onKeyDown={(e) => {
@@ -179,10 +243,10 @@ export function MobileHeader({
                           }
                         }}
                         autoFocus
-                        disabled={renameLoading}
+                        disabled={renameLoading || suggesting}
                         className="h-7 bg-transparent border border-border/30 rounded px-1.5 text-sm font-mono text-foreground focus:outline-none focus:border-border/60 disabled:text-muted-foreground min-w-[6ch]"
                       />
-                      {renameLoading ? (
+                      {renameLoading || suggesting ? (
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
                       ) : (
                         <>
@@ -192,7 +256,7 @@ export function MobileHeader({
                               e.preventDefault()
                               submitRenaming()
                             }}
-                            disabled={!renameValue.trim()}
+                          disabled={!renameValue.trim() || suggesting}
                             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
                             title="Save"
                           >
@@ -224,15 +288,32 @@ export function MobileHeader({
                       {branch.name}
                     </span>
                     {canRename && (
-                      <button
-                        type="button"
-                        onClick={startRenaming}
-                        disabled={renameLoading}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
-                        title="Rename branch"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={startRenaming}
+                          disabled={renameLoading || suggesting}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+                          title="Rename branch"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        {canSuggestName && branch.messages.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={suggestBranchName}
+                            disabled={renameLoading || suggesting}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none"
+                            title="Magic rename"
+                          >
+                            {suggesting ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
