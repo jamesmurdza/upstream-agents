@@ -454,7 +454,7 @@ export function BranchList({
                                     <span className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground">default</span>
                                   )}
                                   {isSelected && !isDefault && (
-                                    <span className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary">selected</span>
+                                    <span className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary">current</span>
                                   )}
                                 </span>
                                 {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-primary" />}
