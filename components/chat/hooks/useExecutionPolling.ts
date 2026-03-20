@@ -571,8 +571,11 @@ export function useExecutionPolling({
       .then((data) => {
         if (data.state && data.state !== "started") {
           onUpdateBranch(branch.id, { status: BRANCH_STATUS.STOPPED })
-        } else if (currentStatus === BRANCH_STATUS.RUNNING && !pollingRef.current) {
-          // Prefer execution/active so we get executionId and avoid 404s / duplicate poll loops
+        } else {
+          // Always check for active execution regardless of current branch status.
+          // This fixes a race condition where the branch status might be stale (e.g., IDLE)
+          // even though an execution is actively running in the database.
+          // The execution/active endpoint is the source of truth for running state.
           fetch("/api/agent/execution/active", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -582,50 +585,60 @@ export function useExecutionPolling({
             .then((execData) => {
               if (execData.execution && execData.execution.status === EXECUTION_STATUS.RUNNING) {
                 if (pollingRef.current) return
+                // Update branch status to RUNNING if it wasn't already - this ensures spinner shows
+                if (currentStatus !== BRANCH_STATUS.RUNNING) {
+                  onUpdateBranch(branch.id, { status: BRANCH_STATUS.RUNNING })
+                }
                 currentMessageIdRef.current = execData.execution.messageId
                 currentExecutionIdRef.current = execData.execution.executionId
                 startPollingRef.current(execData.execution.messageId, execData.execution.executionId)
                 return
               }
-              const lastAssistantMsg =
-                currentMessages && currentMessages.length > 0
-                  ? [...currentMessages].reverse().find((m) => m.role === "assistant" && !m.commitHash)
-                  : null
-              if (!lastAssistantMsg) {
-                onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
-                return
-              }
-              // Execution row may not exist yet if user switched immediately after send; retry once
-              const retryResume = () => {
-                if (pollingRef.current) return
-                fetch("/api/agent/execution/active", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ branchId: branch.id }),
-                })
-                  .then((r) => r.json())
-                  .then((retryData) => {
-                    if (pollingRef.current) return
-                    if (retryData.execution && retryData.execution.status === EXECUTION_STATUS.RUNNING) {
-                      currentMessageIdRef.current = retryData.execution.messageId
-                      currentExecutionIdRef.current = retryData.execution.executionId
-                      startPollingRef.current(retryData.execution.messageId, retryData.execution.executionId)
-                      return
-                    }
-                    currentMessageIdRef.current = lastAssistantMsg.id
-                    startPollingRef.current(lastAssistantMsg.id)
+              // No active execution found - if branch thought it was running, set to idle
+              if (currentStatus === BRANCH_STATUS.RUNNING) {
+                const lastAssistantMsg =
+                  currentMessages && currentMessages.length > 0
+                    ? [...currentMessages].reverse().find((m) => m.role === "assistant" && !m.commitHash)
+                    : null
+                if (!lastAssistantMsg) {
+                  onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
+                  return
+                }
+                // Execution row may not exist yet if user switched immediately after send; retry once
+                const retryResume = () => {
+                  if (pollingRef.current) return
+                  fetch("/api/agent/execution/active", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ branchId: branch.id }),
                   })
-                  .catch(() => {
-                    if (pollingRef.current) return
-                    currentMessageIdRef.current = lastAssistantMsg.id
-                    startPollingRef.current(lastAssistantMsg.id)
-                  })
+                    .then((r) => r.json())
+                    .then((retryData) => {
+                      if (pollingRef.current) return
+                      if (retryData.execution && retryData.execution.status === EXECUTION_STATUS.RUNNING) {
+                        currentMessageIdRef.current = retryData.execution.messageId
+                        currentExecutionIdRef.current = retryData.execution.executionId
+                        startPollingRef.current(retryData.execution.messageId, retryData.execution.executionId)
+                        return
+                      }
+                      currentMessageIdRef.current = lastAssistantMsg.id
+                      startPollingRef.current(lastAssistantMsg.id)
+                    })
+                    .catch(() => {
+                      if (pollingRef.current) return
+                      currentMessageIdRef.current = lastAssistantMsg.id
+                      startPollingRef.current(lastAssistantMsg.id)
+                    })
+                }
+                if (resumeRetryTimeoutRef.current) clearTimeout(resumeRetryTimeoutRef.current)
+                resumeRetryTimeoutRef.current = setTimeout(retryResume, 700)
               }
-              if (resumeRetryTimeoutRef.current) clearTimeout(resumeRetryTimeoutRef.current)
-              resumeRetryTimeoutRef.current = setTimeout(retryResume, 700)
             })
             .catch(() => {
-              onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
+              // On error checking execution, only set to idle if we thought we were running
+              if (currentStatus === BRANCH_STATUS.RUNNING) {
+                onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
+              }
             })
         }
       })
