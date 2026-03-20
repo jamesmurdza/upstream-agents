@@ -14,6 +14,10 @@ import { generateCommitMessage } from "@/lib/commit-message"
 // Git operation timeout - 60 seconds (must be literal for Next.js static analysis)
 export const maxDuration = 60
 
+// Simple in-memory lock to prevent concurrent auto-commit-push on the same sandbox
+// If a push is already in progress, additional calls will skip (not queue)
+const pushInProgress = new Set<string>()
+
 /**
  * Verifies we're on the correct branch (no checkout).
  * Prevents agents from pushing to the wrong branch. We only verify so we don't
@@ -166,61 +170,72 @@ export async function POST(req: Request) {
         if (!branchName) {
           return badRequest("Branch name required for push")
         }
-        // Ensure we're on the correct branch before any operations
-        const branchError = await ensureCorrectBranch(sandbox, repoPath, branchName)
-        if (branchError) {
-          return badRequest(branchError)
+        // Skip if another auto-push is already in progress for this sandbox
+        // This prevents race conditions when multiple windows try to push simultaneously
+        const lockKey = `${sandboxId}:${branchName}`
+        if (pushInProgress.has(lockKey)) {
+          return Response.json({ skipped: true, reason: "Push already in progress" })
         }
-        // Check for uncommitted changes and commit them if any
-        let committed = false
-        let commitMessage = ""
-        const statusResult = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git status --porcelain 2>&1`
-        )
-        if (!statusResult.exitCode && statusResult.result.trim()) {
-          // Stage all changes first so we can get a complete diff
-          await sandbox.process.executeCommand(
-            `cd ${repoPath} && git add -A 2>&1`
-          )
-
-          // Get the staged diff to generate an AI commit message
-          // Use --cached to see what's staged, and --no-color for clean output
-          const diffResult = await sandbox.process.executeCommand(
-            `cd ${repoPath} && git diff --cached --no-color 2>&1`
-          )
-          const diff = diffResult.exitCode ? "" : diffResult.result
-
-          // Generate AI commit message (falls back to default if LLM unavailable)
-          const commitMessageResult = await generateCommitMessage({
-            userId: auth.userId,
-            diff,
-          })
-          commitMessage = commitMessageResult.message
-
-          // Escape the commit message for shell (handle quotes and special chars)
-          const escapedMessage = commitMessage.replace(/'/g, "'\\''")
-
-          const commitResult = await sandbox.process.executeCommand(
-            `cd ${repoPath} && git commit -m '${escapedMessage}' 2>&1`
-          )
-          if (commitResult.exitCode) {
-            return Response.json({ error: "Commit failed: " + commitResult.result }, { status: 500 })
+        pushInProgress.add(lockKey)
+        try {
+          // Ensure we're on the correct branch before any operations
+          const branchError = await ensureCorrectBranch(sandbox, repoPath, branchName)
+          if (branchError) {
+            return badRequest(branchError)
           }
-          committed = true
+          // Check for uncommitted changes and commit them if any
+          let committed = false
+          let commitMessage = ""
+          const statusResult = await sandbox.process.executeCommand(
+            `cd ${repoPath} && git status --porcelain 2>&1`
+          )
+          if (!statusResult.exitCode && statusResult.result.trim()) {
+            // Stage all changes first so we can get a complete diff
+            await sandbox.process.executeCommand(
+              `cd ${repoPath} && git add -A 2>&1`
+            )
+
+            // Get the staged diff to generate an AI commit message
+            // Use --cached to see what's staged, and --no-color for clean output
+            const diffResult = await sandbox.process.executeCommand(
+              `cd ${repoPath} && git diff --cached --no-color 2>&1`
+            )
+            const diff = diffResult.exitCode ? "" : diffResult.result
+
+            // Generate AI commit message (falls back to default if LLM unavailable)
+            const commitMessageResult = await generateCommitMessage({
+              userId: auth.userId,
+              diff,
+            })
+            commitMessage = commitMessageResult.message
+
+            // Escape the commit message for shell (handle quotes and special chars)
+            const escapedMessage = commitMessage.replace(/'/g, "'\\''")
+
+            const commitResult = await sandbox.process.executeCommand(
+              `cd ${repoPath} && git commit -m '${escapedMessage}' 2>&1`
+            )
+            if (commitResult.exitCode) {
+              return Response.json({ error: "Commit failed: " + commitResult.result }, { status: 500 })
+            }
+            committed = true
+          }
+          // Double-check we're still on the correct branch before pushing
+          const verifyStatus = await sandbox.git.status(repoPath)
+          if (verifyStatus.currentBranch !== branchName) {
+            return badRequest(`Branch changed during operation: expected ${branchName} but on ${verifyStatus.currentBranch}`)
+          }
+          // Push with retry - handles transient failures and "nothing to push" gracefully
+          const pushResult = await pushWithRetry(sandbox, repoPath, githubToken)
+          if (!pushResult.success) {
+            return Response.json({ error: "Push failed: " + pushResult.error }, { status: 500 })
+          }
+          // pushed is true if we actually pushed (not if already up-to-date)
+          const pushed = !pushResult.nothingToPush
+          return Response.json({ committed, pushed, commitMessage })
+        } finally {
+          pushInProgress.delete(lockKey)
         }
-        // Double-check we're still on the correct branch before pushing
-        const verifyStatus = await sandbox.git.status(repoPath)
-        if (verifyStatus.currentBranch !== branchName) {
-          return badRequest(`Branch changed during operation: expected ${branchName} but on ${verifyStatus.currentBranch}`)
-        }
-        // Push with retry - handles transient failures and "nothing to push" gracefully
-        const pushResult = await pushWithRetry(sandbox, repoPath, githubToken)
-        if (!pushResult.success) {
-          return Response.json({ error: "Push failed: " + pushResult.error }, { status: 500 })
-        }
-        // pushed is true if we actually pushed (not if already up-to-date)
-        const pushed = !pushResult.nothingToPush
-        return Response.json({ committed, pushed, commitMessage })
       }
 
       case "push": {
