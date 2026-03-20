@@ -2,7 +2,7 @@ import path from "path"
 import { fileURLToPath } from "url"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const sdkPath = path.join(__dirname, "node_modules/@jamesmurdza/coding-agents-sdk")
+const sdkPath = path.join(__dirname, "node_modules/background-agents")
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -13,15 +13,15 @@ const nextConfig = {
   serverExternalPackages: [
     "ssh2",
     "cpu-features",
-    "@jamesmurdza/coding-agents-sdk",
+    "background-agents",
   ],
   turbopack: {
     resolveAlias: {
-      "@jamesmurdza/coding-agents-sdk": "./node_modules/@jamesmurdza/coding-agents-sdk",
+      "background-agents": "./node_modules/background-agents",
     },
   },
   webpack: (config, { isServer }) => {
-    config.resolve.alias["@jamesmurdza/coding-agents-sdk"] = sdkPath
+    config.resolve.alias["background-agents"] = sdkPath
 
     // Exclude .node files from webpack bundling entirely
     config.module.noParse = /\.node$/
@@ -33,7 +33,7 @@ const nextConfig = {
         ...externals,
         "cpu-features",
         "ssh2",
-        "@jamesmurdza/coding-agents-sdk",
+        "background-agents",
       ]
     }
 

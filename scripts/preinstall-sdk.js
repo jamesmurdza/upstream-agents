@@ -9,10 +9,10 @@ const lockPath = path.join(root, "package-lock.json")
 const localSdkPath = "file:/Users/jamie/codeagentsdk"
 
 const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"))
-if (pkg.dependencies["@jamesmurdza/coding-agents-sdk"] === localSdkPath) return
+if (pkg.dependencies["background-agents"] === localSdkPath) return
 
 fs.copyFileSync(pkgPath, pkgPath + ".bak")
 if (fs.existsSync(lockPath)) fs.copyFileSync(lockPath, lockPath + ".bak")
 
-pkg.dependencies["@jamesmurdza/coding-agents-sdk"] = localSdkPath
+pkg.dependencies["background-agents"] = localSdkPath
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n")

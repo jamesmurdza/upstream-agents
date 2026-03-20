@@ -9,15 +9,11 @@
  */
 
 import { Daytona } from "@daytonaio/sdk"
-// Work around missing "exports" in the SDK package by importing directly
-// from the built JS entry point under node_modules.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 import {
   createBackgroundSession,
   type BackgroundSession,
   type Event,
-} from "../node_modules/@jamesmurdza/coding-agents-sdk/dist/index.js"
+} from "background-agents"
 
 async function drainAllEvents(bg: BackgroundSession): Promise<Event[]> {
   const events: Event[] = []

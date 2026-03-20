@@ -109,7 +109,7 @@ A sophisticated multi-tenant web application that enables users to run AI coding
 
 ### External Services
 - **Sandboxes**: Daytona SDK (@daytonaio/sdk)
-- **Agent Runner**: @jamesmurdza/coding-agents-sdk
+- **Agent Runner**: background-agents
 - **LLM Providers**: Anthropic SDK, OpenAI SDK
 
 ---
@@ -264,13 +264,13 @@ DAYTONA_API_URL="https://api.daytona.io"
 
 ### Local coding-agents-sdk Development
 
-To develop against the local `@jamesmurdza/coding-agents-sdk` repo instead of the npm package:
+To develop against the local `background-agents` repo instead of the npm package:
 
 1. **Switch to local SDK**:
    ```bash
    npm run install:local
    ```
-   This installs deps, symlinks `node_modules/@jamesmurdza/coding-agents-sdk` to your local SDK path, and builds the SDK.
+   This installs deps, symlinks `node_modules/background-agents` to your local SDK path, and builds the SDK.
 
 2. **Run dev with local SDK and debug logs**:
    ```bash
