@@ -347,63 +347,93 @@ export function ChatPanel({
             }),
           })
 
-          if (recreateRes.ok) {
-            // Parse SSE response to get new sandbox info
-            const reader = recreateRes.body?.getReader()
-            if (reader) {
-              const decoder = new TextDecoder()
-              let sandboxId: string | null = null
-              let previewUrlPattern: string | null = null
-
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                const text = decoder.decode(value)
-                const lines = text.split("\n")
-                for (const line of lines) {
-                  if (line.startsWith("data: ")) {
-                    try {
-                      const eventData = JSON.parse(line.slice(6))
-                      if (eventData.type === "done" && eventData.data) {
-                        sandboxId = eventData.data.sandboxId
-                        previewUrlPattern = eventData.data.previewUrlPattern
-                      }
-                    } catch {
-                      // Ignore parse errors
-                    }
-                  }
-                }
+          // Handle non-OK responses from sandbox create
+          if (!recreateRes.ok) {
+            // Try to get error details from response
+            let errorMessage = "Failed to recreate sandbox"
+            try {
+              const errorData = await recreateRes.json()
+              if (errorData.message) {
+                errorMessage = errorData.message
+              } else if (errorData.error) {
+                errorMessage = errorData.error
               }
+            } catch {
+              // If not JSON, try to get status text
+              errorMessage = `Failed to recreate sandbox: ${recreateRes.status} ${recreateRes.statusText}`
+            }
+            throw new Error(errorMessage)
+          }
 
-              if (sandboxId) {
-                // Update branch with new sandbox info and retry the message
-                onUpdateBranch(branch.id, { sandboxId, previewUrlPattern: previewUrlPattern ?? undefined })
-                onUpdateMessage(branch.id, messageId, { content: "" })
+          // Parse SSE response to get new sandbox info
+          const reader = recreateRes.body?.getReader()
+          if (!reader) {
+            throw new Error("Failed to recreate sandbox: Unable to read response stream")
+          }
 
-                // Retry the original request with new sandbox
-                const retryRes = await fetch("/api/agent/execute", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    sandboxId,
-                    prompt,
-                    previewUrlPattern,
-                    repoName,
-                    messageId,
-                    agent: effectiveAgent,
-                    model: effectiveModel,
-                  }),
-                })
+          const decoder = new TextDecoder()
+          let sandboxId: string | null = null
+          let previewUrlPattern: string | null = null
+          let sseError: string | null = null
 
-                if (retryRes.ok) {
-                  startPolling(messageId)
-                  return
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            const text = decoder.decode(value)
+            const lines = text.split("\n")
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                try {
+                  const eventData = JSON.parse(line.slice(6))
+                  if (eventData.type === "done" && eventData.data) {
+                    sandboxId = eventData.data.sandboxId
+                    previewUrlPattern = eventData.data.previewUrlPattern
+                  } else if (eventData.type === "error") {
+                    // Capture error from SSE stream
+                    sseError = eventData.message || eventData.error || "Unknown error during sandbox creation"
+                  }
+                } catch {
+                  // Ignore parse errors
                 }
               }
             }
           }
 
-          throw new Error("Failed to recreate sandbox")
+          // Check for errors from SSE stream
+          if (sseError) {
+            throw new Error(`Failed to recreate sandbox: ${sseError}`)
+          }
+
+          if (!sandboxId) {
+            throw new Error("Failed to recreate sandbox: No sandbox ID returned")
+          }
+
+          // Update branch with new sandbox info and retry the message
+          onUpdateBranch(branch.id, { sandboxId, previewUrlPattern: previewUrlPattern ?? undefined })
+          onUpdateMessage(branch.id, messageId, { content: "" })
+
+          // Retry the original request with new sandbox
+          const retryRes = await fetch("/api/agent/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sandboxId,
+              prompt,
+              previewUrlPattern,
+              repoName,
+              messageId,
+              agent: effectiveAgent,
+              model: effectiveModel,
+            }),
+          })
+
+          if (!retryRes.ok) {
+            const retryData = await retryRes.json().catch(() => ({}))
+            throw new Error(retryData.error || retryData.message || "Failed to start agent after sandbox recreation")
+          }
+
+          startPolling(messageId)
+          return
         }
 
         throw new Error(data.error || "Failed to start agent")
