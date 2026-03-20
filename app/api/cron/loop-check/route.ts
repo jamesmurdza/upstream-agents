@@ -189,9 +189,9 @@ export async function GET(req: Request) {
           repoPath,
           previewUrlPattern: sandbox.previewUrlPattern || undefined,
           sessionId: resumeSessionId,
-          env,
           agent,
           model,
+          // Note: env is passed at start() time for freshest credentials
         })
 
         // Persist session ID

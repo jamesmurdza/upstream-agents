@@ -103,9 +103,9 @@ export async function POST(req: Request) {
       previewUrlPattern:
         previewUrlPattern || sandboxRecord.previewUrlPattern || undefined,
       sessionId: resumeSessionId,
-      env,
       agent,
       model,
+      // Note: env is passed at start() time for freshest credentials
     })
     console.log(`[agent/execute] createBackgroundAgentSession took ${Date.now() - t0}ms`)
 
