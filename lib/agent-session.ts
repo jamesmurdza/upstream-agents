@@ -256,11 +256,17 @@ export async function readPersistedSessionId(
 // Background Session Execution
 // =============================================================================
 
+/** Options for starting a background session run. */
+export interface BackgroundStartOptions {
+  /** Run-level env vars (override session-level for this run only, cleared after run completes). */
+  env?: Record<string, string>
+}
+
 /** Background session handle returned by createBackgroundAgentSession. */
 export interface BackgroundAgentSession {
   backgroundSessionId: string
   /** Fire-and-forget: launch the agent process in the sandbox. */
-  start: (prompt: string) => Promise<void>
+  start: (prompt: string, options?: BackgroundStartOptions) => Promise<void>
 }
 
 /**
@@ -310,9 +316,14 @@ export async function createBackgroundAgentSession(
 
   return {
     backgroundSessionId: bgSession.id,
-    async start(prompt: string) {
+    async start(prompt: string, startOptions?: BackgroundStartOptions) {
       const t1 = Date.now()
-      await bgSession.start(prompt)
+      // Pass run-level env if provided (overrides session-level for this run only)
+      if (startOptions?.env) {
+        await bgSession.start(prompt, { env: startOptions.env })
+      } else {
+        await bgSession.start(prompt)
+      }
       console.log(`[createBackgroundAgentSession] bgSession.start took ${Date.now() - t1}ms`)
     },
   }
