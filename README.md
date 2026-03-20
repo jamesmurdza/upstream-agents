@@ -331,7 +331,7 @@ Branch
 └── messages (1:n) → Message
 
 Sandbox
-├── sandboxId (format: agenthub-{userId}-{uuid})
+├── sandboxId (format: upstream-{userId}-{uuid})
 ├── contextId, sessionId (for SDK resumption)
 ├── sessionAgent (track agent type)
 ├── previewUrlPattern (web previews)
