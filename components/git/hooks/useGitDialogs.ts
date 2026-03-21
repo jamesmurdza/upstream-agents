@@ -126,6 +126,7 @@ export function useGitDialogs({
       setMergeOpen(false)
     } catch (err: unknown) {
       addSystemMessage(`Merge failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+      setMergeOpen(false)
     } finally {
       setActionLoading(false)
     }
@@ -155,6 +156,7 @@ export function useGitDialogs({
       setRebaseOpen(false)
     } catch (err: unknown) {
       addSystemMessage(`Rebase failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+      setRebaseOpen(false)
     } finally {
       setActionLoading(false)
     }
