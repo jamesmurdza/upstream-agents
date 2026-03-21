@@ -94,16 +94,28 @@ export function ChatPanel({
     globalActiveBranchIdRef.current = branch.id
   }, [branch.id])
 
-  // When a new branch is created, focus the chat input immediately.
-  // We only do this for branches in "creating" state to avoid stealing focus during normal navigation.
+  // Track previous status to detect when sandbox creation completes
+  const prevStatusRef = useRef(branch.status)
+
+  // When a new branch is created or when sandbox creation completes, focus the chat input.
+  // We focus during CREATING status and also when transitioning from CREATING to IDLE.
   useEffect(() => {
-    if (branch.status !== BRANCH_STATUS.CREATING) return
-    const t = window.setTimeout(() => {
-      if (textareaRef.current && document.activeElement !== textareaRef.current) {
-        textareaRef.current.focus()
-      }
-    }, 0)
-    return () => window.clearTimeout(t)
+    const wasCreating = prevStatusRef.current === BRANCH_STATUS.CREATING
+    const isNowIdle = branch.status === BRANCH_STATUS.IDLE
+    const isCreating = branch.status === BRANCH_STATUS.CREATING
+
+    // Update the ref for next render
+    prevStatusRef.current = branch.status
+
+    // Focus if currently creating, or if just finished creating (transitioned to idle)
+    if (isCreating || (wasCreating && isNowIdle)) {
+      const t = window.setTimeout(() => {
+        if (textareaRef.current && document.activeElement !== textareaRef.current) {
+          textareaRef.current.focus()
+        }
+      }, 0)
+      return () => window.clearTimeout(t)
+    }
   }, [branch.id, branch.status])
 
   // State for agent switch dialog
