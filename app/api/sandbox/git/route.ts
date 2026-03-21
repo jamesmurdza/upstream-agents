@@ -32,32 +32,21 @@ async function ensureCorrectBranch(
 }
 
 /**
- * Push with retry logic. Returns { success, nothingToPush } to distinguish
- * between successful push and "already up-to-date" scenarios.
+ * Push with retry logic for transient errors.
+ * Returns the raw error message on failure - let frontend handle display.
  */
 async function pushWithRetry(
   sandbox: Sandbox,
   repoPath: string,
   githubToken: string,
   maxRetries = 2
-): Promise<{ success: boolean; nothingToPush?: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       await sandbox.git.push(repoPath, "x-access-token", githubToken)
       return { success: true }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err)
-      const errorLower = errorMessage.toLowerCase()
-      // Check if this is a "nothing to push" error (400 with up-to-date message)
-      // or an axios 400 which often means nothing to push
-      const isNothingToPush =
-        errorLower.includes("up-to-date") ||
-        errorLower.includes("up to date") ||
-        (errorLower.includes("400") && !errorLower.includes("permission") && !errorLower.includes("denied"))
-
-      if (isNothingToPush) {
-        return { success: true, nothingToPush: true }
-      }
 
       // If it's a transient error and we have retries left, wait and retry
       const isTransient =
@@ -219,8 +208,7 @@ export async function POST(req: Request) {
           return Response.json({ error: "Push failed: " + pushResult.error }, { status: 500 })
         }
         // pushed is true if we actually pushed (not if already up-to-date)
-        const pushed = !pushResult.nothingToPush
-        return Response.json({ committed, pushed, commitMessage })
+        return Response.json({ committed, pushed: true, commitMessage })
       }
 
       case "push": {
@@ -244,7 +232,7 @@ export async function POST(req: Request) {
         if (!manualPushResult.success) {
           return Response.json({ error: "Push failed: " + manualPushResult.error }, { status: 500 })
         }
-        return Response.json({ success: true, nothingToPush: manualPushResult.nothingToPush })
+        return Response.json({ success: true })
       }
 
       case "pull": {
