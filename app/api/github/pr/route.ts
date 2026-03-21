@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import { requireGitHubAuth, isGitHubAuthError, badRequest, internalError } from "@/lib/api-helpers"
-import { compareBranches, createPullRequest, isGitHubApiError } from "@/lib/github-client"
+import { compareBranches, createPullRequest, getDiff, isGitHubApiError } from "@/lib/github-client"
 import { createPRSchema, validateBody, isValidationError } from "@/lib/schemas"
+import { generatePRDescription } from "@/lib/pr-description"
 
 export async function POST(req: Request) {
   const auth = await requireGitHubAuth()
@@ -16,29 +17,52 @@ export async function POST(req: Request) {
   const { owner, repo, head, base } = validation.data
 
   try {
-    // Get commits between base and head for PR body
-    let prBody = ""
+    // Get commits and diff between base and head for AI-powered PR description
+    let commits: Array<{ message: string }> = []
+    let diff: string | undefined
+
     try {
+      // Fetch commits
       const compareData = await compareBranches(auth.token, owner, repo, base, head)
-      const commits = compareData.commits || []
+      commits = (compareData.commits || []).map((c) => ({ message: c.commit.message }))
+
+      // Fetch diff for better AI context
       if (commits.length > 0) {
-        prBody = commits
-          .map((c) => `- ${c.commit.message}`)
-          .join("\n")
+        try {
+          diff = await getDiff(auth.token, owner, repo, { base, head })
+        } catch {
+          // Diff fetch failed, continue without it
+          console.log("[PR] Could not fetch diff, continuing without it")
+        }
       }
     } catch {
-      // Ignore compare errors, just use empty body
+      // Ignore compare errors, will use fallback description
+      console.log("[PR] Could not compare branches, using fallback")
     }
 
-    // Generate title from branch name
-    const title = head
-      .replace(/[-_]/g, " ")
-      .replace(/\b\w/g, (c: string) => c.toUpperCase())
+    // Generate AI-powered PR description and title
+    const prResult = await generatePRDescription({
+      userId: auth.userId,
+      branchName: head,
+      baseBranch: base,
+      commits,
+      diff,
+    })
 
-    // Create the PR
+    console.log("[PR] Description generated:", {
+      isAiGenerated: prResult.isAiGenerated,
+      reason: prResult.reason,
+      titleLength: prResult.title.length,
+      descriptionLength: prResult.description.length,
+    })
+
+    const title = prResult.title
+    const prBody = prResult.description
+
+    // Create the PR with AI-generated content
     const prData = await createPullRequest(auth.token, owner, repo, {
       title,
-      body: prBody || "Automated PR",
+      body: prBody,
       head,
       base,
     })
