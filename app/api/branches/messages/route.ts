@@ -96,18 +96,28 @@ export async function POST(req: Request) {
     return notFound("Branch not found")
   }
 
-  const message = await prisma.message.create({
-    data: {
-      branchId,
-      role,
-      content: content || "",
-      toolCalls,
-      contentBlocks,
-      timestamp,
-      commitHash,
-      commitMessage,
-    },
-  })
+  // Use a transaction to create the message AND update the branch's updatedAt
+  // This ensures branch ordering reflects actual activity (last message time)
+  const [message] = await prisma.$transaction([
+    prisma.message.create({
+      data: {
+        branchId,
+        role,
+        content: content || "",
+        toolCalls,
+        contentBlocks,
+        timestamp,
+        commitHash,
+        commitMessage,
+      },
+    }),
+    // Touch the branch to update its updatedAt timestamp
+    // This is used for sorting branches by last activity
+    prisma.branch.update({
+      where: { id: branchId },
+      data: { updatedAt: new Date() },
+    }),
+  ])
 
   return Response.json({ message })
 }
@@ -135,14 +145,23 @@ export async function PATCH(req: Request) {
     return notFound("Message not found")
   }
 
-  const updatedMessage = await prisma.message.update({
-    where: { id: messageId },
-    data: {
-      ...(content !== undefined && { content }),
-      ...(toolCalls !== undefined && { toolCalls }),
-      ...(contentBlocks !== undefined && { contentBlocks }),
-    },
-  })
+  // Use a transaction to update the message AND touch the branch's updatedAt
+  // This ensures branch ordering reflects actual activity
+  const [updatedMessage] = await prisma.$transaction([
+    prisma.message.update({
+      where: { id: messageId },
+      data: {
+        ...(content !== undefined && { content }),
+        ...(toolCalls !== undefined && { toolCalls }),
+        ...(contentBlocks !== undefined && { contentBlocks }),
+      },
+    }),
+    // Touch the branch to update its updatedAt timestamp
+    prisma.branch.update({
+      where: { id: message.branchId },
+      data: { updatedAt: new Date() },
+    }),
+  ])
 
   return Response.json({ message: updatedMessage })
 }
