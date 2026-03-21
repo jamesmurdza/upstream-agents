@@ -152,13 +152,12 @@ export async function POST(req: Request) {
         if (!githubToken) {
           return badRequest("GitHub token not found")
         }
-        if (!branchName) {
-          return badRequest("Branch name required for push")
-        }
-        // Ensure we're on the correct branch before any operations
-        const branchError = await ensureCorrectBranch(sandbox, repoPath, branchName)
-        if (branchError) {
-          return badRequest(branchError)
+        // Get the current branch from the sandbox (don't rely on frontend branchName
+        // since the agent may have renamed the branch during execution)
+        const currentStatus = await sandbox.git.status(repoPath)
+        const currentBranch = currentStatus.currentBranch
+        if (!currentBranch) {
+          return badRequest("Could not determine current branch")
         }
         // Check for uncommitted changes and commit them if any
         let committed = false
@@ -197,18 +196,13 @@ export async function POST(req: Request) {
           }
           committed = true
         }
-        // Double-check we're still on the correct branch before pushing
-        const verifyStatus = await sandbox.git.status(repoPath)
-        if (verifyStatus.currentBranch !== branchName) {
-          return badRequest(`Branch changed during operation: expected ${branchName} but on ${verifyStatus.currentBranch}`)
-        }
         // Check if there are unpushed commits by comparing local HEAD with remote
         // Use ls-remote since single-branch clones don't have origin/branchName refs
         const localHead = await sandbox.process.executeCommand(
           `cd ${repoPath} && git rev-parse HEAD 2>/dev/null`
         )
         const remoteHead = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git ls-remote origin refs/heads/${branchName} 2>/dev/null | cut -f1`
+          `cd ${repoPath} && git ls-remote origin refs/heads/${currentBranch} 2>/dev/null | cut -f1`
         )
         const localSha = localHead.result.trim()
         const remoteSha = remoteHead.result.trim()
