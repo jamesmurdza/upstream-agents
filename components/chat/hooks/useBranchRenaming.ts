@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import type { Branch } from "@/lib/types"
 import { PATHS } from "@/lib/constants"
 
@@ -31,6 +31,14 @@ export function useBranchRenaming({
   const [renameLoading, setRenameLoading] = useState(false)
   const [suggesting, setSuggesting] = useState(false)
   const renameInputRef = useRef<HTMLInputElement>(null)
+
+  // Reset state when switching to a different branch
+  // This prevents loading/renaming state from one branch showing on another
+  useEffect(() => {
+    setRenaming(false)
+    setRenameValue("")
+    setSuggesting(false)
+  }, [branch.id])
 
   const handleRename = useCallback(async () => {
     const newName = renameValue.trim()
