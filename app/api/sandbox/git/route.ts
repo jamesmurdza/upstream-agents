@@ -218,38 +218,6 @@ export async function POST(req: Request) {
         return Response.json({ committed, pushed, commitMessage })
       }
 
-      case "push": {
-        if (!githubToken) {
-          return badRequest("GitHub token not found")
-        }
-        if (!branchName) {
-          return badRequest("Branch name required for push")
-        }
-        // Ensure we're on the correct branch before pushing
-        const pushBranchError = await ensureCorrectBranch(sandbox, repoPath, branchName)
-        if (pushBranchError) {
-          return badRequest(pushBranchError)
-        }
-        // Double-check before push
-        const pushVerifyStatus = await sandbox.git.status(repoPath)
-        if (pushVerifyStatus.currentBranch !== branchName) {
-          return badRequest(`Branch mismatch: expected ${branchName} but on ${pushVerifyStatus.currentBranch}`)
-        }
-        // Check if there are unpushed commits
-        const pushAheadResult = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git rev-list @{upstream}..HEAD --count 2>&1`
-        )
-        const pushAheadCount = parseInt(pushAheadResult.result.trim(), 10) || 0
-        if (pushAheadCount === 0) {
-          return Response.json({ success: true, nothingToPush: true })
-        }
-        const manualPushResult = await pushWithRetry(sandbox, repoPath, githubToken)
-        if (!manualPushResult.success) {
-          return Response.json({ error: "Push failed: " + manualPushResult.error }, { status: 500 })
-        }
-        return Response.json({ success: true })
-      }
-
       case "pull": {
         if (!githubToken) {
           return badRequest("GitHub token not found")
