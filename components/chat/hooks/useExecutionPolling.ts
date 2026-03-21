@@ -20,8 +20,6 @@ interface UseExecutionPollingOptions {
   globalActiveBranchIdRef?: React.MutableRefObject<string | null>
   /** Callback to trigger loop continuation - sends the continuation message */
   onLoopContinue?: (branchId: string) => void
-  /** Whether to play completion sound - set to false for background pollers to avoid duplicate sounds */
-  playCompletionSound?: boolean
 }
 
 /**
@@ -39,7 +37,6 @@ export function useExecutionPolling({
   streamingMessageIdRef,
   globalActiveBranchIdRef,
   onLoopContinue,
-  playCompletionSound = true,
 }: UseExecutionPollingOptions) {
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const pollInFlightRef = useRef(false)
@@ -486,27 +483,24 @@ export function useExecutionPolling({
                 ...loopUpdates,
               })
             }
-            // Play completion sound only when loop is done and sound is enabled
-            // (background pollers disable sound to avoid duplicate dings)
-            if (playCompletionSound) {
-              try {
-                const ctx = new AudioContext()
-                const osc = ctx.createOscillator()
-                const gain = ctx.createGain()
-                osc.connect(gain)
-                gain.connect(ctx.destination)
-                osc.frequency.value = 880
-                osc.type = "sine"
-                gain.gain.setValueAtTime(0.15, ctx.currentTime)
-                gain.gain.exponentialRampToValueAtTime(
-                  0.001,
-                  ctx.currentTime + 0.3,
-                )
-                osc.start(ctx.currentTime)
-                osc.stop(ctx.currentTime + 0.3)
-              } catch {
-                // Ignore audio errors
-              }
+            // Play completion sound only when loop is done
+            try {
+              const ctx = new AudioContext()
+              const osc = ctx.createOscillator()
+              const gain = ctx.createGain()
+              osc.connect(gain)
+              gain.connect(ctx.destination)
+              osc.frequency.value = 880
+              osc.type = "sine"
+              gain.gain.setValueAtTime(0.15, ctx.currentTime)
+              gain.gain.exponentialRampToValueAtTime(
+                0.001,
+                ctx.currentTime + 0.3,
+              )
+              osc.start(ctx.currentTime)
+              osc.stop(ctx.currentTime + 0.3)
+            } catch {
+              // Ignore audio errors
             }
           }
         }
