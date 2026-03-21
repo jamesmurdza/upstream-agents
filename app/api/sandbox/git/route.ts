@@ -202,13 +202,20 @@ export async function POST(req: Request) {
         if (verifyStatus.currentBranch !== branchName) {
           return badRequest(`Branch changed during operation: expected ${branchName} but on ${verifyStatus.currentBranch}`)
         }
-        // Check if there are unpushed commits
-        const aheadResult = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git rev-list @{upstream}..HEAD --count 2>&1`
+        // Check if there are unpushed commits by comparing local HEAD with remote
+        // Use ls-remote since single-branch clones don't have origin/branchName refs
+        const localHead = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git rev-parse HEAD 2>/dev/null`
         )
-        const aheadCount = parseInt(aheadResult.result.trim(), 10) || 0
+        const remoteHead = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git ls-remote origin refs/heads/${branchName} 2>/dev/null | cut -f1`
+        )
+        const localSha = localHead.result.trim()
+        const remoteSha = remoteHead.result.trim()
+        // Push if local has commits and remote is different (or doesn't exist)
+        const needsPush = localSha && localSha !== remoteSha
         let pushed = false
-        if (aheadCount > 0) {
+        if (needsPush) {
           const pushResult = await pushWithRetry(sandbox, repoPath, githubToken)
           if (!pushResult.success) {
             return Response.json({ error: "Push failed: " + pushResult.error }, { status: 500 })
