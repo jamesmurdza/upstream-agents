@@ -46,7 +46,18 @@ async function pushWithRetry(
       await sandbox.git.push(repoPath, "x-access-token", githubToken)
       return { success: true }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
+      // Extract detailed error info from axios response if available
+      const axiosResponse = (err as { response?: { data?: unknown; status?: number } })?.response
+      let errorMessage = err instanceof Error ? err.message : String(err)
+      if (axiosResponse?.data) {
+        const data = axiosResponse.data
+        if (typeof data === "string") {
+          errorMessage = data
+        } else if (typeof data === "object" && data !== null) {
+          const dataObj = data as { message?: string; error?: string }
+          errorMessage = dataObj.message || dataObj.error || JSON.stringify(data)
+        }
+      }
 
       // If it's a transient error and we have retries left, wait and retry
       const isTransient =
