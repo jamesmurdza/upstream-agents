@@ -5,6 +5,7 @@
 
 import fs from "fs"
 import path from "path"
+import type { Sandbox } from "@daytonaio/sdk"
 import { PATHS } from "@/lib/constants"
 
 // Load hook files from the hooks directory at module load time
@@ -21,12 +22,7 @@ const CLAUDE_SETTINGS = JSON.parse(
  * Sets up Claude Code hooks in a sandbox using the Daytona SDK's file upload API.
  * This uploads the hook scripts and settings file directly to the sandbox.
  */
-export async function setupClaudeHooks(
-  sandbox: {
-    fs: { uploadFile: (source: string | Buffer, destination: string) => Promise<void> }
-    process: { executeCommand: (cmd: string) => Promise<unknown> }
-  }
-): Promise<void> {
+export async function setupClaudeHooks(sandbox: Sandbox): Promise<void> {
   // Create the hooks directory
   await sandbox.process.executeCommand(`mkdir -p ${PATHS.CLAUDE_HOOKS_DIR}`)
 
