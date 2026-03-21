@@ -1,5 +1,7 @@
 # Unified Agent Completion Handler
 
+**Status: IMPLEMENTED**
+
 ## Summary
 
 Create a single API endpoint (`/api/agent/completion`) that handles all post-execution logic when an agent run finishes. This endpoint will:
@@ -30,6 +32,7 @@ Main unified completion handler endpoint that:
   status: "completed" | "error"
   content?: string  // for loop finished check
   source: "client" | "cron"
+  stopped?: boolean  // true when user manually stopped - skips loop continuation
 }
 ```
 
@@ -164,44 +167,41 @@ export async function GET(req: Request) {
 
 ## Lockfile Implementation
 
+Lock file path is per-execution: `/home/daytona/.agent_completion_{executionId}.lock`
+
+This means:
+- Different executions don't block each other
+- Same execution can't be processed twice concurrently
+- No stale check needed (lock files cleaned up on sandbox start)
+
 ```typescript
-const STALE_LOCK_TIMEOUT_MS = 60_000  // 60 seconds
-const lockPath = PATHS.AGENT_COMPLETION_LOCK
+function getLockPath(executionId: string) {
+  return `/home/daytona/.agent_completion_${executionId}.lock`
+}
 
 async function acquireLock(sandbox, executionId, source) {
-  // Check existing lock
+  const lockPath = getLockPath(executionId)
+
+  // Check if lock already exists for this execution
   const result = await sandbox.process.executeCommand(
-    `cat ${lockPath} 2>/dev/null || echo "NO_LOCK"`
+    `test -f ${lockPath} && echo "LOCKED" || echo "FREE"`
   )
 
-  if (result.result.trim() !== "NO_LOCK") {
-    const lockData = JSON.parse(result.result.trim())
-
-    // Same execution = already being handled
-    if (lockData.executionId === executionId) {
-      return { acquired: false, reason: "same_execution" }
-    }
-
-    // Check if stale (>60 seconds)
-    if (Date.now() - lockData.lockedAt < STALE_LOCK_TIMEOUT_MS) {
-      return { acquired: false, reason: "locked" }
-    }
-    // Stale lock - proceed to overwrite
+  if (result.result.trim() === "LOCKED") {
+    return { acquired: false }
   }
 
   // Acquire lock atomically
   const lockContent = JSON.stringify({ executionId, lockedAt: Date.now(), source })
   await sandbox.process.executeCommand(
-    `echo '${lockContent}' > ${lockPath}.tmp && mv ${lockPath}.tmp ${lockPath}`
+    `echo '${lockContent}' > ${lockPath}`
   )
 
-  // Verify we got it
-  const verify = await sandbox.process.executeCommand(`cat ${lockPath}`)
-  const verified = JSON.parse(verify.result.trim())
-  return { acquired: verified.executionId === executionId }
+  return { acquired: true }
 }
 
-async function releaseLock(sandbox) {
+async function releaseLock(sandbox, executionId) {
+  const lockPath = getLockPath(executionId)
   await sandbox.process.executeCommand(`rm -f ${lockPath}`)
 }
 ```
@@ -264,11 +264,13 @@ async function releaseLock(sandbox) {
 | Case | Solution |
 |------|----------|
 | Both client and cron call simultaneously | Lockfile ensures only one processes; other gets `handled: false` |
-| Process crashes holding lock | 60-second stale timeout allows recovery |
+| Process crashes holding lock | Lock files cleaned up on sandbox start |
 | Sandbox not running | `ensureSandboxStarted()` before lock operations |
 | Auto-commit fails | Continue with status update; return error in `commitInfo` |
 | Loop continuation fails | Reset branch to idle, log error |
 | GitHub token expired | Push fails gracefully; `pushed: false` |
+| User manually stops | Pass `stopped: true` - does auto-commit-push but skips loop continuation |
+| Two executions on same sandbox | Per-execution lock files, so they don't block each other |
 
 ## Verification
 
