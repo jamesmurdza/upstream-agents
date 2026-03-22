@@ -28,19 +28,29 @@ export function useBranchOperations({
 }: UseBranchOperationsOptions) {
   // Update branch properties
   const handleUpdateBranch = useCallback((branchId: string, updates: Partial<Branch>) => {
-    // Find the repo containing this branch - don't rely on activeRepo which may be stale
-    // during async operations like autoSuggestBranchName
-    const targetRepo = repos.find(r => r.branches.some(b => b.id === branchId))
-    if (!targetRepo) return
+    // Use functional update to always access the latest state
+    // This is critical for async callbacks like onDone from createBranchWithSandbox
+    // where the closure's repos might be stale
+    let isBeingCreated = false
+    let foundRepo = false
 
-    // Find the branch to check its current status
-    const branch = targetRepo.branches.find((b) => b.id === branchId)
-    const isBeingCreated = branch?.status === BRANCH_STATUS.CREATING
+    setRepos((prev) => {
+      // Find the repo containing this branch from the latest state
+      const targetRepo = prev.find(r => r.branches.some(b => b.id === branchId))
+      if (!targetRepo) return prev
+
+      foundRepo = true
+      const branch = targetRepo.branches.find((b) => b.id === branchId)
+      isBeingCreated = branch?.status === BRANCH_STATUS.CREATING
+
+      return updateBranchInRepo(prev, targetRepo.id, branchId, updates)
+    })
+
+    // Early return if branch wasn't found (foundRepo stays false)
+    if (!foundRepo) return
 
     // The actual ID to use for database operations (might be a new server-side ID)
     const dbBranchId = updates.id || branchId
-
-    setRepos((prev) => updateBranchInRepo(prev, targetRepo.id, branchId, updates))
 
     // Also update activeBranchId if it's being replaced
     if (updates.id && activeBranchIdRef.current === branchId) {
@@ -59,7 +69,7 @@ export function useBranchOperations({
         body: JSON.stringify({ branchId: dbBranchId, ...updates }),
       }).catch(() => {})
     }
-  }, [repos, setRepos, activeBranchIdRef, setActiveBranchId])
+  }, [setRepos, activeBranchIdRef, setActiveBranchId])
 
   // Save draft prompt for a specific branch
   const handleSaveDraftForBranch = useCallback((branchId: string, draftPrompt: string) => {
