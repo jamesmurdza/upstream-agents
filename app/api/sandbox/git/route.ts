@@ -227,7 +227,7 @@ export async function POST(req: Request) {
           }
           pushed = true
         }
-        return Response.json({ committed, pushed, commitMessage })
+        return Response.json({ committed, pushed, commitMessage, currentBranch })
       }
 
       case "pull": {

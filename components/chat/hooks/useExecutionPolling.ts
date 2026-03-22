@@ -120,6 +120,15 @@ export function useExecutionPolling({
               minute: "2-digit",
             }),
           })
+        } else {
+          // Update polling branch name ref if the agent renamed the branch during execution
+          // This ensures subsequent git operations use the correct branch name
+          const commitData = await autoCommitRes.json().catch(() => ({})) as { currentBranch?: string }
+          if (commitData.currentBranch && commitData.currentBranch !== currentBranchName) {
+            pollingBranchNameRef.current = commitData.currentBranch
+            // Also update the branch state in the store so the UI reflects the rename
+            onUpdateBranch(targetBranchId, { name: commitData.currentBranch })
+          }
         }
       }
 
@@ -187,7 +196,7 @@ export function useExecutionPolling({
     } finally {
       commitDetectionRunningRef.current = false
     }
-  }, [repoName, onAddMessage, onCommitsDetected])
+  }, [repoName, onAddMessage, onCommitsDetected, onUpdateBranch])
 
   // Cleanup polling on unmount
   useEffect(() => {
