@@ -598,6 +598,11 @@ export function useExecutionPolling({
     // Use pollingActiveRef for the guard - it's set synchronously at the start of startPolling
     if (pollingActiveRef.current) return
 
+    // Capture the branch ID at effect start to detect stale async callbacks
+    // This prevents race conditions when user switches branches while fetches are in-flight
+    const effectBranchId = branch.id
+    let cancelled = false
+
     const currentStatus = branch.status
     const currentMessages = branch.messages
     fetch("/api/sandbox/status", {
@@ -607,8 +612,11 @@ export function useExecutionPolling({
     })
       .then((r) => r.json())
       .then((data) => {
+        // Check if this effect has been superseded by a newer one
+        if (cancelled) return
+
         if (data.state && data.state !== "started") {
-          onUpdateBranch(branch.id, { status: BRANCH_STATUS.STOPPED })
+          onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.STOPPED })
         } else {
           // Always check for active execution regardless of current branch status.
           // This fixes a race condition where the branch status might be stale (e.g., IDLE)
@@ -617,15 +625,18 @@ export function useExecutionPolling({
           fetch("/api/agent/execution/active", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ branchId: branch.id }),
+            body: JSON.stringify({ branchId: effectBranchId }),
           })
             .then((r) => r.json())
             .then((execData) => {
+              // Check if this effect has been superseded by a newer one
+              if (cancelled) return
+
               if (execData.execution && execData.execution.status === EXECUTION_STATUS.RUNNING) {
                 if (pollingActiveRef.current) return
                 // Update branch status to RUNNING if it wasn't already - this ensures spinner shows
                 if (currentStatus !== BRANCH_STATUS.RUNNING) {
-                  onUpdateBranch(branch.id, { status: BRANCH_STATUS.RUNNING })
+                  onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.RUNNING })
                 }
                 currentMessageIdRef.current = execData.execution.messageId
                 currentExecutionIdRef.current = execData.execution.executionId
@@ -639,19 +650,23 @@ export function useExecutionPolling({
                     ? [...currentMessages].reverse().find((m) => m.role === "assistant" && !m.commitHash)
                     : null
                 if (!lastAssistantMsg) {
-                  onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
+                  onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.IDLE })
                   return
                 }
                 // Execution row may not exist yet if user switched immediately after send; retry once
                 const retryResume = () => {
+                  // Check if this effect has been superseded by a newer one
+                  if (cancelled) return
                   if (pollingActiveRef.current) return
                   fetch("/api/agent/execution/active", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ branchId: branch.id }),
+                    body: JSON.stringify({ branchId: effectBranchId }),
                   })
                     .then((r) => r.json())
                     .then((retryData) => {
+                      // Check if this effect has been superseded by a newer one
+                      if (cancelled) return
                       if (pollingActiveRef.current) return
                       if (retryData.execution && retryData.execution.status === EXECUTION_STATUS.RUNNING) {
                         currentMessageIdRef.current = retryData.execution.messageId
@@ -663,6 +678,8 @@ export function useExecutionPolling({
                       startPollingRef.current(lastAssistantMsg.id)
                     })
                     .catch(() => {
+                      // Check if this effect has been superseded by a newer one
+                      if (cancelled) return
                       if (pollingActiveRef.current) return
                       currentMessageIdRef.current = lastAssistantMsg.id
                       startPollingRef.current(lastAssistantMsg.id)
@@ -673,15 +690,19 @@ export function useExecutionPolling({
               }
             })
             .catch(() => {
+              // Check if this effect has been superseded by a newer one
+              if (cancelled) return
               // On error checking execution, only set to idle if we thought we were running
               if (currentStatus === BRANCH_STATUS.RUNNING) {
-                onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
+                onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.IDLE })
               }
             })
         }
       })
       .catch(() => {})
     return () => {
+      // Mark this effect as cancelled so in-flight async operations are ignored
+      cancelled = true
       if (resumeRetryTimeoutRef.current) {
         clearTimeout(resumeRetryTimeoutRef.current)
         resumeRetryTimeoutRef.current = null
