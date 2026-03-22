@@ -26,6 +26,7 @@ export async function GET() {
             status: true,
             baseBranch: true,
             prUrl: true,
+            updatedAt: true,
             sandbox: {
               select: {
                 sandboxId: true,
@@ -41,6 +42,7 @@ export async function GET() {
               },
             },
           },
+          orderBy: { updatedAt: "desc" },
         },
       },
     })
@@ -64,6 +66,7 @@ export async function GET() {
           sandboxStatus: b.sandbox?.status || null,
           lastMessageId: b.messages[0]?.id || null,
           lastMessageAt: b.messages[0]?.createdAt?.getTime() || null,
+          updatedAt: b.updatedAt?.getTime() || null,
         })),
       })),
     }

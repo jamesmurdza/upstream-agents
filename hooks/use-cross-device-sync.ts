@@ -12,6 +12,7 @@ interface SyncBranch {
   sandboxStatus: string | null
   lastMessageId: string | null
   lastMessageAt: number | null
+  updatedAt: number | null
 }
 
 interface SyncRepo {

@@ -15,6 +15,7 @@ export interface SyncBranch {
   prUrl: string | null
   sandboxId: string | null
   lastMessageId: string | null
+  updatedAt: number | null
 }
 
 export interface SyncRepo {
@@ -48,6 +49,7 @@ function syncBranchToBranch(syncBranch: SyncBranch): Branch {
     baseBranch: syncBranch.baseBranch || "main",
     prUrl: syncBranch.prUrl || undefined,
     sandboxId: syncBranch.sandboxId || undefined,
+    lastActivityTs: syncBranch.updatedAt || undefined,
     messages: [],
   }
 }
@@ -59,18 +61,27 @@ function mergeSyncBranchIntoExisting(
   existingBranch: Branch,
   syncBranch: SyncBranch
 ): Branch {
+  // Use the more recent timestamp between existing and sync data
+  // This ensures local optimistic updates (e.g., just created branch) don't get overwritten
+  // with older server timestamps, but server updates do come through
+  const syncTs = syncBranch.updatedAt || 0
+  const existingTs = existingBranch.lastActivityTs || 0
+  const lastActivityTs = Math.max(syncTs, existingTs) || undefined
+
   return {
     ...existingBranch,
     name: syncBranch.name, // Sync name in case agent renamed the branch
     status: syncBranch.status as Branch["status"],
     prUrl: syncBranch.prUrl || undefined,
     sandboxId: syncBranch.sandboxId || undefined,
+    lastActivityTs,
   }
 }
 
 /**
  * Build branch list from sync data while preserving local-only branches
  * (e.g. branch with status CREATING not yet in server response).
+ * Returns branches sorted by lastActivityTs (most recent first) for consistent ordering.
  */
 function mergeBranchesWithLocalOnly(
   existingBranches: Branch[],
@@ -84,7 +95,10 @@ function mergeBranchesWithLocalOnly(
       ? mergeSyncBranchIntoExisting(existing, syncBranch)
       : syncBranchToBranch(syncBranch)
   })
-  return [...fromSync, ...localOnly]
+  // Sort all branches by lastActivityTs (most recent first) for consistent ordering
+  return [...fromSync, ...localOnly].sort(
+    (a, b) => (b.lastActivityTs ?? 0) - (a.lastActivityTs ?? 0)
+  )
 }
 
 /**
