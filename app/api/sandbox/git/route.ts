@@ -54,15 +54,7 @@ async function pushWithRetry(
       // DaytonaError also has statusCode and headers properties if needed.
       let errorMessage = err instanceof Error ? err.message : String(err)
 
-      // If it's a transient error and we have retries left, wait and retry
-      const isTransient =
-        errorMessage.includes("timeout") ||
-        errorMessage.includes("ETIMEDOUT") ||
-        errorMessage.includes("ECONNRESET") ||
-        errorMessage.includes("503") ||
-        errorMessage.includes("502")
-
-      if (isTransient && attempt < maxRetries) {
+      if (attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
         continue
       }
