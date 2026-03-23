@@ -10,8 +10,8 @@ import { PATHS } from "@/lib/constants"
 
 // Load hook files from the hooks directory at module load time
 const HOOKS_DIR = path.join(process.cwd(), "hooks")
-const PREVENT_GIT_AMEND_SCRIPT = fs.readFileSync(
-  path.join(HOOKS_DIR, "prevent-git-amend.sh"),
+const PREVENT_DANGEROUS_GIT_SCRIPT = fs.readFileSync(
+  path.join(HOOKS_DIR, "prevent-dangerous-git.sh"),
   "utf-8"
 )
 const CLAUDE_SETTINGS = JSON.parse(
@@ -28,13 +28,13 @@ export async function setupClaudeHooks(sandbox: Sandbox): Promise<void> {
 
   // Upload the hook script
   await sandbox.fs.uploadFile(
-    Buffer.from(PREVENT_GIT_AMEND_SCRIPT, "utf-8"),
-    `${PATHS.CLAUDE_HOOKS_DIR}/prevent-git-amend.sh`
+    Buffer.from(PREVENT_DANGEROUS_GIT_SCRIPT, "utf-8"),
+    `${PATHS.CLAUDE_HOOKS_DIR}/prevent-dangerous-git.sh`
   )
 
   // Make it executable
   await sandbox.process.executeCommand(
-    `chmod +x ${PATHS.CLAUDE_HOOKS_DIR}/prevent-git-amend.sh`
+    `chmod +x ${PATHS.CLAUDE_HOOKS_DIR}/prevent-dangerous-git.sh`
   )
 
   // Upload the settings file (merge with existing if present)

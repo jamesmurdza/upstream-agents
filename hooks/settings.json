@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/daytona/.claude/hooks/prevent-git-amend.sh"
+            "command": "/home/daytona/.claude/hooks/prevent-dangerous-git.sh"
           }
         ]
       }
