@@ -38,6 +38,10 @@ export function useExecutionPolling({
   globalActiveBranchIdRef,
   onLoopContinue,
 }: UseExecutionPollingOptions) {
+  // DEBUG: Unique instance ID to track hook lifecycle across branch switches
+  const instanceIdRef = useRef(`poll-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`)
+  console.log(`[exec-poll:${instanceIdRef.current}] HOOK_CREATED | branchId=${branch.id}`)
+
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const pollInFlightRef = useRef(false)
   const resumeRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -191,7 +195,9 @@ export function useExecutionPolling({
 
   // Cleanup polling on unmount
   useEffect(() => {
+    const instanceId = instanceIdRef.current
     return () => {
+      console.log(`[exec-poll:${instanceId}] HOOK_UNMOUNT | pollingActive=${pollingActiveRef.current}, hasInterval=${!!pollingRef.current}`)
       if (pollingRef.current) {
         clearInterval(pollingRef.current)
         pollingRef.current = null
@@ -201,9 +207,14 @@ export function useExecutionPolling({
 
   // Start polling for execution status via HTTP snapshots
   const startPolling = useCallback((messageId: string, executionId?: string) => {
+    console.log(`[exec-poll:${instanceIdRef.current}] START_POLLING_CALLED | messageId=${messageId}, pollingActive=${pollingActiveRef.current}, hasInterval=${!!pollingRef.current}`)
     // Prevent concurrent startPolling calls - this guard is checked synchronously
     // before any async work begins, preventing race conditions in the useEffect
-    if (pollingActiveRef.current) return
+    if (pollingActiveRef.current) {
+      console.log(`[exec-poll:${instanceIdRef.current}] START_POLLING_BLOCKED | already active`)
+      return
+    }
+    console.log(`[exec-poll:${instanceIdRef.current}] START_POLLING_PROCEEDING | setting pollingActive=true`)
     pollingActiveRef.current = true
 
     // Capture the branch context at polling start time
@@ -246,6 +257,7 @@ export function useExecutionPolling({
     }
 
     const poll = async () => {
+      console.log(`[exec-poll:${instanceIdRef.current}] POLL_TICK | inFlight=${pollInFlightRef.current}`)
       if (pollInFlightRef.current) return
       pollInFlightRef.current = true
       try {
@@ -367,6 +379,7 @@ export function useExecutionPolling({
           data.status === EXECUTION_STATUS.COMPLETED ||
           data.status === EXECUTION_STATUS.ERROR
         ) {
+          console.log(`[exec-poll:${instanceIdRef.current}] COMPLETION_DETECTED | status=${data.status}, completionHandled=${completionHandledRef.current}`)
           if (completionHandledRef.current) return
           completionHandledRef.current = true
 
@@ -375,6 +388,7 @@ export function useExecutionPolling({
           const unread = viewingBranchId !== completedBranchIdForLog
 
           if (pollingRef.current) {
+            console.log(`[exec-poll:${instanceIdRef.current}] INTERVAL_CLEARED | reason=completion`)
             clearInterval(pollingRef.current)
             pollingRef.current = null
           }
@@ -543,6 +557,7 @@ export function useExecutionPolling({
 
     poll()
     pollingRef.current = setInterval(poll, 500)
+    console.log(`[exec-poll:${instanceIdRef.current}] INTERVAL_CREATED | branchId=${pollingBranchIdRef.current}`)
   // Note: We intentionally access branch.id, branch.name, branch.sandboxId, and branch.messages directly
   // (not through refs) because we want to capture their values at the moment startPolling is called.
   // However, we don't include branch.messages in deps because it changes on every message update,
@@ -555,6 +570,7 @@ export function useExecutionPolling({
 
   // Stop polling and update message
   const stopPolling = useCallback(async () => {
+    console.log(`[exec-poll:${instanceIdRef.current}] STOP_POLLING | hasInterval=${!!pollingRef.current}, pollingActive=${pollingActiveRef.current}`)
     if (pollingRef.current) {
       clearInterval(pollingRef.current)
       pollingRef.current = null
@@ -591,9 +607,16 @@ export function useExecutionPolling({
 
   // Check and resume polling on mount/branch switch
   useEffect(() => {
-    if (!branch.sandboxId) return
+    console.log(`[exec-poll:${instanceIdRef.current}] RESUME_EFFECT_RUN | branchId=${branch.id}, sandboxId=${branch.sandboxId}, pollingActive=${pollingActiveRef.current}`)
+    if (!branch.sandboxId) {
+      console.log(`[exec-poll:${instanceIdRef.current}] RESUME_EFFECT_SKIP | no sandboxId`)
+      return
+    }
     // Use pollingActiveRef for the guard - it's set synchronously at the start of startPolling
-    if (pollingActiveRef.current) return
+    if (pollingActiveRef.current) {
+      console.log(`[exec-poll:${instanceIdRef.current}] RESUME_EFFECT_BLOCKED | pollingActive=true`)
+      return
+    }
 
     const currentStatus = branch.status
     const currentMessages = branch.messages
@@ -618,8 +641,13 @@ export function useExecutionPolling({
           })
             .then((r) => r.json())
             .then((execData) => {
+              console.log(`[exec-poll:${instanceIdRef.current}] ACTIVE_EXEC_CHECK | found=${!!execData.execution}, status=${execData.execution?.status}`)
               if (execData.execution && execData.execution.status === EXECUTION_STATUS.RUNNING) {
-                if (pollingActiveRef.current) return
+                console.log(`[exec-poll:${instanceIdRef.current}] ACTIVE_EXEC_FOUND | execId=${execData.execution.executionId}, messageId=${execData.execution.messageId}`)
+                if (pollingActiveRef.current) {
+                  console.log(`[exec-poll:${instanceIdRef.current}] ACTIVE_EXEC_BLOCKED | pollingActive=true, skipping startPolling`)
+                  return
+                }
                 // Update branch status to RUNNING if it wasn't already - this ensures spinner shows
                 if (currentStatus !== BRANCH_STATUS.RUNNING) {
                   onUpdateBranch(branch.id, { status: BRANCH_STATUS.RUNNING })
@@ -641,6 +669,7 @@ export function useExecutionPolling({
                 }
                 // Execution row may not exist yet if user switched immediately after send; retry once
                 const retryResume = () => {
+                  console.log(`[exec-poll:${instanceIdRef.current}] RETRY_RESUME | pollingActive=${pollingActiveRef.current}`)
                   if (pollingActiveRef.current) return
                   fetch("/api/agent/execution/active", {
                     method: "POST",
