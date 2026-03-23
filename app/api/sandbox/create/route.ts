@@ -17,9 +17,6 @@ import { getDefaultAgent } from "@/lib/types"
 import { cleanupDaytonaSandbox } from "@/lib/daytona-cleanup"
 import { decrypt } from "@/lib/encryption"
 import { logActivity } from "@/lib/activity-log"
-import { setupClaudeHooks } from "@/lib/claude-hooks"
-import { setupOpenCodePermissions } from "@/lib/opencode-permissions"
-import { setupCodexRules } from "@/lib/codex-rules"
 
 // Sandbox creation timeout - 300 seconds (must be literal for Next.js static analysis)
 export const maxDuration = 300
@@ -193,14 +190,8 @@ export async function POST(req: Request) {
           )
         }
 
-        // Set up Claude Code hooks (e.g., prevent dangerous git operations)
-        await setupClaudeHooks(sandbox)
-
-        // Set up OpenCode permissions (e.g., deny dangerous git operations)
-        await setupOpenCodePermissions(sandbox)
-
-        // Set up Codex rules (e.g., forbid dangerous git operations)
-        await setupCodexRules(sandbox)
+        // Note: Agent-specific rules (Claude hooks, OpenCode permissions, Codex rules)
+        // are set up in ensureSandboxReady() right before each agent execution
 
         sendProgress(controller, "Cloning repository...")
 
