@@ -191,15 +191,23 @@ export function useExecutionPolling({
 
   // Cleanup polling on unmount
   useEffect(() => {
-    console.log(`[POLLER-DEBUG] Cleanup effect MOUNTED for branch ${branch.id} (${branch.name})`)
+    // Capture branch.id at effect start for logging in cleanup
+    const mountedBranchId = branch.id
+    const mountedBranchName = branch.name
+    console.log(`[POLLER-DEBUG] Cleanup effect MOUNTED for branch ${mountedBranchId} (${mountedBranchName})`)
     return () => {
-      console.log(`[POLLER-DEBUG] Cleanup effect UNMOUNTING for branch ${branch.id} (${branch.name}), pollingRef.current=${pollingRef.current ? 'SET' : 'NULL'}, pollingActiveRef=${pollingActiveRef.current}`)
+      console.log(`[POLLER-DEBUG] Cleanup effect UNMOUNTING for branch ${mountedBranchId} (${mountedBranchName}), pollingRef.current=${pollingRef.current ? 'SET' : 'NULL'}, pollingActiveRef=${pollingActiveRef.current}`)
       if (pollingRef.current) {
         clearInterval(pollingRef.current)
         pollingRef.current = null
-        console.log(`[POLLER-DEBUG] Cleared interval in cleanup for branch ${branch.id}`)
+        console.log(`[POLLER-DEBUG] Cleared interval in cleanup for branch ${mountedBranchId}`)
       }
+      // Reset the polling active guard on unmount to ensure clean state
+      // This prevents stale callbacks from thinking polling is already active
+      pollingActiveRef.current = false
+      console.log(`[POLLER-DEBUG] Reset pollingActiveRef=false in cleanup for branch ${mountedBranchId}`)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Start polling for execution status via HTTP snapshots
@@ -609,19 +617,23 @@ export function useExecutionPolling({
 
   // Check and resume polling on mount/branch switch
   useEffect(() => {
-    console.log(`[POLLER-DEBUG] Resume effect TRIGGERED for branch ${branch.id} (${branch.name}), sandboxId=${branch.sandboxId}, pollingActiveRef=${pollingActiveRef.current}`)
+    // Capture the branch.id at effect start to detect stale async callbacks
+    const effectBranchId = branch.id
+    let cancelled = false
+
+    console.log(`[POLLER-DEBUG] Resume effect TRIGGERED for branch ${effectBranchId} (${branch.name}), sandboxId=${branch.sandboxId}, pollingActiveRef=${pollingActiveRef.current}`)
 
     if (!branch.sandboxId) {
-      console.log(`[POLLER-DEBUG] Resume effect SKIPPED (no sandboxId) for branch ${branch.id}`)
+      console.log(`[POLLER-DEBUG] Resume effect SKIPPED (no sandboxId) for branch ${effectBranchId}`)
       return
     }
     // Use pollingActiveRef for the guard - it's set synchronously at the start of startPolling
     if (pollingActiveRef.current) {
-      console.log(`[POLLER-DEBUG] Resume effect SKIPPED (pollingActiveRef=true) for branch ${branch.id}`)
+      console.log(`[POLLER-DEBUG] Resume effect SKIPPED (pollingActiveRef=true) for branch ${effectBranchId}`)
       return
     }
 
-    console.log(`[POLLER-DEBUG] Resume effect PROCEEDING for branch ${branch.id}, fetching sandbox status...`)
+    console.log(`[POLLER-DEBUG] Resume effect PROCEEDING for branch ${effectBranchId}, fetching sandbox status...`)
 
     const currentStatus = branch.status
     const currentMessages = branch.messages
@@ -632,36 +644,46 @@ export function useExecutionPolling({
     })
       .then((r) => r.json())
       .then((data) => {
-        console.log(`[POLLER-DEBUG] Sandbox status response for branch ${branch.id}: state=${data.state}`)
+        // Check if effect was cancelled (component unmounted or branch changed)
+        if (cancelled) {
+          console.log(`[POLLER-DEBUG] Sandbox status response CANCELLED for branch ${effectBranchId}`)
+          return
+        }
+        console.log(`[POLLER-DEBUG] Sandbox status response for branch ${effectBranchId}: state=${data.state}`)
         if (data.state && data.state !== "started") {
-          onUpdateBranch(branch.id, { status: BRANCH_STATUS.STOPPED })
+          onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.STOPPED })
         } else {
           // Always check for active execution regardless of current branch status.
           // This fixes a race condition where the branch status might be stale (e.g., IDLE)
           // even though an execution is actively running in the database.
           // The execution/active endpoint is the source of truth for running state.
-          console.log(`[POLLER-DEBUG] Checking for active execution for branch ${branch.id}...`)
+          console.log(`[POLLER-DEBUG] Checking for active execution for branch ${effectBranchId}...`)
           fetch("/api/agent/execution/active", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ branchId: branch.id }),
+            body: JSON.stringify({ branchId: effectBranchId }),
           })
             .then((r) => r.json())
             .then((execData) => {
-              console.log(`[POLLER-DEBUG] Active execution response for branch ${branch.id}:`, execData.execution ? `found (status=${execData.execution.status})` : 'none')
+              // Check if effect was cancelled
+              if (cancelled) {
+                console.log(`[POLLER-DEBUG] Active execution response CANCELLED for branch ${effectBranchId}`)
+                return
+              }
+              console.log(`[POLLER-DEBUG] Active execution response for branch ${effectBranchId}:`, execData.execution ? `found (status=${execData.execution.status})` : 'none')
               if (execData.execution && execData.execution.status === EXECUTION_STATUS.RUNNING) {
-                console.log(`[POLLER-DEBUG] Found running execution for branch ${branch.id}, pollingActiveRef=${pollingActiveRef.current}`)
+                console.log(`[POLLER-DEBUG] Found running execution for branch ${effectBranchId}, pollingActiveRef=${pollingActiveRef.current}`)
                 if (pollingActiveRef.current) {
-                  console.log(`[POLLER-DEBUG] BLOCKED by pollingActiveRef in resume callback for branch ${branch.id}`)
+                  console.log(`[POLLER-DEBUG] BLOCKED by pollingActiveRef in resume callback for branch ${effectBranchId}`)
                   return
                 }
                 // Update branch status to RUNNING if it wasn't already - this ensures spinner shows
                 if (currentStatus !== BRANCH_STATUS.RUNNING) {
-                  onUpdateBranch(branch.id, { status: BRANCH_STATUS.RUNNING })
+                  onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.RUNNING })
                 }
                 currentMessageIdRef.current = execData.execution.messageId
                 currentExecutionIdRef.current = execData.execution.executionId
-                console.log(`[POLLER-DEBUG] Calling startPollingRef.current for branch ${branch.id} from resume effect`)
+                console.log(`[POLLER-DEBUG] Calling startPollingRef.current for branch ${effectBranchId} from resume effect`)
                 startPollingRef.current(execData.execution.messageId, execData.execution.executionId)
                 return
               }
@@ -672,37 +694,49 @@ export function useExecutionPolling({
                     ? [...currentMessages].reverse().find((m) => m.role === "assistant" && !m.commitHash)
                     : null
                 if (!lastAssistantMsg) {
-                  onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
+                  onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.IDLE })
                   return
                 }
                 // Execution row may not exist yet if user switched immediately after send; retry once
                 const retryResume = () => {
-                  console.log(`[POLLER-DEBUG] retryResume called for branch ${branch.id}, pollingActiveRef=${pollingActiveRef.current}`)
+                  console.log(`[POLLER-DEBUG] retryResume called for branch ${effectBranchId}, cancelled=${cancelled}, pollingActiveRef=${pollingActiveRef.current}`)
+                  // Check cancelled flag before proceeding
+                  if (cancelled) {
+                    console.log(`[POLLER-DEBUG] retryResume CANCELLED for branch ${effectBranchId}`)
+                    return
+                  }
                   if (pollingActiveRef.current) return
                   fetch("/api/agent/execution/active", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ branchId: branch.id }),
+                    body: JSON.stringify({ branchId: effectBranchId }),
                   })
                     .then((r) => r.json())
                     .then((retryData) => {
-                      console.log(`[POLLER-DEBUG] retryResume response for branch ${branch.id}:`, retryData.execution ? `found (status=${retryData.execution.status})` : 'none')
+                      // Check cancelled flag after async operation
+                      if (cancelled) {
+                        console.log(`[POLLER-DEBUG] retryResume response CANCELLED for branch ${effectBranchId}`)
+                        return
+                      }
+                      console.log(`[POLLER-DEBUG] retryResume response for branch ${effectBranchId}:`, retryData.execution ? `found (status=${retryData.execution.status})` : 'none')
                       if (pollingActiveRef.current) return
                       if (retryData.execution && retryData.execution.status === EXECUTION_STATUS.RUNNING) {
                         currentMessageIdRef.current = retryData.execution.messageId
                         currentExecutionIdRef.current = retryData.execution.executionId
-                        console.log(`[POLLER-DEBUG] Calling startPollingRef.current for branch ${branch.id} from retryResume`)
+                        console.log(`[POLLER-DEBUG] Calling startPollingRef.current for branch ${effectBranchId} from retryResume`)
                         startPollingRef.current(retryData.execution.messageId, retryData.execution.executionId)
                         return
                       }
                       currentMessageIdRef.current = lastAssistantMsg.id
-                      console.log(`[POLLER-DEBUG] Calling startPollingRef.current for branch ${branch.id} from retryResume (fallback)`)
+                      console.log(`[POLLER-DEBUG] Calling startPollingRef.current for branch ${effectBranchId} from retryResume (fallback)`)
                       startPollingRef.current(lastAssistantMsg.id)
                     })
                     .catch(() => {
+                      // Check cancelled flag in error handler
+                      if (cancelled) return
                       if (pollingActiveRef.current) return
                       currentMessageIdRef.current = lastAssistantMsg.id
-                      console.log(`[POLLER-DEBUG] Calling startPollingRef.current for branch ${branch.id} from retryResume (error fallback)`)
+                      console.log(`[POLLER-DEBUG] Calling startPollingRef.current for branch ${effectBranchId} from retryResume (error fallback)`)
                       startPollingRef.current(lastAssistantMsg.id)
                     })
                 }
@@ -711,16 +745,19 @@ export function useExecutionPolling({
               }
             })
             .catch(() => {
+              // Check cancelled flag in error handler
+              if (cancelled) return
               // On error checking execution, only set to idle if we thought we were running
               if (currentStatus === BRANCH_STATUS.RUNNING) {
-                onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
+                onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.IDLE })
               }
             })
         }
       })
       .catch(() => {})
     return () => {
-      console.log(`[POLLER-DEBUG] Resume effect CLEANUP for branch ${branch.id}`)
+      console.log(`[POLLER-DEBUG] Resume effect CLEANUP for branch ${effectBranchId}, setting cancelled=true`)
+      cancelled = true
       if (resumeRetryTimeoutRef.current) {
         clearTimeout(resumeRetryTimeoutRef.current)
         resumeRetryTimeoutRef.current = null
