@@ -84,6 +84,20 @@ export function ChatPanel({
   defaultLoopMaxIterations = DEFAULT_LOOP_MAX_ITERATIONS,
   loopUntilFinishedEnabled = false,
 }: ChatPanelProps) {
+  // Debug: Log component mount/unmount
+  useEffect(() => {
+    console.log(`[POLLER-DEBUG] ChatPanel MOUNTED for branch ${branch.id} (${branch.name})`)
+    return () => {
+      console.log(`[POLLER-DEBUG] ChatPanel UNMOUNTING for branch ${branch.id} (${branch.name})`)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Debug: Log when branch prop changes
+  useEffect(() => {
+    console.log(`[POLLER-DEBUG] ChatPanel branch prop changed to ${branch.id} (${branch.name})`)
+  }, [branch.id, branch.name])
+
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -409,6 +423,7 @@ export function ChatPanel({
             throw new Error(retryData.error || retryData.message || "Failed to start agent after sandbox recreation")
           }
 
+          console.log(`[POLLER-DEBUG] ChatPanel calling startPolling after sandbox recreation for branch ${branch.id}`)
           startPolling(messageId)
           return
         }
@@ -416,6 +431,7 @@ export function ChatPanel({
         throw new Error(data.error || "Failed to start agent")
       }
 
+      console.log(`[POLLER-DEBUG] ChatPanel calling startPolling for branch ${branch.id}`)
       startPolling(messageId)
 
       // Auto-suggest branch name on first message if user hasn't changed the default name
