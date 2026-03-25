@@ -120,6 +120,11 @@ The repository is cloned at ${repoPath}.
 - Use ${repoPath} for all file operations.
 - Always check the current state of files before editing them.
 
+## Running Web Servers
+- Always start web servers using nohup to ensure they run in the background and persist.
+- Example: nohup npm start > server.log 2>&1 &
+- After starting a server, wait a moment and check if it's running before providing the preview URL.
+
 ## When Finished
 - Provide a clear summary of what you did.`
 
