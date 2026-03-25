@@ -237,8 +237,11 @@ export function ChatPanel({
     onToggleGitHistory,
   })
 
-  // User can suggest branch names if they have an Anthropic or OpenAI API key
-  const canSuggestName = !!(credentials?.hasAnthropicApiKey || credentials?.hasOpenaiApiKey)
+  const canSuggestName = !!(
+    credentials?.hasAnthropicApiKey ||
+    credentials?.hasOpenaiApiKey ||
+    credentials?.hasServerLlmFallback
+  )
 
   const renaming = useBranchRenaming({
     branch,

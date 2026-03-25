@@ -76,7 +76,11 @@ export function MobileHeader({
   const [suggesting, setSuggesting] = useState(false)
   const renameInputRef = useRef<HTMLInputElement>(null)
 
-  const canSuggestName = !!(credentials?.hasAnthropicApiKey || credentials?.hasOpenaiApiKey)
+  const canSuggestName = !!(
+    credentials?.hasAnthropicApiKey ||
+    credentials?.hasOpenaiApiKey ||
+    credentials?.hasServerLlmFallback
+  )
   const canRename = !!branch?.sandboxId && !isRunning
 
   useEffect(() => {

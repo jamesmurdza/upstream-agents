@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { getQuota } from "@/lib/quota"
 import { requireAuth, isAuthError, notFound, internalError } from "@/lib/api-helpers"
+import { hasOpenRouterKey } from "@/lib/llm"
 
 // Prevent Next.js from caching this route - always fetch fresh data
 export const dynamic = "force-dynamic"
@@ -65,6 +66,7 @@ export async function GET() {
     const quota = await getQuota(auth.userId)
 
     // Transform credentials to just show existence, not values
+    const serverLlmFallback = hasOpenRouterKey()
     const credentials = user.credentials
       ? {
           anthropicAuthType: user.credentials.anthropicAuthType,
@@ -76,8 +78,11 @@ export async function GET() {
           sandboxAutoStopInterval: user.credentials.sandboxAutoStopInterval,
           defaultLoopMaxIterations: user.credentials.defaultLoopMaxIterations,
           loopUntilFinishedEnabled: user.credentials.loopUntilFinishedEnabled,
+          ...(serverLlmFallback ? { hasServerLlmFallback: true } : {}),
         }
-      : null
+      : serverLlmFallback
+        ? { hasServerLlmFallback: true as const }
+        : null
 
     // Apply saved repo order if it exists
     let orderedRepos = user.repos

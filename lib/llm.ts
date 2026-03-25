@@ -7,7 +7,7 @@ import { createOpenAI } from "@ai-sdk/openai"
 // OpenRouter API configuration
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-const OPENROUTER_FREE_MODEL = "stepfun/step-3.5-flash:free"
+const OPENROUTER_FREE_MODEL = "arcee-ai/trinity-mini:free"
 
 export interface LLMGenerateOptions {
   userId: string
@@ -20,19 +20,29 @@ export interface LLMGenerateResult {
 }
 
 /**
- * Generates text using OpenRouter's free model (stepfun/step-3.5-flash:free).
+ * Generates text using OpenRouter's free model (arcee-ai/trinity-mini:free).
  * This is used as a fallback when users don't have their own API keys configured.
  *
  * @returns The generated text, or null if generation failed.
  */
 async function generateWithOpenRouter(prompt: string): Promise<string | null> {
+  const t0 = Date.now()
+  const elapsed = () => `${Date.now() - t0}ms`
+
   if (!OPENROUTER_API_KEY) {
     console.log("[generateWithOpenRouter] No OpenRouter API key configured")
     return null
   }
 
   try {
-    console.log("[generateWithOpenRouter] Using OpenRouter with model:", OPENROUTER_FREE_MODEL)
+    console.log(
+      "[generateWithOpenRouter] start",
+      JSON.stringify({
+        model: OPENROUTER_FREE_MODEL,
+        baseURL: OPENROUTER_BASE_URL,
+        promptChars: prompt.length,
+      }),
+    )
 
     // Use createOpenAI with OpenRouter's base URL (OpenRouter is OpenAI-compatible)
     const openrouter = createOpenAI({
@@ -40,14 +50,33 @@ async function generateWithOpenRouter(prompt: string): Promise<string | null> {
       baseURL: OPENROUTER_BASE_URL,
     })
 
+    console.log(`[generateWithOpenRouter] client created, calling generateText… (+${elapsed()})`)
+
+    const genT0 = Date.now()
     const result = await generateText({
       model: openrouter(OPENROUTER_FREE_MODEL),
       prompt,
     })
 
-    return result.text.trim()
+    const genMs = Date.now() - genT0
+    const raw = result.text ?? ""
+    console.log(
+      "[generateWithOpenRouter] generateText returned",
+      JSON.stringify({
+        generateTextMs: genMs,
+        totalMs: Date.now() - t0,
+        rawChars: raw.length,
+        trimmedChars: raw.trim().length,
+        preview: raw.slice(0, 120).replace(/\s+/g, " "),
+      }),
+    )
+
+    return raw.trim()
   } catch (error) {
-    console.error("[generateWithOpenRouter] Error:", error)
+    console.error(`[generateWithOpenRouter] error after ${elapsed()}:`, error)
+    if (error instanceof Error && error.cause) {
+      console.error("[generateWithOpenRouter] error.cause:", error.cause)
+    }
     return null
   }
 }
@@ -63,53 +92,76 @@ export async function generateWithUserLLM(
   options: LLMGenerateOptions
 ): Promise<LLMGenerateResult> {
   const { userId, prompt } = options
+  const t0 = Date.now()
+  const elapsed = () => `${Date.now() - t0}ms`
 
   try {
-    // Get user's API keys
+    const dbT0 = Date.now()
     const userCredentials = await prisma.userCredentials.findUnique({
       where: { userId },
     })
+    console.log(
+      "[generateWithUserLLM] credentials loaded",
+      JSON.stringify({ userId, dbMs: Date.now() - dbT0, hasRow: !!userCredentials }),
+    )
+
     const { anthropicApiKey, openaiApiKey } = decryptUserCredentials(userCredentials)
 
     // If no user API keys available, try OpenRouter as fallback
     if (!anthropicApiKey && !openaiApiKey) {
-      console.log("[generateWithUserLLM] No user API keys found, trying OpenRouter fallback")
+      console.log(`[generateWithUserLLM] no user API keys, OpenRouter fallback (+${elapsed()})`)
 
+      const orT0 = Date.now()
       const openRouterResult = await generateWithOpenRouter(prompt)
+      const orMs = Date.now() - orT0
+      console.log(
+        "[generateWithUserLLM] OpenRouter path finished",
+        JSON.stringify({ orMs, totalMs: Date.now() - t0, ok: !!openRouterResult }),
+      )
+
       if (openRouterResult) {
         return { text: openRouterResult, error: null }
       }
 
-      // No API keys at all
-      console.log("[generateWithUserLLM] No API keys available (user or OpenRouter)")
+      console.log(`[generateWithUserLLM] OpenRouter returned null / no_api_key (+${elapsed()})`)
       return { text: null, error: "no_api_key" }
     }
 
-    console.log("[generateWithUserLLM] Using:", anthropicApiKey ? "Anthropic" : "OpenAI")
+    const provider = anthropicApiKey ? "Anthropic" : "OpenAI"
+    console.log(`[generateWithUserLLM] using ${provider} (+${elapsed()})`)
 
     let text: string
 
     if (anthropicApiKey) {
-      // Prefer Anthropic (Claude) - use haiku for speed
       const anthropic = createAnthropic({ apiKey: anthropicApiKey })
+      const genT0 = Date.now()
       const result = await generateText({
         model: anthropic("claude-3-haiku-20240307"),
         prompt,
       })
+      console.log(
+        "[generateWithUserLLM] Anthropic generateText done",
+        JSON.stringify({ ms: Date.now() - genT0, chars: (result.text ?? "").length }),
+      )
       text = result.text.trim()
     } else {
-      // Fallback to OpenAI - use gpt-4o-mini for speed
       const openai = createOpenAI({ apiKey: openaiApiKey! })
+      const genT0 = Date.now()
       const result = await generateText({
         model: openai("gpt-4o-mini"),
         prompt,
       })
+      console.log(
+        "[generateWithUserLLM] OpenAI generateText done",
+        JSON.stringify({ ms: Date.now() - genT0, chars: (result.text ?? "").length }),
+      )
       text = result.text.trim()
     }
 
+    console.log(`[generateWithUserLLM] success totalMs=${Date.now() - t0}`)
     return { text, error: null }
   } catch (error) {
-    console.error("[generateWithUserLLM] Error:", error)
+    console.error(`[generateWithUserLLM] error after ${elapsed()}:`, error)
     return { text: null, error: "llm_error" }
   }
 }

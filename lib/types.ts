@@ -136,6 +136,8 @@ export interface UserCredentialFlags {
   hasAnthropicAuthToken?: boolean
   hasOpenaiApiKey?: boolean
   hasOpencodeApiKey?: boolean
+  /** Server has OpenRouter (or similar) so AI branch naming works without user API keys */
+  hasServerLlmFallback?: boolean
 }
 
 /**
