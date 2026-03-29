@@ -230,22 +230,111 @@ packages/
 └── web/      # @sandboxed-agents/web - Next.js web application
 ```
 
+### Prerequisites
+
+- Node.js 20+
+- PostgreSQL (local or Docker)
+- A GitHub account
+
+### Required Environment Variables
+
+For local development, you only need **two** environment variables:
+
+| Variable | Description | How to get it |
+|----------|-------------|---------------|
+| `GITHUB_PAT` | GitHub Personal Access Token | [Create one here](https://github.com/settings/tokens) with scopes: `repo`, `read:user` |
+| `DAYTONA_API_KEY` | Daytona API key for sandboxes | Get from [Daytona](https://www.daytona.io/) |
+
+When `GITHUB_PAT` is set:
+- The login page auto-creates a session and redirects to the app
+- No GitHub OAuth app needed
+- A dev user is auto-created in the database
+- The PAT is used for all GitHub operations
+
 ### Quick Start
 
+#### 1. Install PostgreSQL
+
+**Ubuntu/Debian:**
 ```bash
-# Install all dependencies (from root)
+sudo apt-get update && sudo apt-get install -y postgresql postgresql-contrib
+sudo service postgresql start
+```
+
+**macOS:**
+```bash
+brew install postgresql@17
+brew services start postgresql@17
+```
+
+#### 2. Create the Database
+
+```bash
+sudo -u postgres psql -c "CREATE USER sandboxed WITH PASSWORD 'sandboxed123';"
+sudo -u postgres psql -c "CREATE DATABASE sandboxed_agents OWNER sandboxed;"
+```
+
+#### 3. Configure Environment
+
+Create `packages/web/.env`:
+
+```bash
+# Database (Local PostgreSQL)
+DATABASE_URL="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
+DATABASE_URL_UNPOOLED="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
+
+# NextAuth - Set to your actual URL
+# - Local dev: http://localhost:3000
+# - Daytona: https://{port}-{sandbox-id}.daytonaproxy01.net
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="dev-secret-not-used-in-dev-mode"
+
+# GitHub OAuth (placeholder - not used when GITHUB_PAT is set)
+GITHUB_CLIENT_ID="placeholder"
+GITHUB_CLIENT_SECRET="placeholder"
+
+# Encryption key for credentials
+ENCRYPTION_KEY="0000000000000000000000000000000000000000000000000000000000000000"
+
+# === REQUIRED FOR DEVELOPMENT ===
+GITHUB_PAT=ghp_your_token_here
+DAYTONA_API_KEY=dtn_your_key_here
+
+# Optional
+SMITHERY_API_KEY="placeholder"
+```
+
+#### 4. Install and Build
+
+```bash
 npm install
+npm run build:sdk
+```
 
-# Set up local env (copy from Vercel or create .env.local in packages/web)
-cp .env.example packages/web/.env.local
+#### 5. Initialize the Database
 
-# Run migrations
-npm run build:sdk                    # Build the SDK first
-cd packages/web && npx prisma migrate dev
+```bash
+cd packages/web && npx prisma db push
+```
 
-# Start dev server
+#### 6. Start the Development Server
+
+```bash
 npm run dev
 ```
+
+The app will be available at http://localhost:3000
+
+### What Happens on First Visit
+
+When you visit the app with `GITHUB_PAT` set:
+
+1. The login page detects dev mode and auto-redirects
+2. A session is created for the dev user
+3. A warning is logged: `WARNING: Running in dev mode (GITHUB_PAT is set)`
+4. A dev user is auto-created with admin privileges and 100 sandbox quota
+
+You'll be logged in automatically — no OAuth flow needed.
 
 ### Available Scripts (Root)
 
@@ -271,23 +360,6 @@ npm run dev -w @sandboxed-agents/web
 npm run build -w @sandboxed-agents/web
 ```
 
-### Local Environment
-
-Create `packages/web/.env.local`:
-
-```env
-DATABASE_URL="postgres://..."
-DATABASE_URL_UNPOOLED="postgres://..."
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="dev-secret-change-in-prod"
-GITHUB_CLIENT_ID="..."
-GITHUB_CLIENT_SECRET="..."
-ENCRYPTION_KEY="..."
-DAYTONA_API_KEY="dtn_..."
-```
-
-> **Note**: For local GitHub OAuth, create a separate OAuth App with callback URL `http://localhost:3000/api/auth/callback/github`
-
 ### SDK Development
 
 The SDK (`@sandboxed-agents/sdk`) is in `packages/agents/`. The web app depends on it via workspace reference.
@@ -304,6 +376,32 @@ cd packages/agents && npm run test:coverage
 ```
 
 See [`packages/agents/README.md`](packages/agents/README.md) for full SDK documentation.
+
+### Troubleshooting
+
+**"Can't reach database server"**
+```bash
+sudo service postgresql status
+# If not running:
+sudo service postgresql start
+```
+
+**"GitHub account not linked" or GitHub API errors**
+Your `GITHUB_PAT` is missing or invalid. Make sure:
+- The token has `repo` and `read:user` scopes
+- The token hasn't expired
+
+**Prisma errors about adapters**
+```bash
+rm -rf packages/web/.next
+npm run dev
+```
+
+### Notes
+
+- `GITHUB_PAT` mode is **disabled in production** (`NODE_ENV=production`)
+- The dev user has a fixed ID: `dev-user-00000000-0000-0000-0000-000000000000`
+- All data is isolated to your local database
 
 ---
 

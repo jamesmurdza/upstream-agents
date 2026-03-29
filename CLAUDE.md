@@ -1,12 +1,5 @@
 # Claude Instructions
 
-## Before Starting the Development Server
-
-**You MUST read [DEVELOPMENT.md](./DEVELOPMENT.md) first** to understand:
-- Prerequisites (PostgreSQL must be running, environment variables configured)
-- The full setup sequence (install deps → push DB schema → start server)
-- Troubleshooting steps if something fails
-
 ## Daytona Sandbox Environment
 
 When running inside a Daytona sandbox:
@@ -32,3 +25,51 @@ Start web servers with `nohup` so they persist:
 ```bash
 nohup npm run dev > server.log 2>&1 &
 ```
+
+## Testing
+
+### SDK Unit Tests (No API Keys Required)
+
+```bash
+npm run test -w @sandboxed-agents/sdk
+```
+
+### SDK Integration Tests (Requires API Keys)
+
+Integration tests require real Daytona sandboxes and AI providers. These are skipped by default unless the required environment variables are set.
+
+```bash
+# Run integration tests with Claude
+DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npm run test -w @sandboxed-agents/sdk -- tests/integration/
+
+# Run all tests including integration
+DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npm run test -w @sandboxed-agents/sdk
+```
+
+### Manual SDK Testing
+
+```bash
+# Interactive REPL with Claude (streaming)
+DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npx tsx packages/agents/scripts/repl.ts
+
+# REPL with other providers
+npx tsx packages/agents/scripts/repl.ts --provider codex   # requires OPENAI_API_KEY
+npx tsx packages/agents/scripts/repl.ts --provider opencode
+npx tsx packages/agents/scripts/repl.ts --provider gemini  # requires GEMINI_API_KEY
+
+# Polling-based background session REPL
+DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npx tsx packages/agents/scripts/repl-polling.ts
+
+# Full integration test script
+DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npx tsx packages/agents/scripts/test-sdk-full.ts
+```
+
+### Debug Mode
+
+Set `CODING_AGENTS_DEBUG=1` to enable verbose logging:
+
+```bash
+CODING_AGENTS_DEBUG=1 npx tsx packages/agents/scripts/repl-polling.ts
+```
+
+This logs agent lifecycle events, background session details, and unparsed output.
