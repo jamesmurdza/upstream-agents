@@ -8,72 +8,24 @@
 - Environments: .env.local, .env
 
 ✓ Starting...
-Attention: Next.js now collects completely anonymous telemetry regarding usage.
-This information is used to shape Next.js' roadmap and prioritize features.
-You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
-https://nextjs.org/telemetry
-
-✓ Ready in 887ms
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-WARNING: Authentication is being skipped (SKIP_AUTH=true)
-This should ONLY be used for local development!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-prisma:error 
-Invalid `prisma.user.findUnique()` invocation:
-
-
-Can't reach database server at 127.0.0.1:5432
-⨯ Error [PrismaClientKnownRequestError]: 
-Invalid `prisma.user.findUnique()` invocation:
-
-
-Can't reach database server at 127.0.0.1:5432
-    at <unknown> (Can't reach database server at 127.0.0.1:5432)
-    at async ensureDevUserExists (lib/dev-auth.ts:40:24)
-    at async getAuthUserId (lib/api-helpers.ts:138:5)
-    at async requireAuth (lib/api-helpers.ts:152:18)
-    at async GET (app/api/user/quota/route.ts:5:16)
-  38 |  */
-  39 | export async function ensureDevUserExists(): Promise<void> {
-> 40 |   const existingUser = await prisma.user.findUnique({
-     |                        ^
-  41 |     where: { id: DEV_USER_ID },
-  42 |   })
-  43 | {
-  code: 'P1001',
-  meta: [Object],
-  clientVersion: '7.5.0'
-}
- GET /api/user/quota 500 in 3.5s (compile: 3.1s, render: 371ms)
-
-============================================================
-SKIP_AUTH: Creating dev user in database...
-============================================================
-
-
-============================================================
-SKIP_AUTH: Dev user created successfully!
-
-To use GitHub features, you need to add a GitHub token.
-You can do this via the Settings page in the UI, or by
-manually inserting an Account record in the database.
-============================================================
-
- GET /api/user/quota 200 in 98ms (compile: 7ms, render: 91ms)
-○ Compiling / ...
- GET / 200 in 5.0s (compile: 4.8s, render: 193ms)
- GET / 200 in 95ms (compile: 12ms, render: 83ms)
+✓ Ready in 837ms
 ⚠ Cross origin request detected from 3000-5ad314d2-4756-4540-ab46-fa51fc3e78cd.daytonaproxy01.net to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
 Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
- GET /api/auth/session 200 in 1371ms (compile: 1330ms, render: 41ms)
- GET /login 200 in 468ms (compile: 450ms, render: 19ms)
- GET /api/auth/providers 200 in 94ms (compile: 80ms, render: 14ms)
- GET /api/auth/csrf 200 in 61ms (compile: 40ms, render: 21ms)
- POST /api/auth/signin/github 200 in 64ms (compile: 41ms, render: 23ms)
- GET /login 200 in 155ms (compile: 5ms, render: 151ms)
- GET /api/auth/session 200 in 49ms (compile: 37ms, render: 11ms)
- GET / 200 in 224ms (compile: 41ms, render: 183ms)
- GET /api/auth/session 200 in 55ms (compile: 43ms, render: 12ms)
- GET /login 200 in 21ms (compile: 3ms, render: 18ms)
+○ Compiling /login ...
+ GET /login 200 in 5.0s (compile: 4.9s, render: 99ms)
+ GET /login 200 in 112ms (compile: 62ms, render: 50ms)
+ GET /api/auth/session 200 in 1851ms (compile: 1823ms, render: 28ms)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+WARNING: Running in dev mode (GITHUB_PAT is set)
+Authentication is bypassed. DO NOT use in production!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+ GET /api/user/quota 200 in 471ms (compile: 360ms, render: 110ms)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+WARNING: Running in dev mode (GITHUB_PAT is set)
+Authentication is bypassed. DO NOT use in production!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+ GET /api/github/repos 500 in 579ms (compile: 536ms, render: 43ms)
