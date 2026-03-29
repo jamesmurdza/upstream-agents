@@ -13,7 +13,7 @@ import {
   createBackgroundSession,
   type BackgroundSession,
   type Event,
-} from "@sandboxed-agents/sdk"
+} from "@upstream/agents"
 
 async function drainAllEvents(bg: BackgroundSession): Promise<Event[]> {
   const events: Event[] = []

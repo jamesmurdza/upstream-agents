@@ -1,15 +1,15 @@
 {
-  "name": "sandboxed-agents-monorepo",
+  "name": "upstream-monorepo",
   "private": true,
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w @sandboxed-agents/web",
-    "build": "npm run build -w @sandboxed-agents/sdk && npm run build -w @sandboxed-agents/web",
-    "build:sdk": "npm run build -w @sandboxed-agents/sdk",
-    "build:web": "npm run build -w @sandboxed-agents/web",
-    "start": "npm run start -w @sandboxed-agents/web",
+    "dev": "npm run dev -w @upstream/web",
+    "build": "npm run build -w @upstream/agents && npm run build -w @upstream/web",
+    "build:sdk": "npm run build -w @upstream/agents",
+    "build:web": "npm run build -w @upstream/web",
+    "start": "npm run start -w @upstream/web",
     "lint": "npm run lint --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present"
   },

@@ -20,7 +20,7 @@ import {
   type ToolEndEvent,
   type EndEvent,
   type BackgroundSessionOptions,
-} from "@sandboxed-agents/sdk"
+} from "@upstream/agents"
 import type { Sandbox as DaytonaSandbox } from "@daytonaio/sdk"
 import { type Agent, getProviderForAgent } from "@/lib/shared/types"
 import { PATHS, SANDBOX_CONFIG } from "@/lib/shared/constants"
