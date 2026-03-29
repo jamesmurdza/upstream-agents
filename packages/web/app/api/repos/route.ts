@@ -1,17 +1,17 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/db/prisma"
 import {
   requireAuth,
   isAuthError,
   badRequest,
   notFound,
   internalError,
-} from "@/lib/api-helpers"
-import { PAGINATION } from "@/lib/constants"
+} from "@/lib/shared/api-helpers"
+import { PAGINATION } from "@/lib/shared/constants"
 import {
   INCLUDE_REPO_FOR_LIST,
   INCLUDE_REPO_WITH_BRANCHES,
-} from "@/lib/prisma-includes"
-import { deleteSandboxesForRepo } from "@/lib/daytona-cleanup"
+} from "@/lib/db/prisma-includes"
+import { deleteSandboxesForRepo } from "@/lib/sandbox/daytona-cleanup"
 
 export async function GET() {
   const auth = await requireAuth()

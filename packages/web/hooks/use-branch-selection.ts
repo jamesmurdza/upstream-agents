@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react"
-import type { Repo } from "@/lib/types"
+import type { Repo } from "@/lib/shared/types"
 
 interface RepoFromUrl {
   owner: string

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/db/prisma"
 import {
   requireAuth,
   isAuthError,
@@ -10,15 +10,15 @@ import {
   getDaytonaApiKey,
   isDaytonaKeyError,
   decryptUserCredentials,
-} from "@/lib/api-helpers"
-import { PATHS } from "@/lib/constants"
+} from "@/lib/shared/api-helpers"
+import { PATHS } from "@/lib/shared/constants"
 import {
   INCLUDE_BRANCH_WITH_MESSAGES,
   INCLUDE_BRANCH_WITH_REPO_AND_SANDBOX,
-} from "@/lib/prisma-includes"
+} from "@/lib/db/prisma-includes"
 import { Daytona } from "@daytonaio/sdk"
-import { getDefaultAgent } from "@/lib/types"
-import { deleteSandboxForBranch } from "@/lib/daytona-cleanup"
+import { getDefaultAgent } from "@/lib/shared/types"
+import { deleteSandboxForBranch } from "@/lib/sandbox/daytona-cleanup"
 
 export async function POST(req: Request) {
   const authResult = await requireAuth()

@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from "react"
-import type { Branch, Message } from "@/lib/types"
-import { generateId } from "@/lib/store"
-import { PATHS } from "@/lib/constants"
+import type { Branch, Message } from "@/lib/shared/types"
+import { generateId } from "@/lib/shared/store"
+import { PATHS } from "@/lib/shared/constants"
 import { useGitDialogs } from "@/components/git/hooks/useGitDialogs"
-import { toggleSandbox, createPR } from "@/lib/git-actions"
+import { toggleSandbox, createPR } from "@/lib/git/git-actions"
 
 // Export the return type for use in sub-components
 export type UseGitActionsReturn = ReturnType<typeof useGitActions>

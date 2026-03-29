@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma"
-import { requireAuth, isAuthError, badRequest, internalError } from "@/lib/api-helpers"
+import { prisma } from "@/lib/db/prisma"
+import { requireAuth, isAuthError, badRequest, internalError } from "@/lib/shared/api-helpers"
 
 /**
  * PATCH /api/user/repo-order

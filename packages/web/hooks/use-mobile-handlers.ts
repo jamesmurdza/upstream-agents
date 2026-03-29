@@ -1,7 +1,7 @@
 import { useCallback } from "react"
-import type { Branch } from "@/lib/types"
-import type { TransformedRepo } from "@/lib/db-types"
-import { toggleSandbox, createPR } from "@/lib/git-actions"
+import type { Branch } from "@/lib/shared/types"
+import type { TransformedRepo } from "@/lib/db/db-types"
+import { toggleSandbox, createPR } from "@/lib/git/git-actions"
 
 interface UseMobileHandlersOptions {
   activeBranch: Branch | null

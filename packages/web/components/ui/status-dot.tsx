@@ -4,7 +4,7 @@
  */
 
 import { Loader2 } from "lucide-react"
-import { BRANCH_STATUS, type BranchStatus } from "@/lib/constants"
+import { BRANCH_STATUS, type BranchStatus } from "@/lib/shared/constants"
 
 interface StatusDotProps {
   /** Current status of the branch/sandbox */

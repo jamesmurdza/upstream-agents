@@ -1,12 +1,12 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/db/prisma"
 import { Prisma } from "@prisma/client"
-import { encrypt, decrypt } from "@/lib/encryption"
+import { encrypt, decrypt } from "@/lib/auth/encryption"
 import {
   requireAuth,
   isAuthError,
   badRequest,
   notFound,
-} from "@/lib/api-helpers"
+} from "@/lib/shared/api-helpers"
 
 // GET - Retrieve env var keys (not values) for a repo
 export async function GET(

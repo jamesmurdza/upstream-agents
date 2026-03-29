@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma"
-import { requireAuth, isAuthError, internalError } from "@/lib/api-helpers"
+import { prisma } from "@/lib/db/prisma"
+import { requireAuth, isAuthError, internalError } from "@/lib/shared/api-helpers"
 
 // Lightweight sync endpoint for cross-device state synchronization
 // Returns all repos with branch statuses, last message info, etc.

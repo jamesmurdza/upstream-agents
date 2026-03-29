@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma"
-import { requireAdmin, isAuthError, badRequest, notFound } from "@/lib/api-helpers"
+import { prisma } from "@/lib/db/prisma"
+import { requireAdmin, isAuthError, badRequest, notFound } from "@/lib/shared/api-helpers"
 
 export async function PATCH(
   request: Request,

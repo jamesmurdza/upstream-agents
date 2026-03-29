@@ -1,8 +1,8 @@
 "use client"
 
-import { cn } from "@/lib/utils"
-import type { Branch } from "@/lib/types"
-import { BRANCH_STATUS } from "@/lib/constants"
+import { cn } from "@/lib/shared/utils"
+import type { Branch } from "@/lib/shared/types"
+import { BRANCH_STATUS } from "@/lib/shared/constants"
 import {
   Pencil,
   GitPullRequest,

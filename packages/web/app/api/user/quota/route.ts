@@ -1,5 +1,5 @@
-import { getQuota } from "@/lib/quota"
-import { requireAuth, isAuthError } from "@/lib/api-helpers"
+import { getQuota } from "@/lib/sandbox/quota"
+import { requireAuth, isAuthError } from "@/lib/shared/api-helpers"
 
 export async function GET() {
   const auth = await requireAuth()

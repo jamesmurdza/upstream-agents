@@ -1,8 +1,8 @@
 "use client"
 
-import { cn } from "@/lib/utils"
-import type { Agent, Message, ToolCall } from "@/lib/types"
-import { agentLabels } from "@/lib/types"
+import { cn } from "@/lib/shared/utils"
+import type { Agent, Message, ToolCall } from "@/lib/shared/types"
+import { agentLabels } from "@/lib/shared/types"
 import {
   FileText,
   Pencil,

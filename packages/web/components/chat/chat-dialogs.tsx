@@ -1,6 +1,6 @@
 "use client"
 
-import type { Branch } from "@/lib/types"
+import type { Branch } from "@/lib/shared/types"
 import { Copy, Check } from "lucide-react"
 import {
   Dialog,
@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { DiffModal } from "@/components/diff-modal"
+import { DiffModal } from "@/components/modals/diff-modal"
 import { GitDialogs } from "@/components/git"
 import type { UseGitActionsReturn } from "./hooks/useGitActions"
 

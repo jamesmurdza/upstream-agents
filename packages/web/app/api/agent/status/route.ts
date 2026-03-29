@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/db/prisma"
 import {
   requireAuth,
   isAuthError,
@@ -9,14 +9,14 @@ import {
   isDaytonaKeyError,
   getSandboxWithAuth,
   decryptUserCredentials,
-} from "@/lib/api-helpers"
-import { INCLUDE_EXECUTION_WITH_CONTEXT } from "@/lib/prisma-includes"
-import { PATHS, SNAPSHOT_POLL_THROTTLE_MS } from "@/lib/constants"
-import { ensureSandboxReady } from "@/lib/sandbox-resume"
-import { pollBackgroundAgent } from "@/lib/agent-session"
-import { updateSnapshot } from "@/lib/agent-events"
-import { persistExecutionCompletion } from "@/lib/agent-events"
-import type { Agent } from "@/lib/types"
+} from "@/lib/shared/api-helpers"
+import { INCLUDE_EXECUTION_WITH_CONTEXT } from "@/lib/db/prisma-includes"
+import { PATHS, SNAPSHOT_POLL_THROTTLE_MS } from "@/lib/shared/constants"
+import { ensureSandboxReady } from "@/lib/sandbox/sandbox-resume"
+import { pollBackgroundAgent } from "@/lib/agents/agent-session"
+import { updateSnapshot } from "@/lib/agents/agent-events"
+import { persistExecutionCompletion } from "@/lib/agents/agent-events"
+import type { Agent } from "@/lib/shared/types"
 
 function buildSnapshotResponse(
   execution: { status: string; message: { content?: string; toolCalls?: unknown[]; contentBlocks?: unknown[] } },

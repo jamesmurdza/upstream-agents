@@ -1,15 +1,15 @@
-import { prisma } from "@/lib/prisma"
-import { ensureSandboxReady } from "@/lib/sandbox-resume"
-import { createBackgroundAgentSession } from "@/lib/agent-session"
+import { prisma } from "@/lib/db/prisma"
+import { ensureSandboxReady } from "@/lib/sandbox/sandbox-resume"
+import { createBackgroundAgentSession } from "@/lib/agents/agent-session"
 import {
   getDaytonaApiKey,
   isDaytonaKeyError,
   decryptUserCredentials,
   updateSandboxAndBranchStatus,
-} from "@/lib/api-helpers"
-import { PATHS, EXECUTION_STATUS } from "@/lib/constants"
-import { isLoopFinished, LOOP_CONTINUATION_MESSAGE } from "@/lib/types"
-import type { Agent } from "@/lib/types"
+} from "@/lib/shared/api-helpers"
+import { PATHS, EXECUTION_STATUS } from "@/lib/shared/constants"
+import { isLoopFinished, LOOP_CONTINUATION_MESSAGE } from "@/lib/shared/types"
+import type { Agent } from "@/lib/shared/types"
 
 // Cron job timeout - allow up to 60 seconds
 export const maxDuration = 60

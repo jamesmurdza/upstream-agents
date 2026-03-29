@@ -1,14 +1,14 @@
 import { useCallback } from "react"
-import type { Branch } from "@/lib/types"
-import type { TransformedRepo } from "@/lib/db-types"
-import { transformRepo } from "@/lib/db-types"
+import type { Branch } from "@/lib/shared/types"
+import type { TransformedRepo } from "@/lib/db/db-types"
+import { transformRepo } from "@/lib/db/db-types"
 import {
   removeRepo,
   reorderRepos,
   addBranchToRepo,
   removeBranchFromRepo,
-} from "@/lib/state-utils"
-import { PATHS } from "@/lib/constants"
+} from "@/lib/shared/state-utils"
+import { PATHS } from "@/lib/shared/constants"
 
 interface UseRepoOperationsOptions {
   repos: TransformedRepo[]

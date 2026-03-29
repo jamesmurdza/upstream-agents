@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { encrypt } from "@/lib/encryption"
+import { prisma } from "@/lib/db/prisma"
+import { encrypt } from "@/lib/auth/encryption"
 import {
   decodeOAuthState,
   getOAuthEndpoints,
   exchangeCodeForTokens,
-} from "@/lib/mcp-oauth"
+} from "@/lib/mcp/mcp-oauth"
 
 // GET - OAuth callback from MCP server
 export async function GET(req: Request) {

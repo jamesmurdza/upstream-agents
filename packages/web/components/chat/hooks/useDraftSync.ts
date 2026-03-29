@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
-import type { Branch } from "@/lib/types"
-import { BRANCH_STATUS } from "@/lib/constants"
+import type { Branch } from "@/lib/shared/types"
+import { BRANCH_STATUS } from "@/lib/shared/constants"
 
 interface UseDraftSyncOptions {
   branch: Branch

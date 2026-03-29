@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma"
-import { requireAuth, isAuthError, badRequest, notFound } from "@/lib/api-helpers"
-import { INCLUDE_BRANCH_WITH_REPO } from "@/lib/prisma-includes"
+import { prisma } from "@/lib/db/prisma"
+import { requireAuth, isAuthError, badRequest, notFound } from "@/lib/shared/api-helpers"
+import { INCLUDE_BRANCH_WITH_REPO } from "@/lib/db/prisma-includes"
 
 // POST endpoint for saving draft prompts (needed for sendBeacon on page unload)
 export async function POST(req: Request) {

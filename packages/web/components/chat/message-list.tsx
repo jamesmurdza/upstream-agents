@@ -1,9 +1,9 @@
 "use client"
 
-import { cn } from "@/lib/utils"
-import type { Agent, Branch, Message } from "@/lib/types"
-import { agentLabels } from "@/lib/types"
-import { BRANCH_STATUS } from "@/lib/constants"
+import { cn } from "@/lib/shared/utils"
+import type { Agent, Branch, Message } from "@/lib/shared/types"
+import { agentLabels } from "@/lib/shared/types"
+import { BRANCH_STATUS } from "@/lib/shared/constants"
 import { Loader2, AlertCircle } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
 import { forwardRef } from "react"

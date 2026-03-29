@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma"
-import { getQuota } from "@/lib/quota"
-import { requireAuth, isAuthError, notFound, internalError } from "@/lib/api-helpers"
-import { hasOpenRouterKey } from "@/lib/llm"
+import { prisma } from "@/lib/db/prisma"
+import { getQuota } from "@/lib/sandbox/quota"
+import { requireAuth, isAuthError, notFound, internalError } from "@/lib/shared/api-helpers"
+import { hasOpenRouterKey } from "@/lib/llm/llm"
 
 // Prevent Next.js from caching this route - always fetch fresh data
 export const dynamic = "force-dynamic"

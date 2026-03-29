@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma"
-import { ensureSandboxReady, SandboxNotFoundError } from "@/lib/sandbox-resume"
-import { createBackgroundAgentSession } from "@/lib/agent-session"
+import { prisma } from "@/lib/db/prisma"
+import { ensureSandboxReady, SandboxNotFoundError } from "@/lib/sandbox/sandbox-resume"
+import { createBackgroundAgentSession } from "@/lib/agents/agent-session"
 import {
   requireAuth,
   isAuthError,
@@ -13,10 +13,10 @@ import {
   internalError,
   updateSandboxAndBranchStatus,
   resetSandboxStatus,
-} from "@/lib/api-helpers"
-import { PATHS } from "@/lib/constants"
-import type { Agent } from "@/lib/types"
-import { logActivity } from "@/lib/activity-log"
+} from "@/lib/shared/api-helpers"
+import { PATHS } from "@/lib/shared/constants"
+import type { Agent } from "@/lib/shared/types"
+import { logActivity } from "@/lib/shared/activity-log"
 
 // Agent execution timeout - 60 seconds (must be literal for Next.js static analysis)
 export const maxDuration = 60

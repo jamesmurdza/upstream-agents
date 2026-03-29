@@ -1,12 +1,12 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/db/prisma"
 import {
   requireAuth,
   isAuthError,
   getBranchWithAuth,
   badRequest,
   notFound,
-} from "@/lib/api-helpers"
-import { INCLUDE_MESSAGE_WITH_BRANCH } from "@/lib/prisma-includes"
+} from "@/lib/shared/api-helpers"
+import { INCLUDE_MESSAGE_WITH_BRANCH } from "@/lib/db/prisma-includes"
 
 // Prevent Next.js from caching this route - always fetch fresh data
 export const dynamic = "force-dynamic"

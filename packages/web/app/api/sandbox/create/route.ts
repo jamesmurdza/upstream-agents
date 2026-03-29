@@ -1,7 +1,7 @@
 import { Daytona } from "@daytonaio/sdk"
-import { prisma } from "@/lib/prisma"
-import { checkQuota } from "@/lib/quota"
-import { generateSandboxName } from "@/lib/sandbox-utils"
+import { prisma } from "@/lib/db/prisma"
+import { checkQuota } from "@/lib/sandbox/quota"
+import { generateSandboxName } from "@/lib/sandbox/sandbox-utils"
 import {
   requireAuth,
   isAuthError,
@@ -11,13 +11,13 @@ import {
   unauthorized,
   decryptUserCredentials,
   getGitHubTokenForUser,
-} from "@/lib/api-helpers"
-import { createSSEStream, sendProgress, sendError, sendDone } from "@/lib/streaming-helpers"
-import { SANDBOX_CONFIG, PATHS } from "@/lib/constants"
-import { getDefaultAgent } from "@/lib/types"
-import { cleanupDaytonaSandbox } from "@/lib/daytona-cleanup"
-import { decrypt } from "@/lib/encryption"
-import { logActivity } from "@/lib/activity-log"
+} from "@/lib/shared/api-helpers"
+import { createSSEStream, sendProgress, sendError, sendDone } from "@/lib/llm/streaming-helpers"
+import { SANDBOX_CONFIG, PATHS } from "@/lib/shared/constants"
+import { getDefaultAgent } from "@/lib/shared/types"
+import { cleanupDaytonaSandbox } from "@/lib/sandbox/daytona-cleanup"
+import { decrypt } from "@/lib/auth/encryption"
+import { logActivity } from "@/lib/shared/activity-log"
 
 // Sandbox creation timeout - 300 seconds (must be literal for Next.js static analysis)
 export const maxDuration = 300

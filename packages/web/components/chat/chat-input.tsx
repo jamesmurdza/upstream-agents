@@ -1,9 +1,9 @@
 "use client"
 
-import { cn } from "@/lib/utils"
-import type { Agent, Branch, UserCredentialFlags, ModelOption } from "@/lib/types"
-import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials, hasCodexCredentials, hasCredentialsForModel, agentModels } from "@/lib/types"
-import { BRANCH_STATUS } from "@/lib/constants"
+import { cn } from "@/lib/shared/utils"
+import type { Agent, Branch, UserCredentialFlags, ModelOption } from "@/lib/shared/types"
+import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials, hasCodexCredentials, hasCredentialsForModel, agentModels } from "@/lib/shared/types"
+import { BRANCH_STATUS } from "@/lib/shared/constants"
 import { Send, ChevronDown, Sparkles, Check } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
 import { forwardRef, useEffect, useCallback, useState, useMemo } from "react"

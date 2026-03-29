@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma"
-import { ensureSandboxStarted } from "@/lib/sandbox-resume"
+import { prisma } from "@/lib/db/prisma"
+import { ensureSandboxStarted } from "@/lib/sandbox/sandbox-resume"
 import type { Sandbox } from "@daytonaio/sdk"
 import {
   requireAuth,
@@ -10,8 +10,8 @@ import {
   isDaytonaKeyError,
   internalError,
   getGitHubTokenForUser,
-} from "@/lib/api-helpers"
-import { generateCommitMessage } from "@/lib/commit-message"
+} from "@/lib/shared/api-helpers"
+import { generateCommitMessage } from "@/lib/git/commit-message"
 // Git operation timeout - 60 seconds (must be literal for Next.js static analysis)
 export const maxDuration = 60
 

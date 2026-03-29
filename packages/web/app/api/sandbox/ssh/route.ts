@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma"
-import { ensureSandboxStarted } from "@/lib/sandbox-resume"
+import { prisma } from "@/lib/db/prisma"
+import { ensureSandboxStarted } from "@/lib/sandbox/sandbox-resume"
 import {
   requireAuth,
   isAuthError,
@@ -8,7 +8,7 @@ import {
   getDaytonaApiKey,
   isDaytonaKeyError,
   internalError,
-} from "@/lib/api-helpers"
+} from "@/lib/shared/api-helpers"
 
 export async function POST(req: Request) {
   const auth = await requireAuth()

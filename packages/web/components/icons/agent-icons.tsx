@@ -1,7 +1,7 @@
 "use client"
 
-import type { Agent } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import type { Agent } from "@/lib/shared/types"
+import { cn } from "@/lib/shared/utils"
 
 interface AgentIconProps {
   className?: string

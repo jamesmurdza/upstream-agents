@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react"
-import type { Branch } from "@/lib/types"
-import { PATHS } from "@/lib/constants"
+import type { Branch } from "@/lib/shared/types"
+import { PATHS } from "@/lib/shared/constants"
 
 // Export the return type for use in sub-components
 export type UseBranchRenamingReturn = ReturnType<typeof useBranchRenaming>

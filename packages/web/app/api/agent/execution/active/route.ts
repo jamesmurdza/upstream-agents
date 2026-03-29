@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { authOptions } from "@/lib/auth/auth"
+import { prisma } from "@/lib/db/prisma"
 
 // Check for active (running) execution for a branch
 // Used to resume polling after page refresh when messages haven't loaded yet

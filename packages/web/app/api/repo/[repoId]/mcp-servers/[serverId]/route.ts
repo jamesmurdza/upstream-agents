@@ -1,9 +1,9 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/db/prisma"
 import {
   requireAuth,
   isAuthError,
   notFound,
-} from "@/lib/api-helpers"
+} from "@/lib/shared/api-helpers"
 
 // GET - Get single MCP server details
 export async function GET(

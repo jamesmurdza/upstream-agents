@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma"
-import { requireAdmin, isAuthError } from "@/lib/api-helpers"
-import { BRANCH_STATUS } from "@/lib/constants"
+import { prisma } from "@/lib/db/prisma"
+import { requireAdmin, isAuthError } from "@/lib/shared/api-helpers"
+import { BRANCH_STATUS } from "@/lib/shared/constants"
 
 const ACTIVE_STATUSES = [BRANCH_STATUS.CREATING, BRANCH_STATUS.RUNNING, BRANCH_STATUS.STOPPED]
 

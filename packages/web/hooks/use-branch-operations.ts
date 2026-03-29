@@ -1,12 +1,12 @@
 import { useCallback } from "react"
-import type { Branch, Message } from "@/lib/types"
-import type { TransformedRepo } from "@/lib/db-types"
-import { BRANCH_STATUS } from "@/lib/constants"
+import type { Branch, Message } from "@/lib/shared/types"
+import type { TransformedRepo } from "@/lib/db/db-types"
+import { BRANCH_STATUS } from "@/lib/shared/constants"
 import {
   updateBranchInRepo,
   updateMessageInBranch,
   addMessageToBranch,
-} from "@/lib/state-utils"
+} from "@/lib/shared/state-utils"
 
 interface UseBranchOperationsOptions {
   repos: TransformedRepo[]

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/db/prisma"
 import {
   requireAuth,
   isAuthError,
@@ -6,8 +6,8 @@ import {
   badRequest,
   notFound,
   internalError,
-} from "@/lib/api-helpers"
-import { generateWithUserLLM } from "@/lib/llm"
+} from "@/lib/shared/api-helpers"
+import { generateWithUserLLM } from "@/lib/llm/llm"
 
 const SUGGESTION_PROMPT = `Reply with exactly one git branch name, one line, no markdown or quotes — format prefix/slug like feat/dark-mode or fix/auth-timeout (lowercase, hyphens). Prefix must be fix, feat, refactor, docs, test, or chore; slug is 2–4 words.
 {conversation}`

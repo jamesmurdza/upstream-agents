@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma"
-import { requireAuth, isAuthError, badRequest, notFound } from "@/lib/api-helpers"
-import { finalizeSmitheryConnection } from "@/lib/smithery-connect"
+import { prisma } from "@/lib/db/prisma"
+import { requireAuth, isAuthError, badRequest, notFound } from "@/lib/shared/api-helpers"
+import { finalizeSmitheryConnection } from "@/lib/mcp/smithery-connect"
 
 // POST - Finalize a Smithery Connect connection after OAuth
 export async function POST(

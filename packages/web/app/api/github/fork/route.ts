@@ -1,6 +1,6 @@
-import { requireGitHubAuth, isGitHubAuthError, badRequest, internalError } from "@/lib/api-helpers"
-import { forkRepo } from "@/lib/github-client"
-import { forkRepoSchema, validateBody, isValidationError } from "@/lib/schemas"
+import { requireGitHubAuth, isGitHubAuthError, badRequest, internalError } from "@/lib/shared/api-helpers"
+import { forkRepo } from "@/lib/git/github-client"
+import { forkRepoSchema, validateBody, isValidationError } from "@/lib/shared/schemas"
 
 export async function POST(req: Request) {
   const auth = await requireGitHubAuth()

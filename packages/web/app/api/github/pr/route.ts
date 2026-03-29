@@ -1,8 +1,8 @@
-import { prisma } from "@/lib/prisma"
-import { requireGitHubAuth, isGitHubAuthError, badRequest, internalError } from "@/lib/api-helpers"
-import { compareBranches, createPullRequest, isGitHubApiError } from "@/lib/github-client"
-import { createPRSchema, validateBody, isValidationError } from "@/lib/schemas"
-import { generateWithUserLLM } from "@/lib/llm"
+import { prisma } from "@/lib/db/prisma"
+import { requireGitHubAuth, isGitHubAuthError, badRequest, internalError } from "@/lib/shared/api-helpers"
+import { compareBranches, createPullRequest, isGitHubApiError } from "@/lib/git/github-client"
+import { createPRSchema, validateBody, isValidationError } from "@/lib/shared/schemas"
+import { generateWithUserLLM } from "@/lib/llm/llm"
 
 const PR_TITLE_PROMPT = `Based on the branch name and commit messages below, generate a concise pull request title.
 

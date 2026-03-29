@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/prisma"
-import { encrypt } from "@/lib/encryption"
+import { prisma } from "@/lib/db/prisma"
+import { encrypt } from "@/lib/auth/encryption"
 import {
   requireAuth,
   isAuthError,
   badRequest,
   notFound,
-} from "@/lib/api-helpers"
+} from "@/lib/shared/api-helpers"
 import {
   encodeOAuthState,
   generateCodeVerifier,
@@ -13,12 +13,12 @@ import {
   getOAuthEndpoints,
   registerClient,
   type McpOAuthState,
-} from "@/lib/mcp-oauth"
+} from "@/lib/mcp/mcp-oauth"
 import {
   isSmitheryServer,
   createSmitheryConnection,
   getSmitheryConnectionId,
-} from "@/lib/smithery-connect"
+} from "@/lib/mcp/smithery-connect"
 
 // GET - Start OAuth flow for MCP server
 export async function GET(

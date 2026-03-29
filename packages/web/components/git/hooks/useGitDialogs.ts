@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import type { Branch, Message } from "@/lib/types"
-import { generateId } from "@/lib/store"
-import { PATHS } from "@/lib/constants"
+import type { Branch, Message } from "@/lib/shared/types"
+import { generateId } from "@/lib/shared/store"
+import { PATHS } from "@/lib/shared/constants"
 
 // Export the return type for use in components
 export type UseGitDialogsReturn = ReturnType<typeof useGitDialogs>

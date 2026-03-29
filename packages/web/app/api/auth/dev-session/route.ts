@@ -7,7 +7,7 @@
 
 import { cookies } from "next/headers"
 import { encode } from "next-auth/jwt"
-import { isAuthSkipped, ensureDevUserExists, DEV_USER_ID, DEV_USER } from "@/lib/dev-auth"
+import { isAuthSkipped, ensureDevUserExists, DEV_USER_ID, DEV_USER } from "@/lib/auth/dev-auth"
 
 export async function GET() {
   // Only allow in dev mode

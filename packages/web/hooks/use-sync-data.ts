@@ -1,10 +1,10 @@
 import { useCallback, useRef } from "react"
-import type { Branch } from "@/lib/types"
-import type { TransformedRepo, DbMessage } from "@/lib/db-types"
+import type { Branch } from "@/lib/shared/types"
+import type { TransformedRepo, DbMessage } from "@/lib/db/db-types"
 import {
   updateBranchAcrossRepos,
   setBranchesInRepo,
-} from "@/lib/state-utils"
+} from "@/lib/shared/state-utils"
 
 // Sync data shape from the API
 export interface SyncBranch {
@@ -298,8 +298,8 @@ function mergeMessages(
     id: m.id,
     role: m.role as "user" | "assistant",
     content: m.content,
-    toolCalls: m.toolCalls as import("@/lib/types").Message["toolCalls"],
-    contentBlocks: m.contentBlocks as import("@/lib/types").Message["contentBlocks"],
+    toolCalls: m.toolCalls as import("@/lib/shared/types").Message["toolCalls"],
+    contentBlocks: m.contentBlocks as import("@/lib/shared/types").Message["contentBlocks"],
     timestamp: m.timestamp || "",
     commitHash: m.commitHash || undefined,
     commitMessage: m.commitMessage || undefined,

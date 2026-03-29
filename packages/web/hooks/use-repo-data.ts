@@ -9,8 +9,8 @@ import {
   transformRepo,
   transformMessage,
   transformMessageSummary,
-} from "@/lib/db-types"
-import { BRANCH_STATUS } from "@/lib/constants"
+} from "@/lib/db/db-types"
+import { BRANCH_STATUS } from "@/lib/shared/constants"
 
 interface UseRepoDataOptions {
   isAuthenticated: boolean

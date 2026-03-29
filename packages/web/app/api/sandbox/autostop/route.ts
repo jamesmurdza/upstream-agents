@@ -1,12 +1,12 @@
 import { Daytona } from "@daytonaio/sdk"
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/db/prisma"
 import {
   requireAuth,
   isAuthError,
   badRequest,
   getDaytonaApiKey,
   isDaytonaKeyError,
-} from "@/lib/api-helpers"
+} from "@/lib/shared/api-helpers"
 
 export async function POST(req: Request) {
   const auth = await requireAuth()

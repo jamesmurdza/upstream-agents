@@ -1,8 +1,8 @@
 import { useRef, useCallback, useEffect } from "react"
-import type { Branch, Message } from "@/lib/types"
-import { generateId } from "@/lib/store"
-import { BRANCH_STATUS, EXECUTION_STATUS, PATHS } from "@/lib/constants"
-import { isLoopFinished, LOOP_CONTINUATION_MESSAGE } from "@/lib/types"
+import type { Branch, Message } from "@/lib/shared/types"
+import { generateId } from "@/lib/shared/store"
+import { BRANCH_STATUS, EXECUTION_STATUS, PATHS } from "@/lib/shared/constants"
+import { isLoopFinished, LOOP_CONTINUATION_MESSAGE } from "@/lib/shared/types"
 
 interface UseExecutionPollingOptions {
   branch: Branch

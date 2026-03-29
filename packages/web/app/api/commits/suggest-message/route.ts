@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/lib/db/prisma"
 import {
   requireAuth,
   isAuthError,
   badRequest,
   notFound,
-} from "@/lib/api-helpers"
-import { generateCommitMessage } from "@/lib/commit-message"
+} from "@/lib/shared/api-helpers"
+import { generateCommitMessage } from "@/lib/git/commit-message"
 
 /**
  * POST /api/commits/suggest-message

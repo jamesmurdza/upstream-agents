@@ -1,11 +1,11 @@
-import { prisma } from "@/lib/prisma"
-import { encrypt } from "@/lib/encryption"
+import { prisma } from "@/lib/db/prisma"
+import { encrypt } from "@/lib/auth/encryption"
 import {
   requireAuth,
   isAuthError,
   badRequest,
   notFound,
-} from "@/lib/api-helpers"
+} from "@/lib/shared/api-helpers"
 
 // GET - List MCP servers for a repo
 export async function GET(
