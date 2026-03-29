@@ -17,21 +17,28 @@ export interface LLMGenerateOptions {
 export interface LLMGenerateResult {
   text: string | null
   error: "no_api_key" | "llm_error" | null
+  errorMessage?: string // Detailed error message for user-facing display
+}
+
+interface OpenRouterResult {
+  text: string | null
+  error: "no_api_key" | "llm_error" | null
+  errorMessage?: string
 }
 
 /**
  * Generates text using OpenRouter (openai/gpt-oss-20b).
  * This is used as a fallback when users don't have their own API keys configured.
  *
- * @returns The generated text, or null if generation failed.
+ * @returns The generated text, or error details if generation failed.
  */
-async function generateWithOpenRouter(prompt: string): Promise<string | null> {
+async function generateWithOpenRouter(prompt: string): Promise<OpenRouterResult> {
   const t0 = Date.now()
   const elapsed = () => `${Date.now() - t0}ms`
 
   if (!OPENROUTER_API_KEY) {
     console.log("[generateWithOpenRouter] No OpenRouter API key configured")
-    return null
+    return { text: null, error: "no_api_key" }
   }
 
   try {
@@ -71,13 +78,33 @@ async function generateWithOpenRouter(prompt: string): Promise<string | null> {
       }),
     )
 
-    return raw.trim()
+    return { text: raw.trim(), error: null }
   } catch (error) {
     console.error(`[generateWithOpenRouter] error after ${elapsed()}:`, error)
     if (error instanceof Error && error.cause) {
       console.error("[generateWithOpenRouter] error.cause:", error.cause)
     }
-    return null
+
+    // Extract user-friendly error message from API error
+    let errorMessage = "OpenRouter API error"
+    if (error instanceof Error) {
+      // Check for API error response body (AI SDK format)
+      const apiError = error as Error & { responseBody?: string; statusCode?: number }
+      if (apiError.responseBody) {
+        try {
+          const parsed = JSON.parse(apiError.responseBody)
+          if (parsed.error?.message) {
+            errorMessage = parsed.error.message
+          }
+        } catch {
+          // Use default message if parsing fails
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+    }
+
+    return { text: null, error: "llm_error", errorMessage }
   }
 }
 
@@ -116,15 +143,20 @@ export async function generateWithUserLLM(
       const orMs = Date.now() - orT0
       console.log(
         "[generateWithUserLLM] OpenRouter path finished",
-        JSON.stringify({ orMs, totalMs: Date.now() - t0, ok: !!openRouterResult }),
+        JSON.stringify({ orMs, totalMs: Date.now() - t0, ok: !!openRouterResult.text, error: openRouterResult.error }),
       )
 
-      if (openRouterResult) {
-        return { text: openRouterResult, error: null }
+      if (openRouterResult.text) {
+        return { text: openRouterResult.text, error: null }
       }
 
-      console.log(`[generateWithUserLLM] OpenRouter returned null / no_api_key (+${elapsed()})`)
-      return { text: null, error: "no_api_key" }
+      // Pass through the specific error from OpenRouter
+      console.log(`[generateWithUserLLM] OpenRouter failed: ${openRouterResult.error} (+${elapsed()})`)
+      return {
+        text: null,
+        error: openRouterResult.error,
+        errorMessage: openRouterResult.errorMessage,
+      }
     }
 
     const provider = anthropicApiKey ? "Anthropic" : "OpenAI"
