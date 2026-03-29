@@ -1,0 +1,71 @@
+
+> my-project@0.1.0 dev
+> next dev --webpack
+
+▲ Next.js 16.1.6 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://172.20.0.8:3000
+- Environments: .env.local, .env
+
+✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+✓ Ready in 822ms
+○ Compiling / ...
+ GET / 200 in 7.3s (compile: 7.2s, render: 181ms)
+ GET / 200 in 70ms (compile: 10ms, render: 61ms)
+⚠ Cross origin request detected from 3000-5ad314d2-4756-4540-ab46-fa51fc3e78cd.daytonaproxy01.net to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+⨯ Error [PrismaClientConstructorValidationError]: Using engine type "client" requires either "adapter" or "accelerateUrl" to be provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at createPrismaClient (lib/prisma.ts:20:12)
+    at eval (lib/prisma.ts:33:44)
+    at <unknown> (rsc)/./lib/prisma.ts (/home/daytona/sandboxed-agents/.next/dev/server/app/api/auth/[...nextauth]/route.js:44:1)
+    at eval (webpack-internal:///(rsc)/./lib/auth.ts:7:69)
+    at <unknown> (rsc)/./lib/auth.ts (/home/daytona/sandboxed-agents/.next/dev/server/app/api/auth/[...nextauth]/route.js:33:1)
+    at eval (webpack-internal:///(rsc)/./app/api/auth/[...nextauth]/route.ts:8:67)
+    at <unknown> (rsc)/./app/api/auth/[...nextauth]/route.ts (/home/daytona/sandboxed-agents/.next/dev/server/app/api/auth/[...nextauth]/route.js:22:1)
+    at __webpack_exec__ (.next/dev/server/app/api/auth/[...nextauth]/route.js:283:39)
+    at <unknown> (.next/dev/server/app/api/auth/[...nextauth]/route.js:284:583)
+    at <unknown> (.next/dev/server/app/api/auth/[...nextauth]/route.js:284:47)
+    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:287:3)
+  18 |
+  19 |   if (isLocalPostgres) {
+> 20 |     return new PrismaClient({
+     |            ^
+  21 |       log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+  22 |     })
+  23 |   } {
+  page: '/api/auth/session'
+}
+ GET / 200 in 266ms (compile: 117ms, render: 149ms)
+ GET /api/auth/session 500 in 4.0s (compile: 3.9s, render: 133ms)
+ GET / 200 in 452ms (compile: 420ms, render: 32ms)
+ GET / 200 in 24ms (compile: 4ms, render: 20ms)
+⨯ Error [PrismaClientConstructorValidationError]: Using engine type "client" requires either "adapter" or "accelerateUrl" to be provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at createPrismaClient (lib/prisma.ts:20:12)
+    at eval (lib/prisma.ts:33:44)
+    at <unknown> (rsc)/./lib/prisma.ts (/home/daytona/sandboxed-agents/.next/dev/server/app/api/auth/[...nextauth]/route.js:44:1)
+    at eval (webpack-internal:///(rsc)/./lib/auth.ts:7:69)
+    at <unknown> (rsc)/./lib/auth.ts (/home/daytona/sandboxed-agents/.next/dev/server/app/api/auth/[...nextauth]/route.js:33:1)
+    at eval (webpack-internal:///(rsc)/./app/api/auth/[...nextauth]/route.ts:8:67)
+    at <unknown> (rsc)/./app/api/auth/[...nextauth]/route.ts (/home/daytona/sandboxed-agents/.next/dev/server/app/api/auth/[...nextauth]/route.js:22:1)
+    at __webpack_exec__ (.next/dev/server/app/api/auth/[...nextauth]/route.js:283:39)
+    at <unknown> (.next/dev/server/app/api/auth/[...nextauth]/route.js:284:583)
+    at <unknown> (.next/dev/server/app/api/auth/[...nextauth]/route.js:284:47)
+    at Object.<anonymous> (.next/dev/server/app/api/auth/[...nextauth]/route.js:287:3)
+  18 |
+  19 |   if (isLocalPostgres) {
+> 20 |     return new PrismaClient({
+     |            ^
+  21 |       log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+  22 |     })
+  23 |   } {
+  page: '/api/auth/_log'
+}
+ POST /api/auth/_log 500 in 1951ms (compile: 1913ms, render: 38ms)
+ GET /login 200 in 1969ms (compile: 1951ms, render: 17ms)
