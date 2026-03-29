@@ -8,6 +8,12 @@ import {
   INCLUDE_SANDBOX_WITH_USER_CREDENTIALS,
   INCLUDE_BRANCH_WITH_REPO,
 } from "@/lib/prisma-includes"
+import {
+  isAuthSkipped,
+  ensureDevUserExists,
+  warnAboutSkippedAuth,
+  DEV_USER_ID,
+} from "@/lib/dev-auth"
 
 // =============================================================================
 // Types
@@ -121,8 +127,18 @@ export function internalError(error: unknown) {
 /**
  * Gets the authenticated user's ID from the session
  * Returns null if not authenticated
+ *
+ * When SKIP_AUTH=true (development only), returns the dev user ID
+ * and ensures the dev user exists in the database.
  */
 export async function getAuthUserId(): Promise<string | null> {
+  // Check for dev auth bypass
+  if (isAuthSkipped()) {
+    warnAboutSkippedAuth()
+    await ensureDevUserExists()
+    return DEV_USER_ID
+  }
+
   const session = await getServerSession(authOptions)
   return session?.user?.id ?? null
 }
@@ -229,20 +245,34 @@ async function getPreferredGitHubToken(userId: string): Promise<string | null> {
  * Gets the authenticated user's GitHub token
  * Returns userId and token or an error Response
  * Combines session check, account lookup, and token validation in one call
+ *
+ * When SKIP_AUTH=true, uses the dev user but still requires a GitHub token
+ * to be configured in the database for GitHub operations to work.
  */
 export async function requireGitHubAuth(): Promise<GitHubAuthResult | Response> {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
+  let userId: string | null = null
+
+  // Check for dev auth bypass
+  if (isAuthSkipped()) {
+    warnAboutSkippedAuth()
+    await ensureDevUserExists()
+    userId = DEV_USER_ID
+  } else {
+    const session = await getServerSession(authOptions)
+    userId = session?.user?.id ?? null
+  }
+
+  if (!userId) {
     return unauthorized()
   }
 
-  const token = await getPreferredGitHubToken(session.user.id)
+  const token = await getPreferredGitHubToken(userId)
 
   if (!token) {
     return Response.json({ error: "GitHub account not linked" }, { status: 401 })
   }
 
-  return { userId: session.user.id, token }
+  return { userId, token }
 }
 
 /**
