@@ -34,14 +34,23 @@ export async function GET() {
     // Set the session cookie
     const cookieStore = await cookies()
 
-    // In dev mode behind a proxy (like Daytona), we can't use __Secure- cookies
-    // because the proxy terminates TLS and the backend sees HTTP.
-    // Always use non-secure cookie name in dev mode.
-    const cookieName = "next-auth.session-token"
+    // Set both cookie variants to ensure compatibility
+    // The __Secure- prefix is required when accessed via HTTPS (Daytona proxy)
+    // The non-prefixed version is for localhost HTTP access
 
-    cookieStore.set(cookieName, token, {
+    // For HTTPS access (Daytona proxy)
+    cookieStore.set("__Secure-next-auth.session-token", token, {
       httpOnly: true,
-      secure: false, // Dev mode - proxy handles HTTPS
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    })
+
+    // For HTTP access (localhost)
+    cookieStore.set("next-auth.session-token", token, {
+      httpOnly: true,
+      secure: false,
       sameSite: "lax",
       path: "/",
       maxAge: 30 * 24 * 60 * 60, // 30 days
