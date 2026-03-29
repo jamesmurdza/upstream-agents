@@ -253,6 +253,15 @@ export interface ToolCallContentBlock {
 
 export type ContentBlock = TextContentBlock | ToolCallContentBlock
 
+export interface PushErrorInfo {
+  errorMessage: string
+  branchName: string
+  sandboxId: string
+  repoPath: string
+  repoOwner: string
+  repoApiName: string
+}
+
 export interface Message {
   id: string
   role: "user" | "assistant"
@@ -263,6 +272,7 @@ export interface Message {
   commitHash?: string
   commitMessage?: string
   contentLoaded?: boolean  // false = summary only (content not loaded), true/undefined = full content available
+  pushError?: PushErrorInfo  // Present when push failed, allows retry with branch deletion
 }
 
 export interface Branch {

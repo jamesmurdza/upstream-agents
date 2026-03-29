@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/shared/utils"
-import type { Agent, Branch, Message } from "@/lib/shared/types"
+import type { Agent, Branch, Message, PushErrorInfo } from "@/lib/shared/types"
 import { agentLabels } from "@/lib/shared/types"
 import { BRANCH_STATUS } from "@/lib/shared/constants"
 import { Loader2, AlertCircle } from "lucide-react"
@@ -20,11 +20,13 @@ interface MessageListProps {
   onScroll?: () => void
   onCommitClick?: (hash: string, msg: string) => void
   onBranchFromCommit?: (hash: string) => void
+  onRetryPush?: (pushError: PushErrorInfo) => Promise<{ success: boolean; error?: string }>
+  onClearPushError?: (messageId: string) => void
 }
 
 export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
   function MessageList(
-    { branch, messagesLoading, isMobile, onScroll, onCommitClick, onBranchFromCommit },
+    { branch, messagesLoading, isMobile, onScroll, onCommitClick, onBranchFromCommit, onRetryPush, onClearPushError },
     ref
   ) {
     // Creating state
@@ -96,6 +98,8 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
               agent={normalizedAgent as Agent}
               onCommitClick={onCommitClick}
               onBranchFromCommit={onBranchFromCommit}
+              onRetryPush={onRetryPush}
+              onClearPushError={onClearPushError}
             />
           ))}
           {branch.status === BRANCH_STATUS.RUNNING && (

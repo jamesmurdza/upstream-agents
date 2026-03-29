@@ -1,7 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { cn } from "@/lib/shared/utils"
-import type { Agent, Message, ToolCall } from "@/lib/shared/types"
+import type { Agent, Message, PushErrorInfo, ToolCall } from "@/lib/shared/types"
 import { agentLabels } from "@/lib/shared/types"
 import {
   FileText,
@@ -13,6 +14,9 @@ import {
   Regex,
   GitCommitHorizontal,
   GitBranch,
+  RefreshCw,
+  Loader2,
+  Trash2,
 } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
 import Markdown from "react-markdown"
@@ -115,15 +119,92 @@ function TextBlockContent({ text }: { text: string }) {
 // Message Bubble Component
 // ============================================================================
 
+// ============================================================================
+// Push Error Retry Component
+// ============================================================================
+
+interface PushErrorRetryProps {
+  pushError: PushErrorInfo
+  onRetry: (pushError: PushErrorInfo) => Promise<{ success: boolean; error?: string }>
+  messageId: string
+  onClearError: () => void
+}
+
+function PushErrorRetry({ pushError, onRetry, messageId, onClearError }: PushErrorRetryProps) {
+  const [isRetrying, setIsRetrying] = useState(false)
+  const [retryError, setRetryError] = useState<string | null>(null)
+
+  const handleRetry = async () => {
+    setIsRetrying(true)
+    setRetryError(null)
+    try {
+      const result = await onRetry(pushError)
+      if (result.success) {
+        onClearError()
+      } else {
+        setRetryError(result.error || "Retry failed")
+      }
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : "Retry failed")
+    } finally {
+      setIsRetrying(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 p-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10">
+      <div className="flex items-start gap-2">
+        <Trash2 className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
+            Push failed
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Would you like to delete the remote branch and push again? This will replace the remote branch with your local changes.
+          </p>
+          {retryError && (
+            <p className="text-xs text-red-500 mt-1">
+              {retryError}
+            </p>
+          )}
+          <button
+            onClick={handleRetry}
+            disabled={isRetrying}
+            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isRetrying ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Deleting and pushing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3 w-3" />
+                Delete remote branch and push
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Message Bubble Component
+// ============================================================================
+
 interface MessageBubbleProps {
   message: Message
   agent?: Agent
   agentLabel?: string // Deprecated: use agent prop instead
   onCommitClick?: (hash: string, msg: string) => void
   onBranchFromCommit?: (hash: string) => void
+  onRetryPush?: (pushError: PushErrorInfo) => Promise<{ success: boolean; error?: string }>
+  onClearPushError?: (messageId: string) => void
 }
 
-export function MessageBubble({ message, agent = "claude-code", agentLabel, onCommitClick, onBranchFromCommit }: MessageBubbleProps) {
+export function MessageBubble({ message, agent = "claude-code", agentLabel, onCommitClick, onBranchFromCommit, onRetryPush, onClearPushError }: MessageBubbleProps) {
   // Use agent prop primarily, fall back to agentLabel for backwards compatibility
   const displayLabel = agentLabel || agentLabels[agent] || "Claude Code"
   const isUser = message.role === "user"
@@ -221,6 +302,16 @@ export function MessageBubble({ message, agent = "claude-code", agentLabel, onCo
             <ToolCallTimeline toolCalls={message.toolCalls} />
           )}
         </>
+      )}
+
+      {/* Push error retry UI */}
+      {message.pushError && onRetryPush && (
+        <PushErrorRetry
+          pushError={message.pushError}
+          onRetry={onRetryPush}
+          messageId={message.id}
+          onClearError={() => onClearPushError?.(message.id)}
+        />
       )}
     </div>
   )

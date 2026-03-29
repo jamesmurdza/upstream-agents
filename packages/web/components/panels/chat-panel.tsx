@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/shared/utils"
-import type { Agent, Branch, Message, UserCredentialFlags } from "@/lib/shared/types"
+import type { Agent, Branch, Message, PushErrorInfo, UserCredentialFlags } from "@/lib/shared/types"
 import { defaultAgentModel, getDefaultModelForAgent, LOOP_CONTINUATION_MESSAGE, DEFAULT_LOOP_MAX_ITERATIONS } from "@/lib/shared/types"
 import { generateId } from "@/lib/shared/store"
 import { BRANCH_STATUS, PATHS } from "@/lib/shared/constants"
@@ -212,6 +212,8 @@ export function ChatPanel({
   } = useExecutionPolling({
     branch,
     repoName,
+    repoOwner,
+    repoApiName: repoName, // repoName is the API name (without owner)
     onUpdateMessage,
     onUpdateBranch,
     onAddMessage,
@@ -517,6 +519,52 @@ export function ChatPanel({
     }
   }, [branch.id, onUpdateBranch, defaultLoopMaxIterations])
 
+  // Handle push retry - delete remote branch and push again
+  const handleRetryPush = useCallback(async (pushError: PushErrorInfo): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch("/api/sandbox/git", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sandboxId: pushError.sandboxId,
+          repoPath: pushError.repoPath,
+          action: "delete-branch-and-push",
+          currentBranch: pushError.branchName,
+          repoOwner: pushError.repoOwner,
+          repoApiName: pushError.repoApiName,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        return {
+          success: false,
+          error: (errorData as { error?: string }).error || `Failed with status ${response.status}`,
+        }
+      }
+
+      return { success: true }
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error",
+      }
+    }
+  }, [])
+
+  // Clear push error from a message
+  const handleClearPushError = useCallback((messageId: string) => {
+    // Find the message and update it to remove pushError
+    const message = branch.messages.find((m) => m.id === messageId)
+    if (message) {
+      // Update the message to remove pushError and update content
+      onUpdateMessage(branch.id, messageId, {
+        content: "✅ Push succeeded after deleting remote branch.",
+        pushError: undefined,
+      })
+    }
+  }, [branch.id, branch.messages, onUpdateMessage])
+
   return (
     <TooltipProvider delayDuration={0}>
       <div className={cn(
@@ -543,6 +591,8 @@ export function ChatPanel({
           onScroll={handleScroll}
           onCommitClick={handleCommitClick}
           onBranchFromCommit={onBranchFromCommit}
+          onRetryPush={handleRetryPush}
+          onClearPushError={handleClearPushError}
         />
 
         {/* Input */}

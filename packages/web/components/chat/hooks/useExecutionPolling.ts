@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect } from "react"
-import type { Branch, Message } from "@/lib/shared/types"
+import type { Branch, Message, PushErrorInfo } from "@/lib/shared/types"
 import { generateId } from "@/lib/shared/store"
 import { BRANCH_STATUS, EXECUTION_STATUS, PATHS } from "@/lib/shared/constants"
 import { isLoopFinished, LOOP_CONTINUATION_MESSAGE } from "@/lib/shared/types"
@@ -7,6 +7,10 @@ import { isLoopFinished, LOOP_CONTINUATION_MESSAGE } from "@/lib/shared/types"
 interface UseExecutionPollingOptions {
   branch: Branch
   repoName: string
+  /** Repository owner (e.g., "octocat") */
+  repoOwner: string
+  /** Repository API name (e.g., "hello-world") */
+  repoApiName: string
   /** Update message in a specific branch. May return a Promise so completion can await final save. */
   onUpdateMessage: (branchId: string, messageId: string, updates: Partial<Message>) => void | Promise<void>
   onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
@@ -29,6 +33,8 @@ interface UseExecutionPollingOptions {
 export function useExecutionPolling({
   branch,
   repoName,
+  repoOwner,
+  repoApiName,
   onUpdateMessage,
   onUpdateBranch,
   onAddMessage,
@@ -105,10 +111,21 @@ export function useExecutionPolling({
           }),
         })
 
-        // Show error in chat if push failed
+        // Show error in chat if push failed, with option to retry
         if (!autoCommitRes.ok) {
           const errorData = await autoCommitRes.json().catch(() => ({}))
           const errorMessage = (errorData as { error?: string }).error || `Push failed (${autoCommitRes.status})`
+
+          // Include push error info so user can retry by deleting remote branch
+          const pushError: PushErrorInfo = {
+            errorMessage,
+            branchName: branch.name,
+            sandboxId: currentSandboxId,
+            repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
+            repoOwner,
+            repoApiName,
+          }
+
           onAddMessage(targetBranchId, {
             id: generateId(),
             role: "assistant",
@@ -117,6 +134,7 @@ export function useExecutionPolling({
               hour: "2-digit",
               minute: "2-digit",
             }),
+            pushError,
           })
         }
       }
@@ -185,7 +203,7 @@ export function useExecutionPolling({
     } finally {
       commitDetectionRunningRef.current = false
     }
-  }, [repoName, onAddMessage, onCommitsDetected])
+  }, [repoName, repoOwner, repoApiName, branch.name, onAddMessage, onCommitsDetected])
 
   // Cleanup polling on unmount
   useEffect(() => {
