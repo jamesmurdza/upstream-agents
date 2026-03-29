@@ -222,37 +222,58 @@ Or push to Vercel - the build script handles migrations automatically.
 
 ## Development
 
+This is a monorepo with two packages:
+
+```
+packages/
+├── agents/   # @sandboxed-agents/sdk - TypeScript SDK for AI coding agents
+└── web/      # @sandboxed-agents/web - Next.js web application
+```
+
 ### Quick Start
 
 ```bash
-# Install dependencies
+# Install all dependencies (from root)
 npm install
 
-# Set up local env (copy from Vercel or create .env.local)
-cp .env.example .env.local
+# Set up local env (copy from Vercel or create .env.local in packages/web)
+cp .env.example packages/web/.env.local
 
 # Run migrations
-npx prisma migrate dev
+npm run build:sdk                    # Build the SDK first
+cd packages/web && npx prisma migrate dev
 
 # Start dev server
 npm run dev
 ```
 
-### Available Scripts
+### Available Scripts (Root)
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start development server with Webpack |
-| `npm run dev:local` | Dev with local SDK + debug logs |
-| `npm run build` | Prisma generate + Next.js build |
-| `npm run start` | Production server |
-| `npm run lint` | ESLint check |
-| `npm run install:local` | Setup local SDK symlink |
-| `npm run build-sdk` | Build local SDK |
+| `npm run dev` | Start web development server |
+| `npm run build` | Build SDK + web app |
+| `npm run build:sdk` | Build only the SDK package |
+| `npm run build:web` | Build only the web app |
+| `npm run start` | Start production server |
+| `npm run lint` | ESLint check across all packages |
+| `npm run clean` | Clean build artifacts |
+
+### Package-Specific Commands
+
+```bash
+# SDK package (packages/agents)
+npm run build -w @sandboxed-agents/sdk
+npm run test -w @sandboxed-agents/sdk
+
+# Web package (packages/web)
+npm run dev -w @sandboxed-agents/web
+npm run build -w @sandboxed-agents/web
+```
 
 ### Local Environment
 
-Create `.env.local`:
+Create `packages/web/.env.local`:
 
 ```env
 DATABASE_URL="postgres://..."
@@ -263,38 +284,26 @@ GITHUB_CLIENT_ID="..."
 GITHUB_CLIENT_SECRET="..."
 ENCRYPTION_KEY="..."
 DAYTONA_API_KEY="dtn_..."
-DAYTONA_API_URL="https://api.daytona.io"
 ```
 
 > **Note**: For local GitHub OAuth, create a separate OAuth App with callback URL `http://localhost:3000/api/auth/callback/github`
 
-### Local coding-agents-sdk Development
+### SDK Development
 
-To develop against the local `background-agents` repo instead of the npm package:
+The SDK (`@sandboxed-agents/sdk`) is in `packages/agents/`. The web app depends on it via workspace reference.
 
-1. **Switch to local SDK**:
-   ```bash
-   npm run install:local
-   ```
-   This installs deps, symlinks `node_modules/background-agents` to your local SDK path, and builds the SDK.
+```bash
+# Build the SDK after making changes
+npm run build:sdk
 
-2. **Run dev with local SDK and debug logs**:
-   ```bash
-   npm run dev:local
-   ```
-   Runs `install:local` then `npm run dev` with `CODING_AGENTS_DEBUG=1`.
+# Run SDK tests
+npm run test -w @sandboxed-agents/sdk
 
-3. **After changing the SDK**, rebuild:
-   ```bash
-   npm run build-sdk
-   ```
+# Run SDK tests with coverage
+cd packages/agents && npm run test:coverage
+```
 
-4. **Switch back to published SDK**:
-   ```bash
-   npm install
-   ```
-
-The local SDK path is configured in `scripts/link-local-sdk.js`.
+See [`packages/agents/README.md`](packages/agents/README.md) for full SDK documentation.
 
 ---
 
