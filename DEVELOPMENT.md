@@ -49,14 +49,16 @@ sudo -u postgres psql -c "CREATE DATABASE sandboxed_agents OWNER sandboxed;"
 
 ### 3. Configure Environment
 
-Create a `.env` file in the project root:
+Create a `.env` file in `packages/web/`:
 
 ```bash
 # Database (Local PostgreSQL)
 DATABASE_URL="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
 DATABASE_URL_UNPOOLED="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
 
-# NextAuth (required but not used in dev mode)
+# NextAuth - IMPORTANT: Set to your actual URL, not localhost!
+# - Local dev: http://localhost:3000
+# - Daytona: https://{port}-{sandbox-id}.daytonaproxy01.net
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="dev-secret-not-used-in-dev-mode"
 
