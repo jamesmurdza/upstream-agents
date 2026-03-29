@@ -25,6 +25,7 @@ export const MERGE_STATUS = {
   LOADING: "loading",
   MERGED: "merged",
   UNMERGED: "unmerged",
+  NOT_FOUND: "not_found",
   ERROR: "error",
 } as const
 
