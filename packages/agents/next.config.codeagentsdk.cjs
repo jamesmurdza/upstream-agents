@@ -3,11 +3,11 @@
  * are not bundled by Webpack.
  *
  * Usage (next.config.js or next.config.mjs):
- *   import codeagentsdk from 'background-agents/next.config'
+ *   import codeagentsdk from 'agents/next.config'
  *   export default { ...codeagentsdk, ...yourConfig }
  *
  * Or (next.config.cjs):
- *   const codeagentsdk = require('background-agents/next.config')
+ *   const codeagentsdk = require('agents/next.config')
  *   module.exports = { ...codeagentsdk, ...yourConfig }
  */
 module.exports = {

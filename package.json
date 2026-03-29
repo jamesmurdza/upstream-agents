@@ -6,8 +6,8 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @sandboxed-agents/web",
-    "build": "npm run build -w background-agents && npm run build -w @sandboxed-agents/web",
-    "build:sdk": "npm run build -w background-agents",
+    "build": "npm run build -w agents && npm run build -w @sandboxed-agents/web",
+    "build:sdk": "npm run build -w agents",
     "build:web": "npm run build -w @sandboxed-agents/web",
     "start": "npm run start -w @sandboxed-agents/web",
     "lint": "npm run lint --workspaces --if-present",

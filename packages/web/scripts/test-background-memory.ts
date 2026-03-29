@@ -13,7 +13,7 @@ import {
   createBackgroundSession,
   type BackgroundSession,
   type Event,
-} from "background-agents"
+} from "agents"
 
 async function drainAllEvents(bg: BackgroundSession): Promise<Event[]> {
   const events: Event[] = []

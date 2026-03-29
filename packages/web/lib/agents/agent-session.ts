@@ -1,7 +1,7 @@
 /**
  * Agent Session Module
  *
- * Wrapper module for background-agents SDK providing:
+ * Wrapper module for agents SDK providing:
  * - System prompt building
  * - Tool name mapping (SDK names to UI names)
  * - Event transformation
@@ -20,7 +20,7 @@ import {
   type ToolEndEvent,
   type EndEvent,
   type BackgroundSessionOptions,
-} from "background-agents"
+} from "agents"
 import type { Sandbox as DaytonaSandbox } from "@daytonaio/sdk"
 import { type Agent, getProviderForAgent } from "@/lib/shared/types"
 import { PATHS, SANDBOX_CONFIG } from "@/lib/shared/constants"

@@ -6,7 +6,7 @@
  * IMPORTANT: Permissions are enforced via the OPENCODE_PERMISSION env var, NOT the config file.
  *
  * Why we use an env var instead of the config file:
- * 1. The background-agents SDK sets OPENCODE_PERMISSION='{"*":"allow"}' by default
+ * 1. The agents SDK sets OPENCODE_PERMISSION='{"*":"allow"}' by default
  *    in src/providers/opencode.ts to allow all actions in headless mode
  * 2. This env var takes precedence over the config file permissions
  * 3. Writing permissions to ~/.config/opencode/opencode.jsonc has no effect
