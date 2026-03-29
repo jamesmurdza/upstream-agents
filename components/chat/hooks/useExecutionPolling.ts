@@ -618,96 +618,107 @@ export function useExecutionPolling({
         if (cancelled) {
           return
         }
-        if (data.state && data.state !== "started") {
-          onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.STOPPED })
-        } else {
-          // Always check for active execution regardless of current branch status.
-          // This fixes a race condition where the branch status might be stale (e.g., IDLE)
-          // even though an execution is actively running in the database.
-          // The execution/active endpoint is the source of truth for running state.
-          fetch("/api/agent/execution/active", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ branchId: effectBranchId }),
-          })
-            .then((r) => r.json())
-            .then((execData) => {
-              // Check if effect was cancelled
-              if (cancelled) {
+        const sandboxNotStarted = data.state && data.state !== "started"
+        // Always check for active execution regardless of sandbox state.
+        // This fixes a race condition where the user sends a prompt to a stopped sandbox:
+        // 1. User sends prompt -> handleSend sets status to RUNNING and calls /api/agent/execute
+        // 2. /api/agent/execute starts waiting for sandbox to start (up to 120s)
+        // 3. Meanwhile, this effect runs and sees sandbox is "stopped"
+        // 4. OLD BUG: We would immediately set status to STOPPED, breaking the UX
+        // 5. FIX: Always check for active execution first - it's the source of truth
+        fetch("/api/agent/execution/active", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ branchId: effectBranchId }),
+        })
+          .then((r) => r.json())
+          .then((execData) => {
+            // Check if effect was cancelled
+            if (cancelled) {
+              return
+            }
+            if (execData.execution && execData.execution.status === EXECUTION_STATUS.RUNNING) {
+              if (pollingActiveRef.current) {
                 return
               }
-              if (execData.execution && execData.execution.status === EXECUTION_STATUS.RUNNING) {
-                if (pollingActiveRef.current) {
-                  return
-                }
-                // Update branch status to RUNNING if it wasn't already - this ensures spinner shows
-                if (currentStatus !== BRANCH_STATUS.RUNNING) {
-                  onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.RUNNING })
-                }
-                currentMessageIdRef.current = execData.execution.messageId
-                currentExecutionIdRef.current = execData.execution.executionId
-                startPollingRef.current(execData.execution.messageId, execData.execution.executionId)
-                return
+              // Update branch status to RUNNING if it wasn't already - this ensures spinner shows
+              if (currentStatus !== BRANCH_STATUS.RUNNING) {
+                onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.RUNNING })
               }
-              // No active execution found - if branch thought it was running, set to idle
-              if (currentStatus === BRANCH_STATUS.RUNNING) {
-                const lastAssistantMsg =
-                  currentMessages && currentMessages.length > 0
-                    ? [...currentMessages].reverse().find((m) => m.role === "assistant" && !m.commitHash)
-                    : null
-                if (!lastAssistantMsg) {
-                  onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.IDLE })
-                  return
-                }
-                // Execution row may not exist yet if user switched immediately after send; retry once
-                const retryResume = () => {
-                  // Check cancelled flag before proceeding
-                  if (cancelled) {
-                    return
-                  }
-                  if (pollingActiveRef.current) return
-                  fetch("/api/agent/execution/active", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ branchId: effectBranchId }),
-                  })
-                    .then((r) => r.json())
-                    .then((retryData) => {
-                      // Check cancelled flag after async operation
-                      if (cancelled) {
-                        return
-                      }
-                      if (pollingActiveRef.current) return
-                      if (retryData.execution && retryData.execution.status === EXECUTION_STATUS.RUNNING) {
-                        currentMessageIdRef.current = retryData.execution.messageId
-                        currentExecutionIdRef.current = retryData.execution.executionId
-                        startPollingRef.current(retryData.execution.messageId, retryData.execution.executionId)
-                        return
-                      }
-                      currentMessageIdRef.current = lastAssistantMsg.id
-                      startPollingRef.current(lastAssistantMsg.id)
-                    })
-                    .catch(() => {
-                      // Check cancelled flag in error handler
-                      if (cancelled) return
-                      if (pollingActiveRef.current) return
-                      currentMessageIdRef.current = lastAssistantMsg.id
-                      startPollingRef.current(lastAssistantMsg.id)
-                    })
-                }
-                if (resumeRetryTimeoutRef.current) clearTimeout(resumeRetryTimeoutRef.current)
-                resumeRetryTimeoutRef.current = setTimeout(retryResume, 700)
-              }
-            })
-            .catch(() => {
-              // Check cancelled flag in error handler
-              if (cancelled) return
-              // On error checking execution, only set to idle if we thought we were running
-              if (currentStatus === BRANCH_STATUS.RUNNING) {
+              currentMessageIdRef.current = execData.execution.messageId
+              currentExecutionIdRef.current = execData.execution.executionId
+              startPollingRef.current(execData.execution.messageId, execData.execution.executionId)
+              return
+            }
+            // No active execution found
+            // If sandbox is not started and no execution is running, mark as stopped
+            if (sandboxNotStarted) {
+              onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.STOPPED })
+              return
+            }
+            // Sandbox is started but no active execution - if branch thought it was running, set to idle
+            if (currentStatus === BRANCH_STATUS.RUNNING) {
+              const lastAssistantMsg =
+                currentMessages && currentMessages.length > 0
+                  ? [...currentMessages].reverse().find((m) => m.role === "assistant" && !m.commitHash)
+                  : null
+              if (!lastAssistantMsg) {
                 onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.IDLE })
+                return
               }
-            })
-        }
+              // Execution row may not exist yet if user switched immediately after send; retry once
+              const retryResume = () => {
+                // Check cancelled flag before proceeding
+                if (cancelled) {
+                  return
+                }
+                if (pollingActiveRef.current) return
+                fetch("/api/agent/execution/active", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ branchId: effectBranchId }),
+                })
+                  .then((r) => r.json())
+                  .then((retryData) => {
+                    // Check cancelled flag after async operation
+                    if (cancelled) {
+                      return
+                    }
+                    if (pollingActiveRef.current) return
+                    if (retryData.execution && retryData.execution.status === EXECUTION_STATUS.RUNNING) {
+                      currentMessageIdRef.current = retryData.execution.messageId
+                      currentExecutionIdRef.current = retryData.execution.executionId
+                      startPollingRef.current(retryData.execution.messageId, retryData.execution.executionId)
+                      return
+                    }
+                    currentMessageIdRef.current = lastAssistantMsg.id
+                    startPollingRef.current(lastAssistantMsg.id)
+                  })
+                  .catch(() => {
+                    // Check cancelled flag in error handler
+                    if (cancelled) return
+                    if (pollingActiveRef.current) return
+                    currentMessageIdRef.current = lastAssistantMsg.id
+                    startPollingRef.current(lastAssistantMsg.id)
+                  })
+              }
+              if (resumeRetryTimeoutRef.current) clearTimeout(resumeRetryTimeoutRef.current)
+              resumeRetryTimeoutRef.current = setTimeout(retryResume, 700)
+            }
+          })
+          .catch(() => {
+            // Check cancelled flag in error handler
+            if (cancelled) return
+            // On error checking execution: if sandbox is stopped, mark as stopped
+            if (sandboxNotStarted) {
+              onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.STOPPED })
+              return
+            }
+            // Otherwise, only set to idle if we thought we were running
+            if (currentStatus === BRANCH_STATUS.RUNNING) {
+              onUpdateBranch(effectBranchId, { status: BRANCH_STATUS.IDLE })
+            }
+          })
       })
       .catch(() => {})
     return () => {
