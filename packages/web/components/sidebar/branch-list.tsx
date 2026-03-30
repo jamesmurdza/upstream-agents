@@ -309,11 +309,18 @@ export function BranchList({
                       isActive
                         ? "bg-accent text-foreground"
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                      isDeleting && "cursor-not-allowed opacity-60"
+                      isDeleting && "cursor-not-allowed"
                     )}
                   >
-                    <StatusDot status={branch.status} unread={branch.unread} isActive={isActive} />
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    {isDeleting ? (
+                      <Loader2 className="h-5 w-5 shrink-0 animate-spin text-muted-foreground" />
+                    ) : (
+                      <StatusDot status={branch.status} unread={branch.unread} isActive={isActive} />
+                    )}
+                    <div className={cn(
+                      "flex min-w-0 flex-1 flex-col gap-0.5 transition-opacity",
+                      isDeleting && "opacity-40"
+                    )}>
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "truncate text-sm",
@@ -323,17 +330,10 @@ export function BranchList({
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {isDeleting ? (
-                          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                            <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground/70" />
-                            Deleting…
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                            <AgentIcon agent={branch.agent || "claude-code"} className="h-2.5 w-2.5" />
-                            {branch.status === BRANCH_STATUS.CREATING ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <AgentIcon agent={branch.agent || "claude-code"} className="h-2.5 w-2.5" />
+                          {branch.status === BRANCH_STATUS.CREATING ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
+                        </span>
                       </div>
                     </div>
                   </button>
