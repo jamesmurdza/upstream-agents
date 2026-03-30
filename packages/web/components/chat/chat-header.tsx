@@ -15,7 +15,10 @@ import {
   Play,
   Pause,
   Sparkles,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react"
+import type { RebaseConflictState } from "@/components/git/hooks/useGitDialogs"
 import {
   Tooltip,
   TooltipContent,
@@ -46,6 +49,8 @@ interface ChatHeaderProps {
   gitHistoryOpen: boolean
   gitActions: UseGitActionsReturn
   renaming: UseBranchRenamingReturn
+  rebaseConflict?: RebaseConflictState
+  onAbortRebase?: () => void
 }
 
 export function ChatHeader({
@@ -54,12 +59,18 @@ export function ChatHeader({
   gitHistoryOpen,
   gitActions,
   renaming,
+  rebaseConflict,
+  onAbortRebase,
 }: ChatHeaderProps) {
   const isReady = branch.sandboxId && (branch.status !== BRANCH_STATUS.CREATING)
   const isBusy = branch.status === BRANCH_STATUS.RUNNING || branch.status === BRANCH_STATUS.CREATING
+  const inConflict = rebaseConflict?.inRebase ?? false
 
   return (
-    <header className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2.5 sm:px-4">
+    <header className={cn(
+      "flex shrink-0 items-center gap-2 border-b px-3 py-2.5 sm:px-4",
+      inConflict ? "border-red-500/50 bg-red-500/10" : "border-border"
+    )}>
       {/* Branch name section */}
       {renaming.renaming ? (
         <div className="flex items-center gap-1.5 min-w-0 ml-2.5">
@@ -178,6 +189,37 @@ export function ChatHeader({
           </Tooltip>
           <div className="mx-1.5 h-4 w-px bg-border shrink-0" />
         </>)}
+
+        {/* Conflict warning indicator */}
+        {inConflict && (
+          <>
+            <div className="flex items-center gap-1.5 text-red-500">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Rebase Conflict</span>
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onAbortRebase}
+                  disabled={gitActions.gitDialogs.actionLoading}
+                  className="flex cursor-pointer h-7 px-2 shrink-0 items-center justify-center gap-1.5 rounded-md bg-red-500/20 text-red-500 hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {gitActions.gitDialogs.actionLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <XCircle className="h-3.5 w-3.5" />
+                  )}
+                  <span className="text-xs font-medium">Abort Rebase</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                Abort the rebase and return to the previous state
+              </TooltipContent>
+            </Tooltip>
+            <div className="mx-1.5 h-4 w-px bg-red-500/30 shrink-0" />
+          </>
+        )}
+
         {headerActions.map((action) => {
           const isActive = action.action === "log" && gitHistoryOpen
           const hasPR = action.action === "create-pr" && !!branch.prUrl
@@ -187,6 +229,13 @@ export function ChatHeader({
           // PR button should be enabled when it already has a PR URL (just opens the PR)
           // Diff and Log can always be used while busy
           const canUseWhileBusy = action.action === "log" || action.action === "diff" || hasPR
+
+          // Hide merge, rebase, and create-pr buttons during conflict
+          const hideInConflict = ["create-pr", "merge", "rebase"].includes(action.action)
+          if (inConflict && hideInConflict) {
+            return null
+          }
+
           return (
             <Tooltip key={action.label}>
               <TooltipTrigger asChild>

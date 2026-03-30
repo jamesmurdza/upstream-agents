@@ -373,6 +373,9 @@ export default function Home() {
               prLoading={mobileUI.mobilePrLoading}
               onUpdateBranch={handleUpdateBranch}
               credentials={credentials}
+              rebaseConflict={mobileGitDialogs.rebaseConflict}
+              onAbortRebase={mobileGitDialogs.handleAbortRebase}
+              abortLoading={mobileGitDialogs.actionLoading}
             />
 
             {/* Chat content */}

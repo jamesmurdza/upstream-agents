@@ -8,6 +8,12 @@ import { PATHS } from "@/lib/shared/constants"
 // Export the return type for use in components
 export type UseGitDialogsReturn = ReturnType<typeof useGitDialogs>
 
+// Conflict state type
+export interface RebaseConflictState {
+  inRebase: boolean
+  conflictedFiles: string[]
+}
+
 interface UseGitDialogsOptions {
   branch: Branch | null
   repoName: string
@@ -49,6 +55,12 @@ export function useGitDialogs({
 
   // Tag-specific state
   const [tagNameInput, setTagNameInput] = useState("")
+
+  // Rebase conflict state
+  const [rebaseConflict, setRebaseConflict] = useState<RebaseConflictState>({
+    inRebase: false,
+    conflictedFiles: [],
+  })
 
   const addSystemMessage = useCallback((content: string) => {
     if (!branchId) return
@@ -169,6 +181,30 @@ export function useGitDialogs({
         }),
       })
       const data = await res.json()
+
+      // Check for conflict response
+      if (res.status === 409 && data.conflict) {
+        // Set conflict state
+        setRebaseConflict({
+          inRebase: true,
+          conflictedFiles: data.conflictedFiles || [],
+        })
+
+        // Show user-facing message about the conflict
+        const fileList = (data.conflictedFiles || [])
+          .map((f: string) => `- \`${f}\``)
+          .join('\n')
+
+        addSystemMessage(
+          `⚠️ **Rebase conflict detected**\n\n` +
+          `Rebasing **${branchName}** onto **${selectedBranch}** resulted in conflicts.\n\n` +
+          `**Conflicted files:**\n${fileList}\n\n` +
+          `You can ask the agent to resolve these conflicts, or click **Abort Rebase** to cancel.`
+        )
+        setRebaseOpen(false)
+        return
+      }
+
       if (!res.ok) throw new Error(data.error)
       addSystemMessage(`Rebased **${branchName}** onto **${selectedBranch}** and force-pushed.`)
       setRebaseOpen(false)
@@ -212,6 +248,67 @@ export function useGitDialogs({
     }
   }, [tagNameInput, branch, sandboxId, repoFullName, repoName, addSystemMessage])
 
+  // Abort an in-progress rebase
+  const handleAbortRebase = useCallback(async () => {
+    if (!sandboxId) return
+    setActionLoading(true)
+
+    try {
+      const res = await fetch("/api/sandbox/git", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sandboxId,
+          repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
+          action: "abort-rebase",
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      // Clear conflict state
+      setRebaseConflict({ inRebase: false, conflictedFiles: [] })
+      addSystemMessage(`Rebase aborted. Your branch is back to its previous state.`)
+    } catch (err: unknown) {
+      addSystemMessage(`Abort failed: ${err instanceof Error ? err.message : "Unknown error"}`)
+    } finally {
+      setActionLoading(false)
+    }
+  }, [sandboxId, repoName, addSystemMessage])
+
+  // Check if repo is currently in a rebase state (for live detection)
+  const checkRebaseStatus = useCallback(async () => {
+    if (!sandboxId) return
+
+    try {
+      const res = await fetch("/api/sandbox/git", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sandboxId,
+          repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
+          action: "check-rebase-status",
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setRebaseConflict({
+          inRebase: data.inRebase || false,
+          conflictedFiles: data.conflictedFiles || [],
+        })
+      }
+    } catch {
+      // Ignore errors - non-critical check
+    }
+  }, [sandboxId, repoName])
+
+  // Check rebase status on mount and when branch changes
+  useEffect(() => {
+    if (sandboxId) {
+      checkRebaseStatus()
+    }
+  }, [sandboxId, checkRebaseStatus])
+
   return {
     // Dialog open states
     mergeOpen,
@@ -247,5 +344,10 @@ export function useGitDialogs({
     handleMerge,
     handleRebase,
     handleTag,
+    handleAbortRebase,
+    checkRebaseStatus,
+
+    // Rebase conflict state
+    rebaseConflict,
   }
 }

@@ -579,6 +579,8 @@ export function ChatPanel({
             gitHistoryOpen={gitHistoryOpen}
             gitActions={gitActions}
             renaming={renaming}
+            rebaseConflict={gitActions.gitDialogs.rebaseConflict}
+            onAbortRebase={gitActions.gitDialogs.handleAbortRebase}
           />
         )}
 
@@ -593,6 +595,7 @@ export function ChatPanel({
           onBranchFromCommit={onBranchFromCommit}
           onRetryPush={handleRetryPush}
           onClearPushError={handleClearPushError}
+          inConflict={gitActions.gitDialogs.rebaseConflict?.inRebase}
         />
 
         {/* Input */}

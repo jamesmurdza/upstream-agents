@@ -22,11 +22,12 @@ interface MessageListProps {
   onBranchFromCommit?: (hash: string) => void
   onRetryPush?: (pushError: PushErrorInfo) => Promise<{ success: boolean; error?: string }>
   onClearPushError?: (messageId: string) => void
+  inConflict?: boolean
 }
 
 export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
   function MessageList(
-    { branch, messagesLoading, isMobile, onScroll, onCommitClick, onBranchFromCommit, onRetryPush, onClearPushError },
+    { branch, messagesLoading, isMobile, onScroll, onCommitClick, onBranchFromCommit, onRetryPush, onClearPushError, inConflict },
     ref
   ) {
     // Creating state
@@ -89,7 +90,7 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
 
     // Messages list
     return (
-      <MessageListContainer ref={ref} onScroll={onScroll} isMobile={isMobile}>
+      <MessageListContainer ref={ref} onScroll={onScroll} isMobile={isMobile} inConflict={inConflict}>
         <div className="flex flex-col gap-5 min-w-0 w-full max-w-full">
           {branch.messages.map((msg) => (
             <MessageBubble
@@ -122,10 +123,11 @@ interface MessageListContainerProps {
   children: React.ReactNode
   isMobile?: boolean
   onScroll?: () => void
+  inConflict?: boolean
 }
 
 const MessageListContainer = forwardRef<HTMLDivElement, MessageListContainerProps>(
-  function MessageListContainer({ children, isMobile, onScroll }, ref) {
+  function MessageListContainer({ children, isMobile, onScroll, inConflict }, ref) {
     return (
       <div
         ref={ref}
@@ -134,7 +136,8 @@ const MessageListContainer = forwardRef<HTMLDivElement, MessageListContainerProp
           "flex-1 overflow-y-auto overscroll-contain",
           isMobile
             ? "px-3 py-4 pb-4 touch-pan-y h-0 overflow-x-hidden w-full max-w-full"
-            : "min-h-0 px-3 py-6 sm:px-6"
+            : "min-h-0 px-3 py-6 sm:px-6",
+          inConflict && "bg-red-500/5 border-l-2 border-red-500/50"
         )}
       >
         {children}

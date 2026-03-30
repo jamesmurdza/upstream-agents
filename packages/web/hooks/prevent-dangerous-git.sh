@@ -16,10 +16,15 @@ if echo "$COMMAND" | grep -qE '(^|&&|;|\|)\s*git\s+commit\s+(--amend|[^|;&]*\s--
   exit 2
 fi
 
-# 2. Block git rebase
+# 2. Block git rebase (but allow --continue, --abort, --skip for conflict resolution)
 if matches_git_command 'rebase'; then
-  echo "Blocked: git rebase is not allowed. It rewrites history." >&2
-  exit 2
+  # Allow rebase conflict resolution commands
+  if echo "$COMMAND" | grep -qE 'git\s+rebase\s+--(continue|abort|skip)'; then
+    : # Allow these through
+  else
+    echo "Blocked: git rebase is not allowed. It rewrites history." >&2
+    exit 2
+  fi
 fi
 
 # 3. Block git reset --hard

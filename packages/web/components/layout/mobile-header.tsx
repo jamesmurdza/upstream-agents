@@ -18,7 +18,10 @@ import {
   Check,
   X,
   Sparkles,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react"
+import type { RebaseConflictState } from "@/components/git/hooks/useGitDialogs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +47,9 @@ interface MobileHeaderProps {
   prLoading: boolean
   onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
   credentials?: UserCredentialFlags | null
+  rebaseConflict?: RebaseConflictState
+  onAbortRebase?: () => void
+  abortLoading?: boolean
 }
 
 export function MobileHeader({
@@ -62,12 +68,16 @@ export function MobileHeader({
   prLoading,
   onUpdateBranch,
   credentials,
+  rebaseConflict,
+  onAbortRebase,
+  abortLoading,
 }: MobileHeaderProps) {
   const isStopped = branch?.status === BRANCH_STATUS.STOPPED
   const isRunning = branch?.status === BRANCH_STATUS.RUNNING || branch?.status === BRANCH_STATUS.CREATING
   const hasPR = !!branch?.prUrl
   const hasSandbox = !!branch?.sandboxId
   const showMenu = !!(repoOwner && repoName && branch)
+  const inConflict = rebaseConflict?.inRebase ?? false
 
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState("")
@@ -204,7 +214,10 @@ export function MobileHeader({
 
   return (
     <header
-      className="flex shrink-0 items-center gap-2 border-b border-border bg-card px-2 py-2"
+      className={cn(
+        "flex shrink-0 items-center gap-2 border-b bg-card px-2 py-2",
+        inConflict ? "border-red-500/50 bg-red-500/10" : "border-border"
+      )}
       style={{ paddingTop: 'calc(var(--safe-area-inset-top) + 0.5rem)' }}
     >
       {/* Hamburger menu button */}
@@ -334,6 +347,28 @@ export function MobileHeader({
 
       {/* Action buttons - right side */}
       <div className="flex items-center gap-0.5">
+        {/* Conflict indicator and abort button */}
+        {inConflict && (
+          <>
+            <div className="flex items-center gap-1 text-red-500 mr-1">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              <span className="text-[10px] font-medium">Conflict</span>
+            </div>
+            <button
+              onClick={onAbortRebase}
+              disabled={abortLoading}
+              className="flex h-8 px-2 items-center justify-center gap-1 rounded-md bg-red-500/20 text-red-500 hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed mr-1"
+            >
+              {abortLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <XCircle className="h-3.5 w-3.5" />
+              )}
+              <span className="text-xs font-medium">Abort</span>
+            </button>
+          </>
+        )}
+
         {showMenu && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -378,21 +413,26 @@ export function MobileHeader({
                     {isStopped ? "Start sandbox" : "Pause sandbox"}
                   </DropdownMenuItem>
 
-                  <DropdownMenuSeparator />
+                  {/* Hide PR, Merge, Rebase during conflict */}
+                  {!inConflict && (
+                    <>
+                      <DropdownMenuSeparator />
 
-                  {/* PR */}
-                  <DropdownMenuItem
-                    onClick={onCreatePR}
-                    disabled={prLoading}
-                    className="cursor-pointer"
-                  >
-                    {prLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <GitPullRequest className={cn("h-4 w-4", hasPR && "text-green-400")} />
-                    )}
-                    {hasPR ? "Open PR" : "Create PR"}
-                  </DropdownMenuItem>
+                      {/* PR */}
+                      <DropdownMenuItem
+                        onClick={onCreatePR}
+                        disabled={prLoading}
+                        className="cursor-pointer"
+                      >
+                        {prLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <GitPullRequest className={cn("h-4 w-4", hasPR && "text-green-400")} />
+                        )}
+                        {hasPR ? "Open PR" : "Create PR"}
+                      </DropdownMenuItem>
+                    </>
+                  )}
 
                   <DropdownMenuSeparator />
 
@@ -408,20 +448,24 @@ export function MobileHeader({
                     Git Log
                   </DropdownMenuItem>
 
-                  <DropdownMenuSeparator />
+                  {/* Hide Merge/Rebase during conflict */}
+                  {!inConflict && (
+                    <>
+                      <DropdownMenuSeparator />
 
-                  {/* Merge */}
-                  <DropdownMenuItem onClick={onMerge} className="cursor-pointer">
-                    <GitMerge className="h-4 w-4" />
-                    Merge
-                  </DropdownMenuItem>
+                      {/* Merge */}
+                      <DropdownMenuItem onClick={onMerge} className="cursor-pointer">
+                        <GitMerge className="h-4 w-4" />
+                        Merge
+                      </DropdownMenuItem>
 
-                  {/* Rebase */}
-                  <DropdownMenuItem onClick={onRebase} className="cursor-pointer">
-                    <GitCompareArrows className="h-4 w-4" />
-                    Rebase
-                  </DropdownMenuItem>
-
+                      {/* Rebase */}
+                      <DropdownMenuItem onClick={onRebase} className="cursor-pointer">
+                        <GitCompareArrows className="h-4 w-4" />
+                        Rebase
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>
