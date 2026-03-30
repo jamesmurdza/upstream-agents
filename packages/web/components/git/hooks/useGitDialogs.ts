@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react"
 import type { Branch, Message, PushErrorInfo } from "@/lib/shared/types"
 import { generateId } from "@/lib/shared/store"
 import { ASSISTANT_SOURCE, PATHS } from "@/lib/shared/constants"
+import { upsertPushErrorSystemMessage } from "@/lib/chat/upsert-push-error-message"
 
 // Export the return type for use in components
 export type UseGitDialogsReturn = ReturnType<typeof useGitDialogs>
@@ -21,6 +22,7 @@ interface UseGitDialogsOptions {
   repoOwner: string
   repoFullName: string
   onAddMessage: (branchId: string, message: Message) => Promise<string>
+  onUpdateMessage: (branchId: string, messageId: string, updates: Partial<Message>) => void | Promise<void>
 }
 
 /**
@@ -44,6 +46,7 @@ export function useGitDialogs({
   repoOwner,
   repoFullName,
   onAddMessage,
+  onUpdateMessage,
 }: UseGitDialogsOptions) {
   const branchId = branch?.id ?? ""
   const branchIdRef = useRef(branchId)
@@ -279,17 +282,12 @@ export function useGitDialogs({
             repoOwner: apiOwner,
             repoApiName: apiRepo,
           }
-          await onAddMessage(branchId, {
-            id: generateId(),
-            role: "assistant",
-            assistantSource: ASSISTANT_SOURCE.SYSTEM,
-            content:
-              `⚠️ **Rebase finished locally** but the remote branch could not be updated.\n\n${errMsg}`,
-            timestamp: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            pushError,
+          const content =
+            `⚠️ **Rebase finished locally** but the remote branch could not be updated.\n\n${errMsg}`
+          await upsertPushErrorSystemMessage(branchId, branch.messages, content, pushError, {
+            onUpdateMessage,
+            onAddMessage,
+            generateId,
           })
           setRebaseOpen(false)
           return
@@ -306,7 +304,7 @@ export function useGitDialogs({
     } finally {
       setActionLoading(false)
     }
-  }, [selectedBranch, branch, sandboxId, branchName, branchId, repoOwner, repoName, repoFullName, addSystemMessage, onAddMessage, putRebaseConflictInCache])
+  }, [selectedBranch, branch, sandboxId, branchName, branchId, repoOwner, repoName, repoFullName, addSystemMessage, onAddMessage, onUpdateMessage, putRebaseConflictInCache])
 
   const handleTag = useCallback(async () => {
     const name = tagNameInput.trim()

@@ -16,6 +16,7 @@ interface UseGitActionsOptions {
   onUpdateBranch: (branchId: string, updates: Partial<Branch>) => void
   /** Add message to a specific branch - branchId param ensures correct branch */
   onAddMessage: (branchId: string, message: Message) => Promise<string>
+  onUpdateMessage: (branchId: string, messageId: string, updates: Partial<Message>) => void | Promise<void>
   onToggleGitHistory: () => void
 }
 
@@ -30,6 +31,7 @@ export function useGitActions({
   repoOwner,
   onUpdateBranch,
   onAddMessage,
+  onUpdateMessage,
   onToggleGitHistory,
 }: UseGitActionsOptions) {
   // Use shared git dialogs hook for merge/rebase/tag
@@ -39,6 +41,7 @@ export function useGitActions({
     repoOwner,
     repoFullName,
     onAddMessage,
+    onUpdateMessage,
   })
 
   // Desktop-specific state

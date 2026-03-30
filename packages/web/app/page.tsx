@@ -148,6 +148,7 @@ export default function Home() {
     repoOwner: activeRepo?.owner || "",
     repoFullName: activeRepo ? `${activeRepo.owner}/${activeRepo.name}` : "",
     onAddMessage: handleAddMessage,
+    onUpdateMessage: handleUpdateMessage,
   })
 
   // Cross-device sync

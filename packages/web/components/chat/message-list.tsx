@@ -3,7 +3,7 @@
 import { cn } from "@/lib/shared/utils"
 import type { Agent, Branch, Message, PushErrorInfo } from "@/lib/shared/types"
 import { agentLabels } from "@/lib/shared/types"
-import { BRANCH_STATUS } from "@/lib/shared/constants"
+import { ASSISTANT_SOURCE, BRANCH_STATUS } from "@/lib/shared/constants"
 import { Loader2, AlertCircle } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
 import { forwardRef } from "react"
@@ -91,7 +91,15 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
     return (
       <MessageListContainer ref={ref} onScroll={onScroll} isMobile={isMobile}>
         <div className="flex flex-col gap-5 min-w-0 w-full max-w-full">
-          {branch.messages.map((msg) => (
+          {branch.messages
+            .filter((msg) => {
+              if (msg.role !== "assistant" || msg.assistantSource !== ASSISTANT_SOURCE.SYSTEM) {
+                return true
+              }
+              const empty = !msg.content?.trim() && !msg.pushError
+              return !empty
+            })
+            .map((msg) => (
             <MessageBubble
               key={msg.id}
               message={msg}

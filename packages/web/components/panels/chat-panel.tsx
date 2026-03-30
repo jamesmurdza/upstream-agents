@@ -254,6 +254,7 @@ export function ChatPanel({
     repoOwner,
     onUpdateBranch,
     onAddMessage,
+    onUpdateMessage,
     onToggleGitHistory,
   })
 

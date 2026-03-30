@@ -17,6 +17,7 @@ import {
   getExistingCommitHashes,
   filterNewCommits,
 } from "@/lib/core/git"
+import { upsertPushErrorSystemMessage } from "@/lib/chat/upsert-push-error-message"
 import type { ToolCall, ContentBlock } from "@/lib/shared/types"
 
 interface UseExecutionPollingOptions {
@@ -175,17 +176,17 @@ export function useExecutionPolling({
                 repoApiName,
               }
 
-              onAddMessage(targetBranchId, {
-                id: generateId(),
-                role: "assistant",
-                assistantSource: ASSISTANT_SOURCE.SYSTEM,
-                content: `⚠️ **Push failed:** ${errorMessage}`,
-                timestamp: new Date().toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
+              await upsertPushErrorSystemMessage(
+                targetBranchId,
+                pollingBranchMessagesRef.current,
+                `⚠️ **Push failed:** ${errorMessage}`,
                 pushError,
-              })
+                {
+                  onUpdateMessage,
+                  onAddMessage,
+                  generateId,
+                }
+              )
             }
           }
         }
@@ -250,7 +251,7 @@ export function useExecutionPolling({
       onRefreshGitConflictState?.()
       commitDetectionRunningRef.current = false
     }
-  }, [repoName, repoOwner, repoApiName, branch.name, onAddMessage, onCommitsDetected, onRefreshGitConflictState])
+  }, [repoName, repoOwner, repoApiName, branch.name, onAddMessage, onUpdateMessage, onCommitsDetected, onRefreshGitConflictState])
 
   // Cleanup polling on unmount
   useEffect(() => {
