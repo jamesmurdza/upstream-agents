@@ -193,10 +193,6 @@ export function ChatHeader({
         {/* Conflict warning indicator */}
         {inConflict && (
           <>
-            <div className="flex items-center gap-1.5 text-red-500">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium">Rebase Conflict</span>
-            </div>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
