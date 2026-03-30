@@ -159,6 +159,19 @@ export function useRepoData({ isAuthenticated }: UseRepoDataOptions) {
     queryClient.invalidateQueries({ queryKey: queryKeys.user.me() })
   }, [queryClient])
 
+  // Refresh just quota and credentials without resetting repos
+  const refreshQuotaOnly = useCallback(async () => {
+    try {
+      const data = await fetchUserMe()
+      queryClient.setQueryData<UserMeResponse>(queryKeys.user.me(), (old) => {
+        if (!old) return data
+        return { ...old, quota: data.quota, credentials: data.credentials }
+      })
+    } catch (err) {
+      console.error("Failed to refresh quota:", err)
+    }
+  }, [queryClient])
+
   // Load messages for a specific branch
   const loadBranchMessages = useCallback(
     async (branchId: string, repoId: string, skipIfHasMessages: boolean = true) => {
@@ -243,6 +256,7 @@ export function useRepoData({ isAuthenticated }: UseRepoDataOptions) {
 
     // Actions
     refresh,
+    refreshQuotaOnly,
     loadBranchMessages,
   }
 }

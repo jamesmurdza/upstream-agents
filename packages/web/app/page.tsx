@@ -78,6 +78,7 @@ export default function Home() {
     loaded,
     messagesLoadingBranchIds,
     refresh,
+    refreshQuotaOnly,
     loadBranchMessages,
   } = useRepoData({ isAuthenticated: status === "authenticated" })
 
@@ -358,7 +359,7 @@ export default function Home() {
             quota={quota}
             onAddBranch={handleAddBranch}
             onUpdateBranch={handleUpdateBranch}
-            onQuotaRefresh={refresh}
+            onQuotaRefresh={refreshQuotaOnly}
             credentials={credentials}
             onRemoveBranch={(branchId, deleteRemote) => handleRemoveBranch(branchId, deleteRemote, activeBranchId ?? undefined)}
             onSwitchAwayFromBranchBeforeDelete={switchAwayFromBranchBeforeDelete}
@@ -380,7 +381,7 @@ export default function Home() {
               onRemoveBranch={(branchId, deleteRemote) => handleRemoveBranch(branchId, deleteRemote, activeBranchId ?? undefined)}
               onSwitchAwayFromBranchBeforeDelete={switchAwayFromBranchBeforeDelete}
               onUpdateBranch={handleUpdateBranch}
-              onQuotaRefresh={refresh}
+              onQuotaRefresh={refreshQuotaOnly}
               width={branchListWidth}
               onWidthChange={setBranchListWidth}
               pendingStartCommit={pendingStartCommit}
