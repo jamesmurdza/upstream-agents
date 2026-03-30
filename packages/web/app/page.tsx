@@ -133,9 +133,7 @@ export default function Home() {
     handleAddMessage,
     handleUpdateMessage,
   } = useBranchOperations({
-    repos,
     setRepos,
-    activeRepo,
     activeBranchIdRef,
     setActiveBranchId,
   })
