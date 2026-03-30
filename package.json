@@ -5,6 +5,7 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "cd packages/web && npx prisma generate",
     "dev": "cd packages/web && prisma generate && next dev --webpack",
     "build": "npm run build -w @upstream/agents && npm run build -w @upstream/web",
     "build:sdk": "npm run build -w @upstream/agents",
