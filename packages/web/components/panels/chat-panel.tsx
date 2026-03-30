@@ -208,6 +208,25 @@ export function ChatPanel({
   // Ref to hold startPolling so loop continue can use it
   const startPollingRef = useRef<(messageId: string, executionId?: string) => void>(() => {})
 
+  const gitActions = useGitActions({
+    branch,
+    repoName,
+    repoFullName,
+    repoOwner,
+    onUpdateBranch,
+    onAddMessage,
+    onToggleGitHistory,
+  })
+
+  const refreshGitConflictState = useCallback(() => {
+    void gitActions.gitDialogs.checkRebaseStatus()
+  }, [gitActions.gitDialogs.checkRebaseStatus])
+
+  useEffect(() => {
+    const r = gitActions.gitDialogs.rebaseConflict
+    onRebaseConflictChange?.(!!(r?.inRebase || r?.inMerge))
+  }, [gitActions.gitDialogs.rebaseConflict?.inRebase, gitActions.gitDialogs.rebaseConflict?.inMerge, onRebaseConflictChange])
+
   const {
     currentExecutionIdRef,
     currentMessageIdRef,
@@ -226,27 +245,13 @@ export function ChatPanel({
     streamingMessageIdRef,
     globalActiveBranchIdRef,
     onLoopContinue: handleLoopContinue,
+    onRefreshGitConflictState: refreshGitConflictState,
   })
 
   // Update ref after hook returns
   useEffect(() => {
     startPollingRef.current = startPolling
   }, [startPolling])
-
-  const gitActions = useGitActions({
-    branch,
-    repoName,
-    repoFullName,
-    repoOwner,
-    onUpdateBranch,
-    onAddMessage,
-    onToggleGitHistory,
-  })
-
-  useEffect(() => {
-    const r = gitActions.gitDialogs.rebaseConflict
-    onRebaseConflictChange?.(!!(r?.inRebase || r?.inMerge))
-  }, [gitActions.gitDialogs.rebaseConflict?.inRebase, gitActions.gitDialogs.rebaseConflict?.inMerge, onRebaseConflictChange])
 
   const canSuggestName = !!(
     credentials?.hasAnthropicApiKey ||

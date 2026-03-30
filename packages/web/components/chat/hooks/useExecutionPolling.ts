@@ -39,6 +39,8 @@ interface UseExecutionPollingOptions {
   globalActiveBranchIdRef?: React.MutableRefObject<string | null>
   /** Callback to trigger loop continuation - sends the continuation message */
   onLoopContinue?: (branchId: string) => void
+  /** After commit detection / auto-commit-push, refresh merge-rebase conflict UI from git */
+  onRefreshGitConflictState?: () => void
 }
 
 /**
@@ -58,6 +60,7 @@ export function useExecutionPolling({
   streamingMessageIdRef,
   globalActiveBranchIdRef,
   onLoopContinue,
+  onRefreshGitConflictState,
 }: UseExecutionPollingOptions) {
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const pollInFlightRef = useRef(false)
@@ -240,9 +243,10 @@ export function useExecutionPolling({
     } catch {
       // Non-critical - commit detection failure shouldn't break the flow
     } finally {
+      onRefreshGitConflictState?.()
       commitDetectionRunningRef.current = false
     }
-  }, [repoName, repoOwner, repoApiName, branch.name, onAddMessage, onCommitsDetected])
+  }, [repoName, repoOwner, repoApiName, branch.name, onAddMessage, onCommitsDetected, onRefreshGitConflictState])
 
   // Cleanup polling on unmount
   useEffect(() => {
