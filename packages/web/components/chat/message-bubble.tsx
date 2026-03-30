@@ -255,7 +255,7 @@ export function MessageBubble({ message, agent = "claude-code", agentLabel, onCo
         aria-label="Workspace message"
       >
         <span className="text-[10px] text-muted-foreground/40 mb-1">{message.timestamp}</span>
-        <div className="border-l-2 border-amber-500/45 pl-3 ml-0.5 rounded-r-md bg-amber-500/[0.12] py-2 pr-3 text-sm text-foreground/90 dark:border-amber-400/35 dark:bg-amber-400/[0.08]">
+        <div className="border-l-2 border-yellow-500/30 pl-3 ml-0.5 rounded-r-md bg-yellow-500/10 py-2 pr-3 text-sm text-yellow-950 dark:text-yellow-50 [&_a]:text-yellow-700 dark:[&_a]:text-yellow-300 [&_code]:rounded [&_code]:bg-yellow-500/20 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-yellow-900 dark:[&_code]:bg-yellow-500/15 dark:[&_code]:text-yellow-100">
           {message.content ? (
             <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {message.content}
