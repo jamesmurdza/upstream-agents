@@ -335,6 +335,24 @@ export async function POST(req: Request) {
         // Get current branch in sandbox to determine if we need to pull after
         const currentStatus = await sandbox.git.status(repoPath)
         const localBranch = currentStatus.currentBranch
+        const isMergingIntoActiveBranch = localBranch === targetBranch
+
+        // Check if target branch has a running agent (only if merging into a different branch)
+        if (!isMergingIntoActiveBranch) {
+          const targetBranchRecord = await prisma.branch.findFirst({
+            where: {
+              name: targetBranch,
+              sandbox: { sandboxId },
+            },
+            select: { id: true, status: true },
+          })
+          if (targetBranchRecord?.status === "running") {
+            return Response.json(
+              { error: `Cannot merge into "${targetBranch}" while an agent is running on it` },
+              { status: 409 }
+            )
+          }
+        }
 
         // Always use GitHub's merge API
         const commitMessage = squash
@@ -362,29 +380,22 @@ export async function POST(req: Request) {
           const mergeData = await mergeRes.json().catch(() => ({}))
           const errorMessage = (mergeData as { message?: string }).message || `Status ${mergeRes.status}`
           if (mergeRes.status === 409) {
+            // Conflict - only allow resolution if merging into active branch
+            if (!isMergingIntoActiveBranch) {
+              return Response.json(
+                { error: `Merge conflict. Switch to "${targetBranch}" and merge or rebase from there.` },
+                { status: 409 }
+              )
+            }
+
             // Squash merges cannot be reproduced locally the same way; surface GitHub error only.
             if (squash) {
               return Response.json({ error: "Merge conflict: " + errorMessage }, { status: 409 })
             }
-            // Replicate merge in sandbox so conflicts can be resolved like rebase (MERGE_HEAD).
-            const preStatus = await sandbox.git.status(repoPath)
-            const preBranch = preStatus.currentBranch
-            const preHeadResult = await sandbox.process.executeCommand(
-              `cd ${repoPath} && git rev-parse HEAD 2>&1`
-            )
-            const preSha = preHeadResult.exitCode ? "" : preHeadResult.result.trim()
 
+            // Replicate merge in sandbox so conflicts can be resolved (merging into active branch)
             await sandbox.process.executeCommand(`cd ${repoPath} && git fetch origin 2>&1`)
 
-            const co = await sandbox.process.executeCommand(
-              `cd ${repoPath} && git checkout ${targetBranch} 2>&1`
-            )
-            if (co.exitCode) {
-              return Response.json(
-                { error: `Merge conflict on GitHub. Could not check out ${targetBranch}: ${co.result}` },
-                { status: 409 }
-              )
-            }
             try {
               await sandbox.git.pull(repoPath, "x-access-token", githubToken)
             } catch {
@@ -421,22 +432,34 @@ export async function POST(req: Request) {
               )
             }
 
-            // Clean merge locally despite GitHub 409 — restore previous branch/state
-            if (preBranch && preSha) {
-              await sandbox.process.executeCommand(`cd ${repoPath} && git checkout ${preBranch} 2>&1`)
-              await sandbox.process.executeCommand(`cd ${repoPath} && git reset --hard ${preSha} 2>&1`)
-            }
+            // Clean merge locally despite GitHub 409 — this shouldn't happen but handle gracefully
             return Response.json({ error: "Merge conflict: " + errorMessage }, { status: 409 })
           }
           return Response.json({ error: "Merge failed: " + errorMessage }, { status: 500 })
         }
 
-        // If we merged INTO the current local branch, pull to sync sandbox state
-        if (localBranch === targetBranch) {
+        // Merge succeeded on GitHub
+        if (isMergingIntoActiveBranch) {
+          // Pull to sync sandbox state
           try {
             await sandbox.git.pull(repoPath, "x-access-token", githubToken)
           } catch {
             // Pull may fail but GitHub merge succeeded
+          }
+        } else {
+          // Mark target branch as needing sync when user switches to it
+          const targetBranchRecord = await prisma.branch.findFirst({
+            where: {
+              name: targetBranch,
+              sandbox: { sandboxId },
+            },
+            select: { id: true },
+          })
+          if (targetBranchRecord) {
+            await prisma.branch.update({
+              where: { id: targetBranchRecord.id },
+              data: { needsSync: true },
+            })
           }
         }
 

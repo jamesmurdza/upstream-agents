@@ -152,6 +152,9 @@ model Branch {
   // Commit tracking - HEAD at start of last execution, used for detecting new commits
   lastShownCommitHash String?
 
+  // Sync flag - set when remote is updated (e.g., merge into this branch) and sandbox needs to pull
+  needsSync Boolean @default(false)
+
   sandbox  Sandbox?
   messages Message[]
 

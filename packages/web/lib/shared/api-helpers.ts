@@ -60,6 +60,7 @@ export interface SandboxWithCredentials {
     name: string
     agent: string
     model: string | null
+    needsSync: boolean
     repo: {
       id: string
       name: string

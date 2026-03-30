@@ -85,10 +85,20 @@ export const INCLUDE_REPO_WITH_BRANCHES = {
 
 /**
  * Sandbox include with user credentials - for agent execution
+ * Includes branch.needsSync for sync-on-agent-start feature
  */
 export const INCLUDE_SANDBOX_WITH_USER_CREDENTIALS = {
   user: { include: { credentials: true } },
-  branch: { include: { repo: true } },
+  branch: {
+    select: {
+      id: true,
+      name: true,
+      agent: true,
+      model: true,
+      needsSync: true,
+      repo: true,
+    },
+  },
 } satisfies Prisma.SandboxInclude
 
 // =============================================================================

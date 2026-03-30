@@ -13,6 +13,7 @@ import {
   internalError,
   updateSandboxAndBranchStatus,
   resetSandboxStatus,
+  getGitHubTokenForUser,
 } from "@/lib/shared/api-helpers"
 import { PATHS } from "@/lib/shared/constants"
 import type { Agent } from "@/lib/shared/types"
@@ -96,6 +97,26 @@ export async function POST(req: Request) {
       sandboxRecord.branch?.repo?.id // Pass repoId for MCP config
     )
     console.log(`[agent/execute] ensureSandboxReady took ${Date.now() - t0}ms`)
+
+    // 5a. If branch needs sync (e.g., was merge target), pull latest before agent starts
+    if (branchId && sandboxRecord.branch?.needsSync) {
+      t0 = Date.now()
+      const githubToken = await getGitHubTokenForUser(auth.userId)
+      if (githubToken) {
+        try {
+          await sandbox.git.pull(repoPath, "x-access-token", githubToken)
+          console.log(`[agent/execute] needsSync pull took ${Date.now() - t0}ms`)
+        } catch (err) {
+          // Log but don't fail - the merge succeeded, pull failure is non-fatal
+          console.warn(`[agent/execute] needsSync pull failed:`, err)
+        }
+      }
+      // Clear the flag regardless of pull success (avoid infinite retry)
+      await prisma.branch.update({
+        where: { id: branchId },
+        data: { needsSync: false },
+      })
+    }
 
     t0 = Date.now()
     const bgSession = await createBackgroundAgentSession(sandbox, {
