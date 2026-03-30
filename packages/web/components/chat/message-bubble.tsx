@@ -18,7 +18,6 @@ import {
   RefreshCw,
   Loader2,
   Trash2,
-  LayoutDashboard,
 } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
 import Markdown from "react-markdown"
@@ -255,14 +254,8 @@ export function MessageBubble({ message, agent = "claude-code", agentLabel, onCo
         className="flex flex-col min-w-0 max-w-full"
         aria-label="Workspace message"
       >
-        <div className="flex items-center gap-2 mb-1">
-          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
-            <LayoutDashboard className="h-3 w-3" />
-          </div>
-          <span className="text-[11px] font-medium text-muted-foreground">Workspace</span>
-          <span className="text-[10px] text-muted-foreground/40">{message.timestamp}</span>
-        </div>
-        <div className="border-l-2 border-muted-foreground/25 pl-3 ml-0.5 rounded-r-md bg-muted/40 py-2 pr-3 text-sm text-foreground/90">
+        <span className="text-[10px] text-muted-foreground/40 mb-1">{message.timestamp}</span>
+        <div className="rounded-lg border border-amber-500/35 bg-amber-500/[0.12] py-2.5 px-4 text-sm text-foreground dark:border-amber-400/25 dark:bg-amber-400/[0.08]">
           {message.content ? (
             <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {message.content}
