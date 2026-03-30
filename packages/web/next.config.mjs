@@ -1,3 +1,13 @@
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+import { config as loadEnv } from "dotenv"
+
+// Next only loads .env from this directory; Vercel CLI often writes .env at the monorepo root.
+// From packages/web, one ".." is packages/ — need ../.. for repo root.
+const configDir = path.dirname(fileURLToPath(import.meta.url))
+loadEnv({ path: path.join(configDir, "..", "..", ".env") })
+loadEnv({ path: path.join(configDir, ".env"), override: true })
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins: [
