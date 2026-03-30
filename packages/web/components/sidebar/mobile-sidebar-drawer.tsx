@@ -468,15 +468,19 @@ export function MobileSidebarDrawer({
                   {sortedBranches.map((branch) => {
                     const isActive = branch.id === activeBranchId
                     const isBold = branch.status === BRANCH_STATUS.RUNNING || branch.status === BRANCH_STATUS.CREATING || (branch.unread && !isActive)
+                    const isDeleting = deleteDialog.deletingBranchId === branch.id
                     return (
                       <div key={branch.id} className="group relative">
                         <button
+                          type="button"
                           onClick={() => handleSelectBranch(branch.id)}
+                          disabled={isDeleting}
                           className={cn(
                             "flex w-full cursor-pointer items-center gap-2.5 px-4 pr-10 py-2.5 text-left transition-colors",
                             isActive
                               ? "bg-accent text-foreground"
-                              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                            isDeleting && "cursor-not-allowed opacity-60"
                           )}
                         >
                           <StatusDot status={branch.status} unread={branch.unread} isActive={isActive} />
@@ -489,12 +493,19 @@ export function MobileSidebarDrawer({
                             >
                               {branch.name}
                             </span>
-                            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                              <AgentIcon agent={branch.agent || "claude-code"} className="h-2 w-2" />
-                              {branch.status === BRANCH_STATUS.CREATING
-                                ? "Setting up..."
-                                : agentLabels[branch.agent || "claude-code"]}
-                            </span>
+                            {isDeleting ? (
+                              <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground/70" />
+                                Deleting…
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <AgentIcon agent={branch.agent || "claude-code"} className="h-2 w-2" />
+                                {branch.status === BRANCH_STATUS.CREATING
+                                  ? "Setting up..."
+                                  : agentLabels[branch.agent || "claude-code"]}
+                              </span>
+                            )}
                           </div>
                         </button>
 
@@ -505,15 +516,11 @@ export function MobileSidebarDrawer({
                               e.stopPropagation()
                               deleteDialog.handleDeleteClick(branch.id)
                             }}
-                            disabled={branch.status === BRANCH_STATUS.CREATING || deleteDialog.deletingBranchId === branch.id}
+                            disabled={branch.status === BRANCH_STATUS.CREATING || isDeleting}
                             className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 cursor-pointer items-center justify-center rounded text-muted-foreground/60 transition-colors hover:bg-muted-foreground/10 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                             title="Delete branch"
                           >
-                            {deleteDialog.deletingBranchId === branch.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         )}
                       </div>

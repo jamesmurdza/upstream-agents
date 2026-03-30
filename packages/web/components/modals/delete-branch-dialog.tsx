@@ -55,24 +55,13 @@ interface MergeStatusDisplayProps {
   status: MergeStatus
   deleteRemoteChecked: boolean
   onDeleteRemoteChange: (checked: boolean) => void
-  isDeleting: boolean
 }
 
 function MergeStatusDisplay({
   status,
   deleteRemoteChecked,
   onDeleteRemoteChange,
-  isDeleting,
 }: MergeStatusDisplayProps) {
-  if (isDeleting) {
-    return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        <span>Removing branch...</span>
-      </div>
-    )
-  }
-
   if (status === MERGE_STATUS.LOADING) {
     return (
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -95,7 +84,6 @@ function MergeStatusDisplay({
             checked={deleteRemoteChecked}
             onChange={(e) => onDeleteRemoteChange(e.target.checked)}
             className="h-3.5 w-3.5 rounded border-border cursor-pointer"
-            disabled={isDeleting}
           />
           <span>Also delete branch on GitHub</span>
         </label>
@@ -153,7 +141,6 @@ export function DeleteBranchDialog({
 }: DeleteBranchDialogProps) {
   const [mergeStatus, setMergeStatus] = useState<MergeStatus>(MERGE_STATUS.LOADING)
   const [deleteRemoteChecked, setDeleteRemoteChecked] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   // Check merge status when branch changes
   useEffect(() => {
@@ -191,22 +178,14 @@ export function DeleteBranchDialog({
     checkMerged()
   }, [branch, repo.owner, repo.name, repo.defaultBranch])
 
-  const handleConfirm = useCallback(async () => {
+  const handleConfirm = useCallback(() => {
     if (!branch) return
-
-    setIsDeleting(true)
-    try {
-      onConfirm(branch.id, deleteRemoteChecked)
-    } finally {
-      setIsDeleting(false)
-    }
+    onConfirm(branch.id, deleteRemoteChecked)
   }, [branch, deleteRemoteChecked, onConfirm])
 
   const handleOpenChange = useCallback((open: boolean) => {
-    if (!open && !isDeleting) {
-      onClose()
-    }
-  }, [isDeleting, onClose])
+    if (!open) onClose()
+  }, [onClose])
 
   return (
     <Dialog open={!!branch} onOpenChange={handleOpenChange}>
@@ -223,23 +202,20 @@ export function DeleteBranchDialog({
             status={mergeStatus}
             deleteRemoteChecked={deleteRemoteChecked}
             onDeleteRemoteChange={setDeleteRemoteChecked}
-            isDeleting={isDeleting}
           />
         </div>
         <DialogFooter className="gap-2">
           <button
             onClick={onClose}
-            disabled={isDeleting}
-            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent cursor-pointer disabled:opacity-50"
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isDeleting || mergeStatus === MERGE_STATUS.LOADING}
+            disabled={mergeStatus === MERGE_STATUS.LOADING}
             className="rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
           >
-            {isDeleting && <Loader2 className="h-3 w-3 animate-spin" />}
             Remove
           </button>
         </DialogFooter>
@@ -275,17 +251,20 @@ export function useDeleteBranchDialog({ repo, onRemoveBranch }: UseDeleteBranchD
     setDeletingBranch(branch)
   }, [repo])
 
+  /** Dismiss dialog only — does not clear deletingBranchId (spinner) after confirm. */
   const handleClose = useCallback(() => {
     setDeletingBranch(null)
-    setDeletingBranchId(null)
   }, [])
 
   const handleConfirm = useCallback(
     async (branchId: string, deleteRemote: boolean) => {
-      setDeletingBranchId(branchId)
-      await onRemoveBranch(branchId, deleteRemote)
       setDeletingBranch(null)
-      setDeletingBranchId(null)
+      setDeletingBranchId(branchId)
+      try {
+        await onRemoveBranch(branchId, deleteRemote)
+      } finally {
+        setDeletingBranchId(null)
+      }
     },
     [onRemoveBranch]
   )
