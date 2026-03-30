@@ -73,9 +73,10 @@ function mergeSyncBranchIntoExisting(
     name: syncBranch.name, // Sync name in case agent renamed the branch
     status: syncBranch.status as Branch["status"],
     prUrl: syncBranch.prUrl || undefined,
-    // Sync agent/model from server - user may have changed it from another device
-    agent: (syncBranch.agent || existingBranch.agent || "claude-code") as Branch["agent"],
-    model: syncBranch.model || existingBranch.model || undefined,
+    // Preserve local agent/model - don't overwrite with server values
+    // The local state is the source of truth; it gets persisted when user sends a message
+    agent: (existingBranch.agent || syncBranch.agent || "claude-code") as Branch["agent"],
+    model: existingBranch.model || syncBranch.model || undefined,
     sandboxId: syncBranch.sandboxId || undefined,
   }
 }
