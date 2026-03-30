@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { cn } from "@/lib/shared/utils"
-import type { Agent, AssistantSource, Message, PushErrorInfo, ToolCall } from "@/lib/shared/types"
+import type { Agent, AssistantSource, ExecuteErrorInfo, Message, PushErrorInfo, ToolCall } from "@/lib/shared/types"
 import { ASSISTANT_SOURCE } from "@/lib/shared/constants"
 import { agentLabels } from "@/lib/shared/types"
 import {
@@ -17,6 +17,7 @@ import {
   GitBranch,
   RefreshCw,
   Loader2,
+  AlertCircle,
 } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
 import { NoticeIcon, type NoticeIconType } from "@/components/icons/notice-icons"
@@ -288,6 +289,74 @@ function PushErrorRetry({
   return <div className={cn("mt-2", WORKSPACE_NOTICE_PANEL_CLASS)}>{body}</div>
 }
 
+const EXECUTE_ERROR_PANEL_CLASS =
+  "rounded-lg border border-destructive/20 bg-destructive/[0.06] dark:bg-destructive/[0.1] px-4 py-2.5 text-sm text-foreground"
+
+function ExecuteErrorRetry({
+  executeError,
+  onRetry,
+  messageId,
+  onClearError,
+}: {
+  executeError: ExecuteErrorInfo
+  onRetry?: (messageId: string) => Promise<{ success: boolean; error?: string }>
+  messageId: string
+  onClearError?: () => void
+}) {
+  const [isRetrying, setIsRetrying] = useState(false)
+  const [retryError, setRetryError] = useState<string | null>(null)
+
+  const handleRetry = async () => {
+    if (!onRetry) return
+    setIsRetrying(true)
+    setRetryError(null)
+    try {
+      const result = await onRetry(messageId)
+      if (result.success) {
+        onClearError?.()
+      } else {
+        setRetryError(result.error || "Retry failed")
+      }
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : "Retry failed")
+    } finally {
+      setIsRetrying(false)
+    }
+  }
+
+  return (
+    <div className={EXECUTE_ERROR_PANEL_CLASS}>
+      <div className="flex gap-2 min-w-0">
+        <AlertCircle className="h-4 w-4 shrink-0 text-destructive mt-0.5" aria-hidden />
+        <p className="text-sm leading-relaxed break-words min-w-0">{executeError.errorMessage}</p>
+      </div>
+      {retryError && (
+        <p className="text-sm mt-2 text-red-600 dark:text-red-400">{retryError}</p>
+      )}
+      {onRetry && (
+        <button
+          type="button"
+          onClick={handleRetry}
+          disabled={isRetrying}
+          className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-destructive/15 text-foreground hover:bg-destructive/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {isRetrying ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+              Retrying...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+              Retry
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ============================================================================
 // Message Bubble Component
 // ============================================================================
@@ -300,6 +369,8 @@ interface MessageBubbleProps {
   onBranchFromCommit?: (hash: string) => void
   onRetryPush?: (pushError: PushErrorInfo) => Promise<{ success: boolean; error?: string }>
   onClearPushError?: (messageId: string) => void
+  onRetryExecute?: (messageId: string) => Promise<{ success: boolean; error?: string }>
+  onClearExecuteError?: (messageId: string) => void
 }
 
 function effectiveAssistantSource(message: Message): AssistantSource {
@@ -308,7 +379,7 @@ function effectiveAssistantSource(message: Message): AssistantSource {
   return message.assistantSource ?? ASSISTANT_SOURCE.MODEL
 }
 
-export function MessageBubble({ message, agent = "claude-code", agentLabel, onCommitClick, onBranchFromCommit, onRetryPush, onClearPushError }: MessageBubbleProps) {
+export function MessageBubble({ message, agent = "claude-code", agentLabel, onCommitClick, onBranchFromCommit, onRetryPush, onClearPushError, onRetryExecute, onClearExecuteError }: MessageBubbleProps) {
   // Use agent prop primarily, fall back to agentLabel for backwards compatibility
   const displayLabel = agentLabel || agentLabels[agent] || "Claude Code"
   const isUser = message.role === "user"
@@ -339,6 +410,20 @@ export function MessageBubble({ message, agent = "claude-code", agentLabel, onCo
             </button>
           )}
         </div>
+      </div>
+    )
+  }
+
+  if (!isUser && message.executeError) {
+    return (
+      <div className="flex flex-col min-w-0 max-w-full" aria-label="Agent request failed">
+        <span className="text-[10px] text-muted-foreground/40 mb-1">{message.timestamp}</span>
+        <ExecuteErrorRetry
+          executeError={message.executeError}
+          onRetry={onRetryExecute}
+          messageId={message.id}
+          onClearError={() => onClearExecuteError?.(message.id)}
+        />
       </div>
     )
   }

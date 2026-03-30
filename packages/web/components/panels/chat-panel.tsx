@@ -204,51 +204,31 @@ export function ChatPanel({
     onSaveDraftForBranch,
   })
 
-  // Loop continuation handler - sends the continuation message when loop should continue
-  // Uses branchRef to avoid stale closure issues when user switches branches during execution
-  const handleLoopContinue = useCallback(async (branchId: string) => {
-    // Access current branch data via ref to avoid stale closures
-    const currentBranch = branchRef.current
-    // Only continue if we're still on the same branch that triggered the loop
-    if (currentBranch.id !== branchId) return
-    if (!currentBranch.sandboxId) return
+  // Ref to hold startPolling so loop continue and runAgentExecute can start polling before the hook returns
+  const startPollingRef = useRef<(messageId: string, executionId?: string) => void>(() => {})
 
-    const userMsg: Message = {
-      id: generateId(),
-      role: "user",
-      content: LOOP_CONTINUATION_MESSAGE,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
-    await onAddMessage(branchId, userMsg)
+  const runAgentExecute = useCallback(
+    async (args: {
+      branchId: string
+      messageId: string
+      prompt: string
+      b: Branch
+      /** Loop iteration: 410 sandbox gone stops the loop instead of recreate */
+      loopMode?: boolean
+    }) => {
+      const { branchId, messageId, prompt, b, loopMode } = args
+      if (!b.sandboxId) throw new Error("No sandbox")
 
-    const now = Date.now()
-    onUpdateBranch(branchId, {
-      status: BRANCH_STATUS.RUNNING,
-      lastActivity: "now",
-      lastActivityTs: now,
-    })
-
-    const assistantMsg: Message = {
-      id: generateId(),
-      role: "assistant",
-      assistantSource: ASSISTANT_SOURCE.MODEL,
-      content: "",
-      toolCalls: [],
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }
-    const messageId = await onAddMessage(branchId, assistantMsg)
-
-    try {
-      const effectiveAgent = (currentBranch.agent || "claude-code") as Agent
-      const effectiveModel = currentBranch.model ?? getDefaultModelForAgent(effectiveAgent, credentials)
+      const effectiveAgent = (b.agent || "claude-code") as Agent
+      const effectiveModel = b.model ?? getDefaultModelForAgent(effectiveAgent, credentials)
 
       const response = await fetch("/api/agent/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sandboxId: currentBranch.sandboxId,
-          prompt: LOOP_CONTINUATION_MESSAGE,
-          previewUrlPattern: currentBranch.previewUrlPattern,
+          sandboxId: b.sandboxId,
+          prompt,
+          previewUrlPattern: b.previewUrlPattern,
           repoName,
           messageId,
           agent: effectiveAgent,
@@ -258,25 +238,132 @@ export function ChatPanel({
 
       if (!response.ok) {
         const { data, rawText } = await readExecuteErrorResponse(response)
-        // For sandbox deleted during loop, just stop the loop gracefully
-        if (response.status === 410 && data.error === "SANDBOX_NOT_FOUND") {
-          onUpdateMessage(branchId, messageId, { content: "Sandbox was deleted. Please send a new message to recreate it." })
+
+        if (loopMode && response.status === 410 && data.error === "SANDBOX_NOT_FOUND") {
+          onUpdateMessage(branchId, messageId, {
+            content: "Sandbox was deleted. Please send a new message to recreate it.",
+          })
           onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE, loopCount: 0, loopEnabled: false })
           return
         }
+
+        if (response.status === 410 && data.error === "SANDBOX_NOT_FOUND" && data.recreateInfo?.branchId) {
+          onUpdateMessage(branchId, messageId, { content: "Sandbox was deleted. Recreating..." })
+
+          const recreateRes = await fetch("/api/sandbox/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              existingBranchId: data.recreateInfo.branchId,
+            }),
+          })
+
+          if (!recreateRes.ok) {
+            let errorMessage = "Failed to recreate sandbox"
+            try {
+              const errorData = await recreateRes.json()
+              errorMessage = errorData.message || errorData.error || errorMessage
+            } catch {
+              errorMessage = `Failed to recreate sandbox: ${recreateRes.status} ${recreateRes.statusText}`
+            }
+            throw new Error(errorMessage)
+          }
+
+          const sseResult = await waitForSSEResult<{ sandboxId: string; previewUrlPattern?: string; type: string }>(recreateRes)
+          if (!sseResult.success) {
+            throw new Error(`Failed to recreate sandbox: ${sseResult.error}`)
+          }
+
+          const { sandboxId, previewUrlPattern } = sseResult.data
+          if (!sandboxId) {
+            throw new Error("Failed to recreate sandbox: No sandbox ID returned")
+          }
+
+          onUpdateBranch(branchId, { sandboxId, previewUrlPattern: previewUrlPattern ?? undefined })
+          onUpdateMessage(branchId, messageId, { content: "" })
+
+          const retryRes = await fetch("/api/agent/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sandboxId,
+              prompt,
+              previewUrlPattern,
+              repoName,
+              messageId,
+              agent: effectiveAgent,
+              model: effectiveModel,
+            }),
+          })
+
+          if (!retryRes.ok) {
+            const { data: rData, rawText: rRaw } = await readExecuteErrorResponse(retryRes)
+            throw new Error(executeHttpErrorMessage(retryRes, rData, rRaw) || "Failed to start agent after sandbox recreation")
+          }
+
+          startPollingRef.current(messageId)
+          return
+        }
+
         throw new Error(executeHttpErrorMessage(response, data, rawText) || "Failed to start agent")
       }
 
       startPollingRef.current(messageId)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error"
-      onUpdateMessage(branchId, messageId, { content: `Error: ${message}` })
-      onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE, loopCount: 0 })
-    }
-  }, [repoName, onAddMessage, onUpdateMessage, onUpdateBranch, credentials])
+    },
+    [credentials, onUpdateMessage, onUpdateBranch, repoName]
+  )
 
-  // Ref to hold startPolling so loop continue can use it
-  const startPollingRef = useRef<(messageId: string, executionId?: string) => void>(() => {})
+  // Loop continuation handler - sends the continuation message when loop should continue
+  const handleLoopContinue = useCallback(
+    async (branchId: string) => {
+      const currentBranch = branchRef.current
+      if (currentBranch.id !== branchId) return
+      if (!currentBranch.sandboxId) return
+
+      const userMsg: Message = {
+        id: generateId(),
+        role: "user",
+        content: LOOP_CONTINUATION_MESSAGE,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      }
+      await onAddMessage(branchId, userMsg)
+
+      const now = Date.now()
+      onUpdateBranch(branchId, {
+        status: BRANCH_STATUS.RUNNING,
+        lastActivity: "now",
+        lastActivityTs: now,
+      })
+
+      const assistantMsg: Message = {
+        id: generateId(),
+        role: "assistant",
+        assistantSource: ASSISTANT_SOURCE.MODEL,
+        content: "",
+        toolCalls: [],
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      }
+      const messageId = await onAddMessage(branchId, assistantMsg)
+
+      try {
+        await runAgentExecute({
+          branchId,
+          messageId,
+          prompt: LOOP_CONTINUATION_MESSAGE,
+          b: currentBranch,
+          loopMode: true,
+        })
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error"
+        onUpdateMessage(branchId, messageId, {
+          content: "",
+          executeError: { errorMessage: message, prompt: LOOP_CONTINUATION_MESSAGE },
+        })
+        onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE, loopCount: 0 })
+      }
+    },
+    [onAddMessage, onUpdateBranch, onUpdateMessage, runAgentExecute]
+  )
 
   const gitActions = useGitActions({
     branch,
@@ -323,6 +410,51 @@ export function ChatPanel({
   useEffect(() => {
     startPollingRef.current = startPolling
   }, [startPolling])
+
+  const handleRetryExecute = useCallback(
+    async (messageId: string): Promise<{ success: boolean; error?: string }> => {
+      const msg = branchRef.current.messages.find((m) => m.id === messageId)
+      const info = msg?.executeError
+      if (!info) return { success: false, error: "Nothing to retry" }
+
+      const b = branchRef.current
+      onUpdateBranch(b.id, {
+        status: BRANCH_STATUS.RUNNING,
+        lastActivity: "now",
+        lastActivityTs: Date.now(),
+      })
+      onUpdateMessage(b.id, messageId, { content: "", executeError: undefined })
+      currentMessageIdRef.current = messageId
+
+      try {
+        await runAgentExecute({
+          branchId: b.id,
+          messageId,
+          prompt: info.prompt,
+          b,
+        })
+        return { success: true }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "Unknown error"
+        onUpdateMessage(b.id, messageId, {
+          content: "",
+          executeError: { errorMessage: errMsg, prompt: info.prompt },
+        })
+        onUpdateBranch(b.id, { status: BRANCH_STATUS.IDLE })
+        currentMessageIdRef.current = null
+        currentExecutionIdRef.current = null
+        return { success: false, error: errMsg }
+      }
+    },
+    [onUpdateBranch, onUpdateMessage, runAgentExecute, currentMessageIdRef, currentExecutionIdRef]
+  )
+
+  const handleClearExecuteError = useCallback(
+    (messageId: string) => {
+      onUpdateMessage(branch.id, messageId, { executeError: undefined })
+    },
+    [branch.id, onUpdateMessage]
+  )
 
   const canSuggestName = !!(
     credentials?.hasAnthropicApiKey ||
@@ -421,109 +553,29 @@ export function ChatPanel({
     currentMessageIdRef.current = messageId
 
     try {
-      const effectiveAgent = (branch.agent || "claude-code") as Agent
-      const effectiveModel = branch.model ?? getDefaultModelForAgent(effectiveAgent, credentials)
-
-      const response = await fetch("/api/agent/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sandboxId: branch.sandboxId,
-          prompt,
-          previewUrlPattern: branch.previewUrlPattern,
-          repoName,
-          messageId,
-          agent: effectiveAgent,
-          model: effectiveModel,
-        }),
+      await runAgentExecute({
+        branchId: branch.id,
+        messageId,
+        prompt,
+        b: branch,
       })
 
-      if (!response.ok) {
-        const { data, rawText } = await readExecuteErrorResponse(response)
+      console.log(`[POLLER-DEBUG] ChatPanel runAgentExecute finished for branch ${branch.id}`)
 
-        // Handle sandbox deleted - trigger recreation
-        if (response.status === 410 && data.error === "SANDBOX_NOT_FOUND" && data.recreateInfo?.branchId) {
-          onUpdateMessage(branch.id, messageId, { content: "Sandbox was deleted. Recreating..." })
-
-          // Call sandbox create with existing branch ID to recreate
-          const recreateRes = await fetch("/api/sandbox/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              existingBranchId: data.recreateInfo.branchId,
-            }),
-          })
-
-          if (!recreateRes.ok) {
-            let errorMessage = "Failed to recreate sandbox"
-            try {
-              const errorData = await recreateRes.json()
-              errorMessage = errorData.message || errorData.error || errorMessage
-            } catch {
-              errorMessage = `Failed to recreate sandbox: ${recreateRes.status} ${recreateRes.statusText}`
-            }
-            throw new Error(errorMessage)
-          }
-
-          // Parse SSE response to get new sandbox info
-          const sseResult = await waitForSSEResult<{ sandboxId: string; previewUrlPattern?: string; type: string }>(recreateRes)
-          if (!sseResult.success) {
-            throw new Error(`Failed to recreate sandbox: ${sseResult.error}`)
-          }
-
-          const { sandboxId, previewUrlPattern } = sseResult.data
-          if (!sandboxId) {
-            throw new Error("Failed to recreate sandbox: No sandbox ID returned")
-          }
-
-          // Update branch with new sandbox info and retry the message
-          onUpdateBranch(branch.id, { sandboxId, previewUrlPattern: previewUrlPattern ?? undefined })
-          onUpdateMessage(branch.id, messageId, { content: "" })
-
-          // Retry the original request with new sandbox
-          const retryRes = await fetch("/api/agent/execute", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sandboxId,
-              prompt,
-              previewUrlPattern,
-              repoName,
-              messageId,
-              agent: effectiveAgent,
-              model: effectiveModel,
-            }),
-          })
-
-          if (!retryRes.ok) {
-            const retryData = await retryRes.json().catch(() => ({}))
-            throw new Error(retryData.error || retryData.message || "Failed to start agent after sandbox recreation")
-          }
-
-          console.log(`[POLLER-DEBUG] ChatPanel calling startPolling after sandbox recreation for branch ${branch.id}`)
-          startPolling(messageId)
-          return
-        }
-
-        throw new Error(executeHttpErrorMessage(response, data, rawText) || "Failed to start agent")
-      }
-
-      console.log(`[POLLER-DEBUG] ChatPanel calling startPolling for branch ${branch.id}`)
-      startPolling(messageId)
-
-      // Auto-suggest branch name on first message if user hasn't changed the default name
-      // Pass the prompt directly to start generating right away (before message is saved to DB)
       if (branch.messages.length === 0 && canSuggestName) {
         renaming.autoSuggestBranchName(prompt)
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error"
-      onUpdateMessage(branch.id, messageId, { content: `Error: ${message}` })
+      onUpdateMessage(branch.id, messageId, {
+        content: "",
+        executeError: { errorMessage: message, prompt },
+      })
       onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
       currentMessageIdRef.current = null
       currentExecutionIdRef.current = null
     }
-  }, [input, branch, repoName, onAddMessage, onUpdateMessage, onUpdateBranch, startPolling, currentMessageIdRef, currentExecutionIdRef, setInput, credentials, canSuggestName, renaming])
+  }, [input, branch, repoName, onAddMessage, onUpdateMessage, onUpdateBranch, currentMessageIdRef, currentExecutionIdRef, setInput, canSuggestName, renaming, runAgentExecute])
 
   // Stop handler
   const handleStop = useCallback(() => {
@@ -681,6 +733,8 @@ export function ChatPanel({
           onBranchFromCommit={onBranchFromCommit}
           onRetryPush={handleRetryPush}
           onClearPushError={handleClearPushError}
+          onRetryExecute={handleRetryExecute}
+          onClearExecuteError={handleClearExecuteError}
         />
 
         {/* Input */}

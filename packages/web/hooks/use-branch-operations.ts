@@ -76,6 +76,7 @@ export function useBranchOperations({
             message.assistantSource ?? (message.commitHash ? "commit" : "model"),
         }),
         ...(message.pushError != null && { pushError: message.pushError }),
+        ...(message.executeError != null && { executeError: message.executeError }),
       })
     },
     onError: (error) => {
@@ -92,6 +93,7 @@ export function useBranchOperations({
         ...(updates.toolCalls !== undefined && { toolCalls: updates.toolCalls }),
         ...(updates.contentBlocks !== undefined && { contentBlocks: updates.contentBlocks }),
         ...("pushError" in updates && { pushError: updates.pushError ?? null }),
+        ...("executeError" in updates && { executeError: updates.executeError ?? null }),
       })
     },
     onError: (error) => {

@@ -262,6 +262,12 @@ export interface PushErrorInfo {
   repoApiName: string
 }
 
+/** Failed to start agent run; shown as notice + retry (not as a model markdown bubble). */
+export interface ExecuteErrorInfo {
+  errorMessage: string
+  prompt: string
+}
+
 /** Provenance for assistant rows (not user messages). */
 export type AssistantSource = "model" | "system" | "commit"
 
@@ -276,6 +282,8 @@ export interface Message {
   commitMessage?: string
   contentLoaded?: boolean  // false = summary only (content not loaded), true/undefined = full content available
   pushError?: PushErrorInfo  // Present when push failed, allows retry with branch deletion
+  /** Failed POST /api/agent/execute; retry resends the same prompt to the same assistant row */
+  executeError?: ExecuteErrorInfo
   /** Only for assistant: real model turn vs app/git vs commit chip. Omitted/undefined treated as model (except commit rows infer from commitHash). */
   assistantSource?: AssistantSource
 }

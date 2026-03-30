@@ -29,6 +29,16 @@ describe('isLocalRicher', () => {
       )
     ).toBe(true)
   })
+
+  it('returns true when local has executeError (same content as API)', () => {
+    const executeError = { errorMessage: 'failed', prompt: 'hi' }
+    expect(
+      isLocalRicher(
+        { id: '1', content: '', executeError },
+        { content: '' }
+      )
+    ).toBe(true)
+  })
 })
 
 describe('mergeMessages', () => {

@@ -17,6 +17,7 @@ export interface MessageLike {
   contentBlocks?: unknown[]
   /** Ephemeral UI (e.g. push retry); not persisted — must win over API in sync merge */
   pushError?: unknown
+  executeError?: unknown
   // Allow additional properties from the full Message type
   [key: string]: unknown
 }
@@ -31,6 +32,8 @@ export interface ApiMessage {
   commitHash?: string | null
   commitMessage?: string | null
   assistantSource?: string | null
+  pushError?: unknown
+  executeError?: unknown
 }
 
 // =============================================================================
@@ -55,6 +58,7 @@ export function isLocalRicher(
   // Ephemeral UI state not in DB — without this, the next sync refetch drops pushError
   // after a few seconds when merge prefers the API row (same content length).
   if (local.pushError != null) return true
+  if (local.executeError != null) return true
 
   // Compare content length
   const localContentLength = local.content?.length ?? 0
@@ -98,6 +102,8 @@ export function convertApiMessage<T extends ApiMessage>(apiMessage: T): MessageL
     commitHash: apiMessage.commitHash || undefined,
     commitMessage: apiMessage.commitMessage || undefined,
     ...(assistantSource != null && { assistantSource }),
+    ...(apiMessage.pushError != null && { pushError: apiMessage.pushError }),
+    ...(apiMessage.executeError != null && { executeError: apiMessage.executeError }),
   }
 }
 

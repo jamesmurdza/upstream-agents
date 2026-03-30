@@ -195,6 +195,8 @@ model Message {
   contentBlocks Json?
   /// Ephemeral push-retry UI payload (same shape as PushErrorInfo); survives reload when set
   pushError     Json?
+  /// Failed agent execute (ExecuteErrorInfo); survives reload when set
+  executeError  Json?
   /// model | system | commit — only meaningful when role is assistant
   assistantSource String?
   agentId       String?

@@ -25,6 +25,7 @@ export interface DbMessage {
   commitMessage: string | null
   assistantSource?: string | null
   pushError?: unknown
+  executeError?: unknown
 }
 
 /**
@@ -114,6 +115,9 @@ export function transformMessage(m: DbMessage): Message {
     commitMessage: m.commitMessage || undefined,
     ...(m.pushError != null && {
       pushError: m.pushError as Message["pushError"],
+    }),
+    ...(m.executeError != null && {
+      executeError: m.executeError as Message["executeError"],
     }),
     ...(assistantSource != null && { assistantSource }),
   }

@@ -22,11 +22,13 @@ interface MessageListProps {
   onBranchFromCommit?: (hash: string) => void
   onRetryPush?: (pushError: PushErrorInfo) => Promise<{ success: boolean; error?: string }>
   onClearPushError?: (messageId: string) => void
+  onRetryExecute?: (messageId: string) => Promise<{ success: boolean; error?: string }>
+  onClearExecuteError?: (messageId: string) => void
 }
 
 export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
   function MessageList(
-    { branch, messagesLoading, isMobile, onScroll, onCommitClick, onBranchFromCommit, onRetryPush, onClearPushError },
+    { branch, messagesLoading, isMobile, onScroll, onCommitClick, onBranchFromCommit, onRetryPush, onClearPushError, onRetryExecute, onClearExecuteError },
     ref
   ) {
     // Creating state
@@ -96,7 +98,7 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
               if (msg.role !== "assistant" || msg.assistantSource !== ASSISTANT_SOURCE.SYSTEM) {
                 return true
               }
-              const empty = !msg.content?.trim() && !msg.pushError
+              const empty = !msg.content?.trim() && !msg.pushError && !msg.executeError
               return !empty
             })
             .map((msg) => (
@@ -108,6 +110,8 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
               onBranchFromCommit={onBranchFromCommit}
               onRetryPush={onRetryPush}
               onClearPushError={onClearPushError}
+              onRetryExecute={onRetryExecute}
+              onClearExecuteError={onClearExecuteError}
             />
           ))}
           {branch.status === BRANCH_STATUS.RUNNING && (

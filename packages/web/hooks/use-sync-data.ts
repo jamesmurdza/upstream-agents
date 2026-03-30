@@ -310,6 +310,9 @@ function mergeMessages(
     ...(m.pushError != null && {
       pushError: m.pushError as import("@/lib/shared/types").Message["pushError"],
     }),
+    ...(m.executeError != null && {
+      executeError: m.executeError as import("@/lib/shared/types").Message["executeError"],
+    }),
   }))
   const localById = new Map(localMessages.map((m) => [m.id, m]))
   const apiMessageIds = new Set(convertedApiMessages.map((m) => m.id))

@@ -95,6 +95,7 @@ export async function POST(req: Request) {
     commitHash,
     commitMessage,
     pushError,
+    executeError,
     assistantSource: assistantSourceBody,
   } = body
 
@@ -135,6 +136,7 @@ export async function POST(req: Request) {
       commitMessage,
       ...(assistantSource != null && { assistantSource }),
       ...(pushError !== undefined && pushError !== null && { pushError }),
+      ...(executeError !== undefined && executeError !== null && { executeError }),
     },
   })
 
@@ -148,7 +150,7 @@ export async function PATCH(req: Request) {
   const { userId } = authResult
 
   const body = await req.json()
-  const { messageId, content, toolCalls, contentBlocks, pushError } = body
+  const { messageId, content, toolCalls, contentBlocks, pushError, executeError } = body
 
   if (!messageId) {
     return badRequest("Missing message ID")
@@ -171,6 +173,7 @@ export async function PATCH(req: Request) {
       ...(toolCalls !== undefined && { toolCalls }),
       ...(contentBlocks !== undefined && { contentBlocks }),
       ...("pushError" in body && { pushError: pushError ?? null }),
+      ...("executeError" in body && { executeError: executeError ?? null }),
     },
   })
 
