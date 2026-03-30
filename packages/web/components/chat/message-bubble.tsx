@@ -168,7 +168,7 @@ function PushErrorRetry({
   const body = (
     <>
       <p className="text-sm mt-1.5 text-yellow-950/90 dark:text-yellow-50/90">
-        You can delete the remote branch and push again to apply your changes:
+        You can force push to sync your changes:
       </p>
       {retryError && (
         <p className="text-sm mt-1.5 text-red-600 dark:text-red-400">{retryError}</p>
@@ -182,12 +182,12 @@ function PushErrorRetry({
         {isRetrying ? (
           <>
             <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-            Deleting and pushing...
+            Force pushing...
           </>
         ) : (
           <>
             <RefreshCw className="h-3.5 w-3.5 shrink-0" />
-            Delete remote branch and push
+            Force push
           </>
         )}
       </button>

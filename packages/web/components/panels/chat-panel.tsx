@@ -574,7 +574,7 @@ export function ChatPanel({
     }
   }, [branch.id, onUpdateBranch, defaultLoopMaxIterations])
 
-  // Handle push retry - delete remote branch and push again
+  // Handle push retry - force-push to sync diverged history (preserves PRs)
   const handleRetryPush = useCallback(async (pushError: PushErrorInfo): Promise<{ success: boolean; error?: string }> => {
     try {
       const response = await fetch("/api/sandbox/git", {
@@ -583,7 +583,7 @@ export function ChatPanel({
         body: JSON.stringify({
           sandboxId: pushError.sandboxId,
           repoPath: pushError.repoPath,
-          action: "delete-branch-and-push",
+          action: "force-push",
           currentBranch: pushError.branchName,
           repoOwner: pushError.repoOwner,
           repoApiName: pushError.repoApiName,
@@ -614,7 +614,7 @@ export function ChatPanel({
     if (message) {
       // Update the message to remove pushError and update content
       onUpdateMessage(branch.id, messageId, {
-        content: "✅ Push succeeded after deleting remote branch.",
+        content: "✅ Force push succeeded.",
         pushError: undefined,
       })
     }

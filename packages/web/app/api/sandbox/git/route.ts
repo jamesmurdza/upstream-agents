@@ -635,39 +635,43 @@ export async function POST(req: Request) {
         return Response.json({ success: true })
       }
 
-      case "delete-branch-and-push": {
-        // Delete the remote branch via GitHub API, then push from sandbox via Daytona SDK
-        // This is used when a push fails and the user wants to delete the remote and retry
+      case "force-push": {
+        // Force-update the remote branch ref to match local HEAD
+        // This preserves PRs (unlike deleting the branch) while syncing diverged history
         if (!currentBranch || !githubToken || !repoOwner || !repoApiName) {
-          return badRequest("Missing required fields for delete-branch-and-push")
+          return badRequest("Missing required fields for force-push")
         }
 
-        // Step 1: Delete the remote branch via GitHub API
-        const deleteBranchRes = await fetch(
+        // Get local HEAD SHA
+        const shaResult = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git rev-parse HEAD 2>&1`
+        )
+        if (shaResult.exitCode !== 0) {
+          return Response.json({ error: "Failed to get HEAD: " + shaResult.result }, { status: 500 })
+        }
+        const sha = shaResult.result.trim()
+
+        // Force-update the remote ref (preserves PRs, unlike delete + push)
+        const refRes = await fetch(
           `https://api.github.com/repos/${repoOwner}/${repoApiName}/git/refs/heads/${currentBranch}`,
           {
-            method: "DELETE",
+            method: "PATCH",
             headers: {
               Authorization: `Bearer ${githubToken}`,
               Accept: "application/vnd.github.v3+json",
             },
+            body: JSON.stringify({ sha, force: true }),
           }
         )
-        // 404 is fine - branch might not exist on remote
-        if (!deleteBranchRes.ok && deleteBranchRes.status !== 404) {
-          const deleteErrData = await deleteBranchRes.json().catch(() => ({}))
+
+        if (!refRes.ok) {
+          const refData = await refRes.json().catch(() => ({}))
           return Response.json({
-            error: "Failed to delete remote branch: " + ((deleteErrData as { message?: string }).message || deleteBranchRes.status)
+            error: "Force push failed: " + ((refData as { message?: string }).message || refRes.status)
           }, { status: 500 })
         }
 
-        // Step 2: Push from sandbox using Daytona SDK
-        const retryPushResult = await pushWithRetry(sandbox, repoPath, githubToken, currentBranch)
-        if (!retryPushResult.success) {
-          return Response.json({ error: "Push failed after branch deletion: " + retryPushResult.error }, { status: 500 })
-        }
-
-        return Response.json({ success: true, deleted: deleteBranchRes.status !== 404 })
+        return Response.json({ success: true })
       }
 
       case "rename-branch": {
