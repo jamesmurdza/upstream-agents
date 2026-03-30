@@ -2,6 +2,8 @@
 
 A sophisticated multi-tenant web application that enables users to run AI coding agents (Claude Code, OpenCode, Codex) in isolated Daytona sandboxes. Features a Slack-like interface for managing AI-powered coding agents across multiple GitHub repositories with real-time streaming output, background execution, and persistent chat history.
 
+<img width="1361" height="749" alt="image" src="https://github.com/user-attachments/assets/301f461c-7a8a-43b3-b26b-c30d3b972dcf" />
+
 ## Features
 
 ### Core Capabilities
