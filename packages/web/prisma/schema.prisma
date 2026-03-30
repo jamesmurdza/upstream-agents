@@ -190,6 +190,8 @@ model Message {
   commitMessage String?
   createdAt     DateTime        @default(now())
   contentBlocks Json?
+  /// Ephemeral push-retry UI payload (same shape as PushErrorInfo); survives reload when set
+  pushError     Json?
   agentId       String?
   execution     AgentExecution?
   branch        Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)

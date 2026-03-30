@@ -84,7 +84,17 @@ export async function POST(req: Request) {
   const { userId } = authResult
 
   const body = await req.json()
-  const { branchId, role, content, toolCalls, contentBlocks, timestamp, commitHash, commitMessage } = body
+  const {
+    branchId,
+    role,
+    content,
+    toolCalls,
+    contentBlocks,
+    timestamp,
+    commitHash,
+    commitMessage,
+    pushError,
+  } = body
 
   if (!branchId || !role) {
     return badRequest("Missing required fields")
@@ -106,6 +116,7 @@ export async function POST(req: Request) {
       timestamp,
       commitHash,
       commitMessage,
+      ...(pushError !== undefined && pushError !== null && { pushError }),
     },
   })
 
@@ -119,7 +130,7 @@ export async function PATCH(req: Request) {
   const { userId } = authResult
 
   const body = await req.json()
-  const { messageId, content, toolCalls, contentBlocks } = body
+  const { messageId, content, toolCalls, contentBlocks, pushError } = body
 
   if (!messageId) {
     return badRequest("Missing message ID")
@@ -141,6 +152,7 @@ export async function PATCH(req: Request) {
       ...(content !== undefined && { content }),
       ...(toolCalls !== undefined && { toolCalls }),
       ...(contentBlocks !== undefined && { contentBlocks }),
+      ...("pushError" in body && { pushError: pushError ?? null }),
     },
   })
 

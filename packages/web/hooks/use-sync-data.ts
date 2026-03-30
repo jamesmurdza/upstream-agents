@@ -297,6 +297,9 @@ function mergeMessages(
     timestamp: m.timestamp || "",
     commitHash: m.commitHash || undefined,
     commitMessage: m.commitMessage || undefined,
+    ...(m.pushError != null && {
+      pushError: m.pushError as import("@/lib/shared/types").Message["pushError"],
+    }),
   }))
   const localById = new Map(localMessages.map((m) => [m.id, m]))
   const apiMessageIds = new Set(convertedApiMessages.map((m) => m.id))

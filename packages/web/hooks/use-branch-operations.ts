@@ -116,6 +116,7 @@ export function useBranchOperations({
           timestamp: message.timestamp,
           commitHash: message.commitHash,
           commitMessage: message.commitMessage,
+          ...(message.pushError != null && { pushError: message.pushError }),
         }),
       })
 
@@ -146,15 +147,18 @@ export function useBranchOperations({
 
     setRepos((prev) => updateMessageInBranch(prev, activeRepo.id, branchId, messageId, updates))
 
+    const patchBody: Record<string, unknown> = {
+      messageId,
+      ...(updates.content !== undefined && { content: updates.content }),
+      ...(updates.toolCalls !== undefined && { toolCalls: updates.toolCalls }),
+      ...(updates.contentBlocks !== undefined && { contentBlocks: updates.contentBlocks }),
+      ...("pushError" in updates && { pushError: updates.pushError ?? null }),
+    }
+
     return fetch("/api/branches/messages", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messageId,
-        content: updates.content,
-        toolCalls: updates.toolCalls,
-        contentBlocks: updates.contentBlocks,
-      }),
+      body: JSON.stringify(patchBody),
     })
       .then(() => {})
       .catch((error) => {

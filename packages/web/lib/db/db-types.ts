@@ -23,6 +23,7 @@ export interface DbMessage {
   timestamp: string | null
   commitHash: string | null
   commitMessage: string | null
+  pushError?: unknown
 }
 
 /**
@@ -100,6 +101,9 @@ export function transformMessage(m: DbMessage): Message {
     timestamp: m.timestamp || "",
     commitHash: m.commitHash || undefined,
     commitMessage: m.commitMessage || undefined,
+    ...(m.pushError != null && {
+      pushError: m.pushError as Message["pushError"],
+    }),
   }
 }
 
