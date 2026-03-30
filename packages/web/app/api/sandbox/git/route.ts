@@ -410,7 +410,8 @@ export async function POST(req: Request) {
           `cd ${repoPath} && git rev-parse HEAD 2>&1`
         )
         const sha = shaResult.result.trim()
-        // Force push via GitHub API (PATCH refs)
+
+        // Try PATCH first (update existing ref)
         const refRes = await fetch(
           `https://api.github.com/repos/${repoOwner}/${repoApiName}/git/refs/heads/${currentBranch}`,
           {
@@ -422,9 +423,25 @@ export async function POST(req: Request) {
             body: JSON.stringify({ sha, force: true }),
           }
         )
+
         if (!refRes.ok) {
-          const refData = await refRes.json().catch(() => ({}))
-          return Response.json({ error: "Force push failed: " + ((refData as { message?: string }).message || refRes.status) }, { status: 500 })
+          // If PATCH failed (ref doesn't exist), try POST to create it
+          const createRefRes = await fetch(
+            `https://api.github.com/repos/${repoOwner}/${repoApiName}/git/refs`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${githubToken}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+              body: JSON.stringify({ ref: `refs/heads/${currentBranch}`, sha }),
+            }
+          )
+
+          if (!createRefRes.ok) {
+            const refData = await createRefRes.json().catch(() => ({}))
+            return Response.json({ error: "Force push failed: " + ((refData as { message?: string }).message || createRefRes.status) }, { status: 500 })
+          }
         }
         return Response.json({ success: true })
       }
