@@ -75,7 +75,13 @@ export async function POST(req: Request) {
     return badRequest("No API key available. Please add an Anthropic or OpenAI API key in settings, or ensure the server has OpenRouter configured.")
   }
 
-  if (result.error || !result.text) {
+  if (result.error === "llm_error") {
+    // Pass through the specific error message from the LLM provider
+    const errorMessage = result.errorMessage || "Failed to generate branch name suggestion"
+    return internalError(new Error(errorMessage))
+  }
+
+  if (!result.text) {
     return internalError(new Error("Failed to generate branch name suggestion"))
   }
 
