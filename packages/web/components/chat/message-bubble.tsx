@@ -105,6 +105,10 @@ const markdownComponents = {
   ),
 }
 
+/** Shared rounded yellow notice bubble (workspace markdown + push-retry UI). Lemon-leaning yellow-400/500 — less orange than yellow-600. */
+const WORKSPACE_NOTICE_PANEL_CLASS =
+  "rounded-lg bg-yellow-400/[0.11] dark:bg-yellow-500/[0.12] px-4 py-2.5 text-sm text-yellow-950 dark:text-yellow-50 [&_a]:text-yellow-700 dark:[&_a]:text-yellow-300 [&_code]:rounded [&_code]:bg-yellow-500/14 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-yellow-900 dark:[&_code]:bg-yellow-500/18 dark:[&_code]:text-yellow-100"
+
 function TextBlockContent({ text }: { text: string }) {
   return (
     <div className="rounded-lg px-4 py-2.5 text-sm leading-relaxed bg-secondary/60 text-foreground prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:text-xs prose-code:text-xs prose-code:bg-background/50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-headings:my-2 break-words overflow-x-auto [&_pre]:overflow-x-auto [&_code]:break-all [&_table]:block [&_table]:overflow-x-auto [&_table]:max-w-full min-w-0">
@@ -153,25 +157,25 @@ function PushErrorRetry({ pushError, onRetry, messageId, onClearError }: PushErr
   }
 
   return (
-    <div className="mt-2 p-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10">
+    <div className={cn("mt-2", WORKSPACE_NOTICE_PANEL_CLASS)}>
       <div className="flex items-start gap-2">
-        <Trash2 className="h-4 w-4 text-yellow-500 mt-0.5 shrink-0" />
+        <Trash2 className="h-4 w-4 text-yellow-700 dark:text-yellow-300 mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
+          <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
             Push failed
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs mt-1 text-yellow-950/80 dark:text-yellow-50/80">
             Would you like to delete the remote branch and push again? This will replace the remote branch with your local changes.
           </p>
           {retryError && (
-            <p className="text-xs text-red-500 mt-1">
+            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
               {retryError}
             </p>
           )}
           <button
             onClick={handleRetry}
             disabled={isRetrying}
-            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-yellow-500/25 text-yellow-900 dark:text-yellow-100 hover:bg-yellow-500/35 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isRetrying ? (
               <>
@@ -255,7 +259,7 @@ export function MessageBubble({ message, agent = "claude-code", agentLabel, onCo
         aria-label="Workspace message"
       >
         <span className="text-[10px] text-muted-foreground/40 mb-1">{message.timestamp}</span>
-        <div className="border-l-2 border-yellow-500/30 pl-3 ml-0.5 rounded-r-md bg-yellow-500/10 py-2 pr-3 text-sm text-yellow-950 dark:text-yellow-50 [&_a]:text-yellow-700 dark:[&_a]:text-yellow-300 [&_code]:rounded [&_code]:bg-yellow-500/20 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-yellow-900 dark:[&_code]:bg-yellow-500/15 dark:[&_code]:text-yellow-100">
+        <div className={WORKSPACE_NOTICE_PANEL_CLASS}>
           {message.content ? (
             <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {message.content}
