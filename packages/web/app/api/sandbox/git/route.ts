@@ -155,6 +155,16 @@ export async function POST(req: Request) {
         if (!githubToken) {
           return badRequest("GitHub token not found")
         }
+        // Check if repo is in a rebase-in-progress state - don't commit/push during conflicts
+        const rebaseCheck = await sandbox.process.executeCommand(
+          `test -d ${repoPath}/.git/rebase-merge -o -d ${repoPath}/.git/rebase-apply && echo "yes" || echo "no"`
+        )
+        if (rebaseCheck.result.trim() === "yes") {
+          return Response.json({
+            error: "Rebase in progress - resolve conflicts before pushing",
+            inRebase: true,
+          }, { status: 409 })
+        }
         // Look up the current branch name from DB using branchId
         // This avoids race conditions where client has stale branch name after rename
         const branchId = body.branchId
@@ -372,8 +382,28 @@ export async function POST(req: Request) {
           `cd ${repoPath} && git rebase ${targetBranch} 2>&1`
         )
         if (rebaseResult.exitCode) {
+          // Check if this is a conflict (vs other errors)
+          const isConflict = rebaseResult.result.includes("CONFLICT") ||
+                             rebaseResult.result.includes("could not apply")
+
+          if (isConflict) {
+            // Get list of conflicted files - DON'T abort, let agent resolve
+            const conflictResult = await sandbox.process.executeCommand(
+              `cd ${repoPath} && git diff --name-only --diff-filter=U 2>&1`
+            )
+            const conflictedFiles = conflictResult.result.trim().split('\n').filter(Boolean)
+
+            return Response.json({
+              conflict: true,
+              targetBranch,
+              conflictedFiles,
+              message: rebaseResult.result,
+            }, { status: 409 })
+          }
+
+          // Non-conflict error - abort and return error
           await sandbox.process.executeCommand(`cd ${repoPath} && git rebase --abort 2>&1`)
-          return Response.json({ error: "Rebase conflict: " + rebaseResult.result }, { status: 409 })
+          return Response.json({ error: "Rebase failed: " + rebaseResult.result }, { status: 500 })
         }
         // Get SHA for force push via GitHub API
         const shaResult = await sandbox.process.executeCommand(
@@ -397,6 +427,34 @@ export async function POST(req: Request) {
           return Response.json({ error: "Force push failed: " + ((refData as { message?: string }).message || refRes.status) }, { status: 500 })
         }
         return Response.json({ success: true })
+      }
+
+      case "abort-rebase": {
+        const abortResult = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git rebase --abort 2>&1`
+        )
+        if (abortResult.exitCode) {
+          return Response.json({ error: "Abort failed: " + abortResult.result }, { status: 500 })
+        }
+        return Response.json({ success: true })
+      }
+
+      case "check-rebase-status": {
+        // Check if repo is in a rebase-in-progress state
+        const rebaseCheck = await sandbox.process.executeCommand(
+          `test -d ${repoPath}/.git/rebase-merge -o -d ${repoPath}/.git/rebase-apply && echo "yes" || echo "no"`
+        )
+        const inRebase = rebaseCheck.result.trim() === "yes"
+
+        let conflictedFiles: string[] = []
+        if (inRebase) {
+          const conflictResult = await sandbox.process.executeCommand(
+            `cd ${repoPath} && git diff --name-only --diff-filter=U 2>&1`
+          )
+          conflictedFiles = conflictResult.result.trim().split('\n').filter(Boolean)
+        }
+
+        return Response.json({ inRebase, conflictedFiles })
       }
 
       case "reset": {
