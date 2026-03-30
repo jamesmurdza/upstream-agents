@@ -599,6 +599,25 @@ export function useExecutionPolling({
     const effectBranchId = branch.id
     let cancelled = false
 
+    // When branch changes, we need to check if we should stop polling for the previous branch
+    // If polling is active for a DIFFERENT branch, stop it so we can start fresh for this branch
+    if (pollingActiveRef.current && pollingBranchIdRef.current !== effectBranchId) {
+      // Stop polling for the previous branch - but don't run commit detection or cleanup
+      // since we're just switching views, not stopping the execution
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+      pollInFlightRef.current = false
+      pollingActiveRef.current = false
+      // Clear streaming ref to avoid blocking sync for new branch
+      if (streamingMessageIdRef) {
+        streamingMessageIdRef.current = null
+      }
+      // Note: We don't reset pollingBranchIdRef here - the old branch's execution continues
+      // in the background, we just stop polling for it from this component instance
+    }
+
     if (!branch.sandboxId) {
       return
     }
