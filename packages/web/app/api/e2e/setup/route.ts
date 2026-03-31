@@ -49,6 +49,7 @@ async function setSessionCookie() {
 export async function POST(req: Request) {
   const body = await req.json()
   const count: number = body.count ?? 3
+  const singleRepo: boolean = body.singleRepo ?? false
 
   const daytonaApiKey = process.env.DAYTONA_API_KEY
   if (!daytonaApiKey) {
@@ -67,27 +68,49 @@ export async function POST(req: Request) {
     )
 
     // 3. Seed DB scaffold: Repo → Branch → Sandbox (no messages, no executions)
+    //    singleRepo=true puts all branches under one repo (for multi-agent UI tests)
     const branches: Array<{
       branchId: string
       sandboxId: string
       repoName: string
     }> = []
 
-    for (let i = 0; i < count; i++) {
-      const sandbox = sandboxes[i]
-      const repoName = `e2e-repo-${Date.now()}-${i}`
+    const sharedRepoName = `e2e-repo-${Date.now()}`
+    let sharedRepo: { id: string } | null = null
 
-      // Create repo dir in sandbox so agent has a working directory
-      await sandbox.process.executeCommand(`mkdir -p ${PATHS.SANDBOX_HOME}/${repoName}`)
-
-      const repo = await prisma.repo.create({
+    if (singleRepo) {
+      // Create one repo and one working directory per sandbox
+      sharedRepo = await prisma.repo.create({
         data: {
           userId: E2E_USER_ID,
           owner: "e2e-test",
-          name: repoName,
+          name: sharedRepoName,
           defaultBranch: "main",
         },
       })
+      await Promise.all(
+        sandboxes.map(s => s.process.executeCommand(`mkdir -p ${PATHS.SANDBOX_HOME}/${sharedRepoName}`))
+      )
+    }
+
+    for (let i = 0; i < count; i++) {
+      const sandbox = sandboxes[i]
+      const repoName = singleRepo ? sharedRepoName : `${sharedRepoName}-${i}`
+
+      if (!singleRepo) {
+        await sandbox.process.executeCommand(`mkdir -p ${PATHS.SANDBOX_HOME}/${repoName}`)
+      }
+
+      const repo = singleRepo
+        ? sharedRepo!
+        : await prisma.repo.create({
+            data: {
+              userId: E2E_USER_ID,
+              owner: "e2e-test",
+              name: repoName,
+              defaultBranch: "main",
+            },
+          })
 
       const branch = await prisma.branch.create({
         data: {
