@@ -86,6 +86,6 @@ test.describe("active branch: no Thinking... after completion", () => {
     expect(content?.length).toBeGreaterThan(0)
 
     console.log("Active branch assertion passed — pausing 5s")
-    await page.waitForTimeout(5_000)
+    await page.waitForTimeout(1_500)
   })
 })

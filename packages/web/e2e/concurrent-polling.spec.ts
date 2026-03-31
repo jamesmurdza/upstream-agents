@@ -155,6 +155,6 @@ test.describe("concurrent agent polling (real sandboxes)", () => {
     //     Note: after refresh, poll count resets — check pre-refresh value
     //     was > 0 implicitly by the fact that content/toolCalls appeared above.
     console.log("All assertions passed — pausing 5s for visual inspection")
-    await page.waitForTimeout(3_000)
+    await page.waitForTimeout(1_500)
   })
 })

@@ -158,6 +158,6 @@ test.describe("real app: multiple concurrent agents", () => {
     }
 
     console.log("All real-app multi-agent assertions passed — pausing 5s for visual inspection")
-    await page.waitForTimeout(5_000)
+    await page.waitForTimeout(1_500)
   })
 })

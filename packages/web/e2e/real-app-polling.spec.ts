@@ -173,6 +173,6 @@ test.describe("real app: send → stream → complete → refresh", () => {
     expect(postRefreshContent?.length).toBeGreaterThan(0)
 
     console.log("All real-app assertions passed — pausing 5s for visual inspection")
-    await page.waitForTimeout(3_000)
+    await page.waitForTimeout(1_500)
   })
 })
