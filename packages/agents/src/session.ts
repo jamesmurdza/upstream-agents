@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto"
-import type { ProviderName, ProviderOptions, RunDefaults, RunOptions, Event } from "./types/index.js"
+import type {
+  ProviderName,
+  ProviderOptions,
+  RunDefaults,
+  RunOptions,
+  Event,
+  BackgroundRunPhase,
+} from "./types/index.js"
 import { debugLog } from "./debug.js"
 import { createProvider } from "./factory.js"
 import type { Provider } from "./providers/base.js"
@@ -68,16 +75,22 @@ export interface BackgroundSession {
 
   /**
    * Get new events for the current turn. Cursor is read/updated in sandbox meta; no arguments.
-   * Use isRunning() to check if the agent is still running (or crashed).
+   * Prefer `runPhase` over inferring completion from `running` alone (see {@link BackgroundRunPhase}).
    */
   getEvents(): Promise<{
     sessionId: string | null
     events: Event[]
     cursor: string
+    /** True when {@link BackgroundRunPhase} is `starting` or `running`. */
     running: boolean
+    runPhase: BackgroundRunPhase
   }>
 
-  /** True if the current turn's process is still running in the sandbox (e.g. detect crash). */
+  /**
+   * True if the sandbox done-file indicates the provider process is still up.
+   * Prefer {@link BackgroundSession.getEvents} `running` / `runPhase` for polling — they include a
+   * startup grace window where this method may still report false.
+   */
   isRunning(): Promise<boolean>
 
   /** Current turn's process id from sandbox meta, or null if no run in progress. */

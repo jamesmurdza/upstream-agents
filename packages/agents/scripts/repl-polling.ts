@@ -187,6 +187,8 @@ async function main() {
 
         while (!done) {
           const res = await bg.getEvents()
+          // Use res.running (not isRunning()) so startup grace matches getEvents / runPhase.
+          const turnActive = res.running
 
           for (const event of res.events) {
             // Session events are captured internally; don't print them in REPL output.
@@ -222,7 +224,7 @@ async function main() {
             }
           }
 
-          if (!done && !(await bg.isRunning())) {
+          if (!done && !turnActive) {
             done = true
             console.log("\n\x1b[90m(agent process stopped)\x1b[0m")
           }

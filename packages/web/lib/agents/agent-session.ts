@@ -20,6 +20,7 @@ import {
   type ToolEndEvent,
   type EndEvent,
   type BackgroundSessionOptions,
+  type BackgroundRunPhase,
 } from "@upstream/agents"
 import type { Sandbox as DaytonaSandbox } from "@daytonaio/sdk"
 import { type Agent, getProviderForAgent } from "@/lib/shared/types"
@@ -382,6 +383,7 @@ export async function pollBackgroundAgent(
       sessionId: string | null
       cursor: string
       running?: boolean
+      runPhase?: BackgroundRunPhase
     }
     const { events: newEvents, sessionId } = eventsResult
     let running: boolean
@@ -391,6 +393,8 @@ export async function pollBackgroundAgent(
       // Compatibility path for older SDK shape without running in getEvents().
       running = await bgSession.isRunning()
     }
+    const runPhase: BackgroundRunPhase =
+      eventsResult.runPhase ?? (running ? "running" : "stopped")
 
     // Accumulate events in DB so all clients share the same stream.
     const cached = await getAccumulatedEvents(options.agentExecutionId)
@@ -451,6 +455,17 @@ export async function pollBackgroundAgent(
         toolCalls,
         contentBlocks,
         error: endEvent.error,
+        sessionId: sessionId || undefined,
+      }
+    }
+
+    // No active turn in meta yet (e.g. before start or between turns) — keep polling.
+    if (runPhase === "idle" && !hasEndEvent) {
+      return {
+        status: "running",
+        content,
+        toolCalls,
+        contentBlocks,
         sessionId: sessionId || undefined,
       }
     }

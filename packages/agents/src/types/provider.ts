@@ -4,6 +4,20 @@ import type { Event } from "./events.js"
  * Provider-related types and interfaces
  */
 
+/**
+ * Lifecycle of the current background turn for polling consumers.
+ *
+ * - `idle` — No active turn (`runId` / `outputFile` not set in sandbox meta).
+ * - `starting` — Turn metadata exists but the process is not yet reliably observable
+ *   (e.g. early poll or startup grace window). Keep polling; do not treat as terminal.
+ * - `running` — Turn in progress (process up, no terminal outcome yet).
+ * - `stopped` — Turn finished (normal end, crash, or completion path).
+ *
+ * For backward compatibility, `running` (boolean) on `getEvents()` is true when
+ * `runPhase` is `starting` or `running`, and false when `idle` or `stopped`.
+ */
+export type BackgroundRunPhase = "idle" | "starting" | "running" | "stopped"
+
 /** Supported provider names */
 export type ProviderName = "claude" | "codex" | "opencode" | "gemini"
 

@@ -8,9 +8,34 @@ import type {
   RunOptions,
   ProviderOptions,
   RunDefaults,
+  BackgroundRunPhase,
 } from "../types/index.js"
 import type { CodeAgentSandbox } from "../types/index.js"
 import { adaptSandbox } from "../sandbox/index.js"
+
+/** After {@link readSandboxMeta} `startedAt`, ignore "done but no output" briefly (race with wrapper). */
+const BACKGROUND_STARTUP_GRACE_MS = 4000
+
+function withinStartupGrace(meta: { startedAt?: string }): boolean {
+  if (!meta.startedAt) return false
+  const t = Date.parse(meta.startedAt)
+  if (Number.isNaN(t)) return false
+  return Date.now() - t < BACKGROUND_STARTUP_GRACE_MS
+}
+
+function hasObservableBackgroundProgress(result: { events: Event[]; rawOutput?: string }): boolean {
+  for (const e of result.events) {
+    if (e.type === "token" || e.type === "tool_start" || e.type === "tool_end" || e.type === "end") {
+      return true
+    }
+  }
+  const raw = (result.rawOutput ?? "").trim()
+  const nonJsonLines = raw.split("\n").filter((l) => {
+    const t = l.trim()
+    return t && !(t.startsWith("{") && t.endsWith("}"))
+  })
+  return nonJsonLines.some((l) => l.trim().length > 0)
+}
 
 /**
  * Abstract base class for AI coding agent providers
@@ -481,6 +506,7 @@ export abstract class Provider implements IProvider {
     events: Event[]
     cursor: string
     running: boolean
+    runPhase: BackgroundRunPhase
   }> {
     // Optimized path: read meta + output + done status together
     let meta: Awaited<ReturnType<typeof this.readSandboxMeta>> = null
@@ -507,7 +533,13 @@ export abstract class Provider implements IProvider {
 
     if (!meta?.runId || !meta.outputFile) {
       debugLog(`getEventsSandboxBackgroundFromMeta provider=${this.name} sessionDir=${sessionDir} (no turn in progress)`, this.sessionId)
-      return { sessionId: meta?.sessionId ?? this.sessionId ?? null, events: [], cursor: String(meta?.cursor ?? 0), running: false }
+      return {
+        sessionId: meta?.sessionId ?? this.sessionId ?? null,
+        events: [],
+        cursor: String(meta?.cursor ?? 0),
+        running: false,
+        runPhase: "idle",
+      }
     }
 
     const cursor = String(meta.cursor)
@@ -528,12 +560,47 @@ export abstract class Provider implements IProvider {
     result: Awaited<ReturnType<typeof this.pollSandboxBackground>>,
     stillRunning: boolean,
     sawEnd: boolean
-  ): Promise<{ sessionId: string | null; events: Event[]; cursor: string; running: boolean }> {
+  ): Promise<{
+    sessionId: string | null
+    events: Event[]
+    cursor: string
+    running: boolean
+    runPhase: BackgroundRunPhase
+  }> {
     const baseMeta = {
       cursor: Number(result.cursor) || 0,
       rawCursor: Number(result.rawCursor) || meta.rawCursor || 0,
       provider: this.name as import("../types/index.js").ProviderName,
       sessionId: this.sessionId ?? meta.sessionId ?? null,
+    }
+
+    // Early poll / wrapper race: done file appears before any JSONL output — stay "active" until grace elapses.
+    if (
+      !stillRunning &&
+      !sawEnd &&
+      withinStartupGrace(meta) &&
+      !hasObservableBackgroundProgress(result)
+    ) {
+      await this.writeSandboxMetaIfChanged(
+        sessionDir,
+        {
+          currentTurn: meta.currentTurn,
+          ...baseMeta,
+          sawEnd: false,
+          pid: meta.pid,
+          runId: meta.runId,
+          outputFile: meta.outputFile,
+          startedAt: meta.startedAt,
+        },
+        meta
+      )
+      return {
+        sessionId: result.sessionId,
+        events: result.events,
+        cursor: result.cursor,
+        running: true,
+        runPhase: "starting",
+      }
     }
 
     if (!stillRunning || sawEnd) {
@@ -557,10 +624,23 @@ export abstract class Provider implements IProvider {
       const crashEvent: Event = { type: "agent_crashed", message: "Agent process exited without completing (crashed or killed)", output }
       debugLog("session end", this.sessionId ?? meta.sessionId, "reason=crashed", crashEvent.message)
       await this.writeSandboxMetaIfChanged(sessionDir, { currentTurn: (meta.currentTurn ?? 0) + 1, ...baseMeta, sawEnd: true }, meta)
-      return { sessionId: result.sessionId, events: [...result.events, crashEvent], cursor: result.cursor, running: false }
+      return {
+        sessionId: result.sessionId,
+        events: [...result.events, crashEvent],
+        cursor: result.cursor,
+        running: false,
+        runPhase: "stopped",
+      }
     }
 
-    return { sessionId: result.sessionId, events: result.events, cursor: result.cursor, running: stillRunning && !sawEnd }
+    const active = stillRunning && !sawEnd
+    return {
+      sessionId: result.sessionId,
+      events: result.events,
+      cursor: result.cursor,
+      running: active,
+      runPhase: active ? "running" : "stopped",
+    }
   }
 
   /**
