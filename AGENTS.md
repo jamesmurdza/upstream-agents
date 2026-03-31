@@ -1,8 +1,24 @@
-# Claude Instructions
+# Agent instructions
 
-## Starting the Development Server (Daytona Sandbox)
+Primary reference for coding agents working in this repo. For a one-screen pointer and navigation map, see **[CLAUDE.md](./CLAUDE.md)**.
 
-`GITHUB_PAT` and `DAYTONA_API_KEY` are already set in the sandbox environment.
+---
+
+## Quick start (local machine)
+
+Typical laptop development (not the Daytona sandbox VM below):
+
+- **Install:** `npm install && npm run build:sdk`
+- **DB:** `cd packages/web && npx prisma db push` — configure `packages/web/.env` first (see root **README** for full local env).
+- **Dev server:** `npm run dev` — app at http://localhost:3000 (usually needs `GITHUB_PAT` + `DAYTONA_API_KEY` in `packages/web/.env`).
+- **SDK tests:** `npm run test -w @upstream/agents`
+- **Web E2E:** `cd packages/web && npm run test:e2e` — use `packages/web/.env.e2e` + `DAYTONA_API_KEY`; details in root **README** (*End-to-end tests*).
+
+---
+
+## Starting the development server (Daytona sandbox)
+
+In the hosted sandbox workspace, `GITHUB_PAT` and `DAYTONA_API_KEY` are often already set.
 
 ### 1. Install PostgreSQL and Create Database
 
@@ -47,15 +63,17 @@ nohup npm run dev > server.log 2>&1 &
 
 The app is accessible at: `https://3000-{sandbox-id}.daytonaproxy01.net`
 
+---
+
 ## Testing
 
-### SDK Unit Tests (No API Keys Required)
+### SDK unit tests (no API keys)
 
 ```bash
 npm run test -w @upstream/agents
 ```
 
-### SDK Integration Tests
+### SDK integration tests
 
 Integration tests require real Daytona sandboxes. Tests are skipped automatically when required environment variables are missing.
 
@@ -72,7 +90,7 @@ DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npm run test -w @upstream/a
 
 Web app E2E (Playwright) is documented in the root **README** (*End-to-end tests*).
 
-### Manual SDK Testing
+### Manual SDK testing
 
 ```bash
 # Interactive REPL with Claude (streaming)
@@ -90,7 +108,7 @@ DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npx tsx packages/agents/scr
 DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npx tsx packages/agents/scripts/test-sdk-full.ts
 ```
 
-### Debug Mode
+### Debug mode
 
 Set `CODING_AGENTS_DEBUG=1` to enable verbose logging:
 
