@@ -108,7 +108,6 @@ npm run test:e2e
 ```bash
 npx playwright test e2e/app/single-agent.spec.ts
 npx playwright test e2e/app
-npx playwright test e2e/regression
 ```
 
 **Layout**
@@ -117,7 +116,6 @@ npx playwright test e2e/regression
 |------|---------|
 | `e2e/fixtures/` | Shared fixture (`agent-fixture.ts`) and named timeouts (`timeouts.ts`) |
 | `e2e/app/` | Full-app flows: `single-agent.spec.ts`, `multi-agent.spec.ts` |
-| `e2e/regression/` | Targeted regressions, e.g. `active-branch-stuck.spec.ts` |
 
 Config: `packages/web/playwright.config.ts` — dev server on port 3001, `NEXT_DIST_DIR=.next-e2e`, `workers: 1`.
 
