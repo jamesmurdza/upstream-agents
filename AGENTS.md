@@ -60,15 +60,17 @@ npm run test -w @upstream/agents
 Integration tests require real Daytona sandboxes. Tests are skipped automatically when required environment variables are missing.
 
 ```bash
-# OpenCode tests (no provider API key needed — just Daytona)
-DAYTONA_API_KEY=dtn_... npm run test -w @upstream/agents -- tests/integration/polling-e2e.test.ts
+# Integration tests (OpenCode subset needs only Daytona)
+DAYTONA_API_KEY=dtn_... npm run test -w @upstream/agents -- tests/integration/
 
-# Claude tests (requires Anthropic key)
+# Claude provider tests (requires Anthropic key)
 DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npm run test -w @upstream/agents -- tests/integration/
 
-# Run all tests including integration
+# Run all SDK tests including integration
 DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npm run test -w @upstream/agents
 ```
+
+Web app E2E (Playwright, real UI + sandboxes) is documented in `CLAUDE.md`.
 
 ### Manual SDK Testing
 
