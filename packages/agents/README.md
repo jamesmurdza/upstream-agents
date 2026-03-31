@@ -283,7 +283,10 @@ npm install
 npm run build
 npm test
 
-# Integration test with real sandbox
+# Integration tests (OpenCode — no provider key needed)
+DAYTONA_API_KEY=... npm test -- tests/integration/polling-e2e.test.ts
+
+# Integration tests (Claude — needs Anthropic key)
 DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npm test -- tests/integration/sandbox-background.test.ts
 
 # Interactive REPL

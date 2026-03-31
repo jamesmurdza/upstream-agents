@@ -52,19 +52,22 @@ The app is accessible at: `https://3000-{sandbox-id}.daytonaproxy01.net`
 ### SDK Unit Tests (No API Keys Required)
 
 ```bash
-npm run test -w @sandboxed-agents/sdk
+npm run test -w @upstream/agents
 ```
 
-### SDK Integration Tests (Requires API Keys)
+### SDK Integration Tests
 
-Integration tests require real Daytona sandboxes and AI providers. These are skipped by default unless the required environment variables are set.
+Integration tests require real Daytona sandboxes. Tests are skipped automatically when required environment variables are missing.
 
 ```bash
-# Run integration tests with Claude
-DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npm run test -w @sandboxed-agents/sdk -- tests/integration/
+# OpenCode tests (no provider API key needed — just Daytona)
+DAYTONA_API_KEY=dtn_... npm run test -w @upstream/agents -- tests/integration/polling-e2e.test.ts
+
+# Claude tests (requires Anthropic key)
+DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npm run test -w @upstream/agents -- tests/integration/
 
 # Run all tests including integration
-DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npm run test -w @sandboxed-agents/sdk
+DAYTONA_API_KEY=dtn_... ANTHROPIC_API_KEY=sk-ant-... npm run test -w @upstream/agents
 ```
 
 ### Manual SDK Testing
