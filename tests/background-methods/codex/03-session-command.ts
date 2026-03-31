@@ -67,8 +67,11 @@ async function main() {
     const outputFile = "/tmp/codex-session-output.jsonl"
     const pidFile = "/tmp/codex-session.pid"
     const prompt = "Write a hello world Python script and run it"
+    const apiKey = cleanEnv(process.env.TEST_OPENAI_API_KEY!)
     // Store the PID so we can track/kill it
-    const command = `codex exec --json --skip-git-repo-check --yolo "${prompt}" >> ${outputFile} 2>&1 & echo $! > ${pidFile}; echo 1 > ${outputFile}.done`
+    // Use script -q -c to create a PTY, which may be required for CLI tools to output properly
+    // NOTE: runAsync may require PTY simulation via 'script' command because some CLIs buffer output without TTY
+    const command = `(script -q -c "OPENAI_API_KEY='${apiKey}' codex exec --json --skip-git-repo-check --yolo '${prompt}'" ${outputFile}; echo 1 > ${outputFile}.done) & echo $! > ${pidFile}`
 
     const startTime = Date.now()
     const result = await sandbox.process.executeSessionCommand(
@@ -97,7 +100,7 @@ async function main() {
     // 7. Check command status via SDK (if available)
     console.log("7. Checking command status via SDK...")
     try {
-      const cmdInfo = await sandbox.process.getSessionCommandInfo(sessionId, result.cmdId!)
+      const cmdInfo = await sandbox.process.getSessionCommand(sessionId, result.cmdId!)
       console.log(`   Command info: ${JSON.stringify(cmdInfo).slice(0, 200)}\n`)
     } catch (e) {
       console.log(`   getSessionCommandInfo not available or failed: ${e}\n`)
@@ -108,10 +111,10 @@ async function main() {
     await new Promise((r) => setTimeout(r, 2000))
 
     // 9. Poll for results
-    console.log("9. Polling for results (will kill after 5 polls)...")
+    console.log("9. Polling for results (will kill after 10 polls)...")
     let cursor = 0
     let pollCount = 0
-    while (pollCount < 5) {
+    while (pollCount < 10) {
       pollCount++
       const pollResult = await sandbox.process.executeCommand(`cat ${outputFile} 2>/dev/null || true`)
       const content = pollResult.result || ""
@@ -130,7 +133,7 @@ async function main() {
         break
       }
 
-      console.log(`   [Poll ${pollCount}/5] Still running: ${await isRunning(pid)}`)
+      console.log(`   [Poll ${pollCount}/10] Still running: ${await isRunning(pid)}`)
       await new Promise((r) => setTimeout(r, 1000))
     }
 

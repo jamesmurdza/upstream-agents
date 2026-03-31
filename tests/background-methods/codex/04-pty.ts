@@ -127,10 +127,10 @@ async function main() {
     console.log("   Reconnected.\n")
 
     // 10. Poll for results
-    console.log("10. Polling for results (will kill after 5 polls)...")
+    console.log("10. Polling for results (will kill after 10 polls)...")
     let cursor = 0
     let pollCount = 0
-    while (pollCount < 5) {
+    while (pollCount < 10) {
       pollCount++
       const pollResult = await sandbox.process.executeCommand(`cat ${outputFile} 2>/dev/null || true`)
       const content = pollResult.result || ""
@@ -147,7 +147,7 @@ async function main() {
         break
       }
 
-      console.log(`   [Poll ${pollCount}/5] Still running: ${await isRunning(pid)}`)
+      console.log(`   [Poll ${pollCount}/10] Still running: ${await isRunning(pid)}`)
       await new Promise((r) => setTimeout(r, 1000))
     }
 
