@@ -34,7 +34,7 @@ import {
 
 // Import Zustand stores
 import { useUIStore } from "@/lib/stores"
-import { useExecutionStore } from "@/lib/stores/execution-store"
+import { useExecutionStore, recoverActiveExecutions } from "@/lib/stores/execution-store"
 
 export default function Home() {
   const { data: session, status } = useSession()
@@ -278,6 +278,14 @@ export default function Home() {
   useEffect(() => {
     setActiveBranchIdInStore(activeBranchId)
   }, [activeBranchId, setActiveBranchIdInStore])
+
+  // Recover active executions after page refresh
+  // This fetches all running executions from the server and resumes polling
+  useEffect(() => {
+    if (loaded && status === "authenticated") {
+      recoverActiveExecutions()
+    }
+  }, [loaded, status])
 
   useEffect(() => {
     if (!activeBranch) setDesktopRebaseConflict(false)

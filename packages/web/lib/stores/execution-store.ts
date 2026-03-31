@@ -494,3 +494,48 @@ export function hasActiveExecutions(): boolean {
 export function isMessageStreaming(messageId: string): boolean {
   return useExecutionStore.getState().activeExecutions.has(messageId)
 }
+
+/**
+ * Recovery: Fetch all active executions from server and resume polling.
+ * Should be called once at app startup after authentication.
+ */
+let recoveryAttempted = false
+export async function recoverActiveExecutions(): Promise<void> {
+  // Only attempt recovery once per app session
+  if (recoveryAttempted) return
+  recoveryAttempted = true
+
+  try {
+    const res = await fetch("/api/agent/execution/all-active")
+    if (!res.ok) return
+
+    const data = await res.json()
+    if (!data.executions || data.executions.length === 0) return
+
+    const store = useExecutionStore.getState()
+
+    for (const exec of data.executions) {
+      // Skip if already tracking this execution
+      if (store.activeExecutions.has(exec.messageId)) continue
+
+      // Start polling for this execution
+      store.startExecution({
+        messageId: exec.messageId,
+        executionId: exec.executionId || exec.messageId,
+        branchId: exec.branchId,
+        sandboxId: exec.sandboxId || "",
+        repoName: exec.repoName,
+        repoOwner: exec.repoOwner,
+        repoApiName: exec.repoName,
+        branchName: exec.branchName,
+        lastShownCommitHash: exec.lastShownCommitHash || null,
+        messages: [], // Will be populated by polling
+        loopEnabled: exec.loopEnabled || false,
+        loopCount: exec.loopCount || 0,
+        loopMaxIterations: exec.loopMaxIterations || 10,
+      })
+    }
+  } catch {
+    // Recovery failed - not critical, polling just won't resume
+  }
+}
