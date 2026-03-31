@@ -498,12 +498,17 @@ export abstract class Provider implements IProvider {
         } catch { /* invalid JSON */ }
       }
 
-      // If done, wait briefly and re-read to catch any final buffered output
+      // If done, do multiple re-reads to catch any final buffered output
+      // Output may still be flushing when .done file appears
       if (state?.done) {
-        await new Promise(r => setTimeout(r, 100))
-        const finalState = await this.sandboxManager.pollBackgroundState(sessionDir)
-        if (finalState) {
-          state = finalState
+        for (let i = 0; i < 3; i++) {
+          await new Promise(r => setTimeout(r, 150))
+          const finalState = await this.sandboxManager.pollBackgroundState(sessionDir)
+          if (finalState && finalState.output.length > (state?.output?.length ?? 0)) {
+            state = finalState
+          } else {
+            break // no new content, stop re-reading
+          }
         }
       }
 
@@ -683,7 +688,8 @@ export abstract class Provider implements IProvider {
     for (let i = 0; i < rawLines.length; i++) {
       const trimmed = rawLines[i].trim()
       if (!trimmed) continue
-      if (!isJson(trimmed) && i === rawLines.length - 1) continue // skip partial last line
+      // Skip last line only if it looks like an incomplete JSON (starts with { but doesn't end with })
+      if (i === rawLines.length - 1 && trimmed.startsWith("{") && !trimmed.endsWith("}")) continue
       if (isJson(trimmed)) lines.push(trimmed)
     }
 
