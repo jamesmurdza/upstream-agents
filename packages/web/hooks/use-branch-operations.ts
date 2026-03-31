@@ -186,7 +186,24 @@ export function useBranchOperations({
         console.log("[handleAddMessage] updating ID in state", { branchId, oldId: message.id, newId: dbId })
         setRepos((prev) => {
           const targetRepo = prev.find(r => r.branches.some(b => b.id === branchId))
-          if (!targetRepo) return prev
+          if (!targetRepo) {
+            console.warn("[handleAddMessage] ID update: no repo found", { branchId })
+            return prev
+          }
+          const targetBranch = targetRepo.branches.find(b => b.id === branchId)
+          const messageExists = targetBranch?.messages.some(m => m.id === message.id)
+          console.log("[handleAddMessage] ID update check", {
+            branchId,
+            oldId: message.id,
+            newId: dbId,
+            messageExists,
+            messagesInBranch: targetBranch?.messages.length,
+            messageIds: targetBranch?.messages.map(m => m.id),
+          })
+          if (!messageExists) {
+            console.warn("[handleAddMessage] message with temp ID not found, cannot update to DB ID!", { branchId, tempId: message.id, dbId })
+            return prev
+          }
           return updateMessageInBranch(prev, targetRepo.id, branchId, message.id, { id: dbId })
         })
         return dbId
