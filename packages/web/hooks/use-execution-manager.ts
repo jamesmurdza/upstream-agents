@@ -75,13 +75,17 @@ export function useExecutionManager({
 
   // Initialize polling manager and set callbacks on mount
   useEffect(() => {
+    console.log("[useExecutionManager] setting up callbacks and starting polling manager")
+
     // Start the global polling manager (idempotent - only starts once)
     startPollingManager()
 
     // Set callbacks using wrapper functions that always use latest refs
     setCallbacks({
-      onUpdateMessage: (branchId, messageId, updates) =>
-        callbacksRef.current.onUpdateMessage(branchId, messageId, updates),
+      onUpdateMessage: (branchId, messageId, updates) => {
+        console.log("[useExecutionManager] onUpdateMessage called", { branchId, messageId, contentLength: (updates.content || "").length })
+        return callbacksRef.current.onUpdateMessage(branchId, messageId, updates)
+      },
       onUpdateBranch: (branchId, updates) =>
         callbacksRef.current.onUpdateBranch(branchId, updates),
       onAddMessage: (branchId, message) =>

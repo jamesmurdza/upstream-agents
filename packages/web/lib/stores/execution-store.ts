@@ -311,15 +311,29 @@ async function processExecution(
 
   // Update message content
   const hasContent = data.content || (data.toolCalls?.length > 0) || (data.contentBlocks?.length > 0)
+  console.log("[execution-poll] processing response", {
+    messageId,
+    branchId: execution.branchId,
+    hasContent,
+    contentLength: data.content?.length || 0,
+    hasCallback: !!callbacks.onUpdateMessage,
+  })
   if (hasContent && callbacks.onUpdateMessage) {
     const toolCallsWithIds = addToolCallIds(data.toolCalls || []) as ToolCall[]
     const contentBlocksWithIds = addContentBlockIds(data.contentBlocks || []) as ContentBlock[]
 
+    console.log("[execution-poll] calling onUpdateMessage", {
+      branchId: execution.branchId,
+      messageId,
+      contentLength: (data.content || "").length,
+    })
     callbacks.onUpdateMessage(execution.branchId, messageId, {
       content: data.content || "",
       toolCalls: toolCallsWithIds,
       contentBlocks: contentBlocksWithIds.length > 0 ? contentBlocksWithIds : undefined,
     })
+  } else if (hasContent && !callbacks.onUpdateMessage) {
+    console.warn("[execution-poll] CALLBACK NOT SET - cannot update message!", { messageId })
   }
 
   // Handle completion
