@@ -482,6 +482,14 @@ export function ChatPanel({
 
     setInput("")
 
+    // Show spinner immediately — before any async work
+    onUpdateBranch(branch.id, {
+      status: BRANCH_STATUS.RUNNING,
+      draftPrompt: "",
+      lastActivity: "now",
+      lastActivityTs: Date.now(),
+    })
+
     const userMsg: Message = {
       id: generateId(),
       role: "user",
@@ -529,16 +537,8 @@ export function ChatPanel({
     }
     const messageId = await onAddMessage(branch.id, assistantMsg)
 
-    // startPolling + onUpdateBranch in the same sync block so React batches them.
-    // The hook sees both activeMessageId and RUNNING status in a single render,
-    // preventing it from auto-recovering with a stale message ID.
+    // startPolling in its own sync block — status is already RUNNING
     startPollingRef.current(messageId)
-    onUpdateBranch(branch.id, {
-      status: BRANCH_STATUS.RUNNING,
-      draftPrompt: "",
-      lastActivity: "now",
-      lastActivityTs: Date.now(),
-    })
 
     try {
       await runAgentExecute({
