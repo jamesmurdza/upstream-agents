@@ -111,7 +111,7 @@ The repository is cloned at ${repoPath}.
 
 ## Git Rules
 - You are working on the git branch that is currently checked out. Do not create, switch, or delete branches.
-- After making meaningful changes, commit them with a descriptive message using git add and git commit.
+- After making meaningful changes, you MUST commit them with a descriptive message using git add and git commit.
 - Always create NEW commits. Never rewrite git history (no git commit --amend, git rebase, or git reset --hard).
 - Do not push — pushing is handled automatically.
 - Use "git restore" to discard file changes (not "git checkout").
