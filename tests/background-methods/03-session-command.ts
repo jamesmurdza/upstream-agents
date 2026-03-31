@@ -28,12 +28,13 @@ async function main() {
 
     // 3. Create a session
     console.log("3. Creating session...")
-    const session = await sandbox.process.createSession()
-    console.log(`   Session created: ${session.sessionId}\n`)
+    const sessionId = `codex-session-${Date.now()}`
+    await sandbox.process.createSession(sessionId)
+    console.log(`   Session created: ${sessionId}\n`)
 
     // 4. Set up environment in session
     console.log("4. Setting up environment in session...")
-    await sandbox.process.executeSessionCommand(session.sessionId, {
+    await sandbox.process.executeSessionCommand(sessionId, {
       command: `export OPENAI_API_KEY='${process.env.OPENAI_API_KEY}'`,
     })
     console.log("   Environment set.\n")
@@ -46,7 +47,7 @@ async function main() {
 
     const startTime = Date.now()
     const result = await sandbox.process.executeSessionCommand(
-      session.sessionId,
+      sessionId,
       {
         command: command,
         runAsync: true, // Try async mode
@@ -98,7 +99,7 @@ async function main() {
 
       const startTime2 = Date.now()
       const result2 = await sandbox.process.executeSessionCommand(
-        session.sessionId,
+        sessionId,
         {
           command: nohupCommand,
           runAsync: true,
