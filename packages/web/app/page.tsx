@@ -34,6 +34,7 @@ import {
 
 // Import Zustand stores
 import { useUIStore } from "@/lib/stores"
+import { useExecutionStore } from "@/lib/stores/execution-store"
 
 export default function Home() {
   const { data: session, status } = useSession()
@@ -271,6 +272,12 @@ export default function Home() {
       loadBranchMessages(activeBranchId, activeRepoId)
     }
   }, [activeBranchId, activeRepoId, loadBranchMessages])
+
+  // Sync active branch ID to execution store (for unread indicator on background completion)
+  const setActiveBranchIdInStore = useExecutionStore(state => state.setActiveBranchId)
+  useEffect(() => {
+    setActiveBranchIdInStore(activeBranchId)
+  }, [activeBranchId, setActiveBranchIdInStore])
 
   useEffect(() => {
     if (!activeBranch) setDesktopRebaseConflict(false)

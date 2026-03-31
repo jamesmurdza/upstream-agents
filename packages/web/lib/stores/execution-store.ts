@@ -55,6 +55,9 @@ interface ExecutionState {
   // Map of messageId -> execution context
   activeExecutions: Map<string, ExecutionContext>
 
+  // Currently active branch ID (for determining unread state)
+  activeBranchId: string | null
+
   // Callback refs - set by React components, called by polling manager
   // These are stored here so the polling manager can update React state
   callbacks: {
@@ -89,6 +92,9 @@ interface ExecutionActions {
 
   // Get execution by messageId
   getExecution: (messageId: string) => ExecutionContext | undefined
+
+  // Set active branch ID (for determining unread state on completion)
+  setActiveBranchId: (branchId: string | null) => void
 }
 
 // =============================================================================
@@ -97,6 +103,7 @@ interface ExecutionActions {
 
 const initialState: ExecutionState = {
   activeExecutions: new Map(),
+  activeBranchId: null,
   callbacks: {
     onUpdateMessage: null,
     onUpdateBranch: null,
@@ -187,6 +194,10 @@ const storeCreator = (
 
   getExecution: (messageId: string) => {
     return get().activeExecutions.get(messageId)
+  },
+
+  setActiveBranchId: (branchId: string | null) => {
+    set({ activeBranchId: branchId })
   },
 })
 
@@ -399,12 +410,19 @@ async function processExecution(messageId: string): Promise<void> {
     } else {
       // Normal completion
       const loopUpdates = execution.loopEnabled ? { loopCount: 0 } : {}
+
+      // Check if this is a background branch (not currently active)
+      // If so, mark it as unread so the user knows there's new content
+      const isBackgroundBranch = store.activeBranchId !== execution.branchId
+      const unreadUpdate = isBackgroundBranch ? { unread: true } : {}
+
       if (callbacks.onUpdateBranch) {
         callbacks.onUpdateBranch(execution.branchId, {
           status: BRANCH_STATUS.IDLE,
           lastActivity: "now",
           lastActivityTs: Date.now(),
           ...loopUpdates,
+          ...unreadUpdate,
         })
       }
 
