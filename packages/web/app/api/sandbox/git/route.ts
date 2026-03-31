@@ -179,6 +179,38 @@ export async function POST(req: Request) {
             inMerge: true,
           }, { status: 409 })
         }
+
+        // Get current branch from sandbox first
+        const currentStatus = await sandbox.git.status(repoPath)
+        const currentBranch = currentStatus.currentBranch
+        if (!currentBranch) {
+          return badRequest("Could not determine current branch")
+        }
+
+        // Check for uncommitted changes
+        const statusResult = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git status --porcelain 2>&1`
+        )
+        const hasUncommittedChanges = !statusResult.exitCode && statusResult.result.trim()
+
+        // Check if there are unpushed commits by comparing local HEAD with remote
+        // Use ls-remote since single-branch clones don't have origin/branchName refs
+        const localHead = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git rev-parse HEAD 2>/dev/null`
+        )
+        const remoteHead = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git ls-remote origin refs/heads/${currentBranch} 2>/dev/null | cut -f1`
+        )
+        const localSha = localHead.result.trim()
+        const remoteSha = remoteHead.result.trim()
+        const hasUnpushedCommits = localSha && localSha !== remoteSha
+
+        // Early exit if there's nothing to do - avoids unnecessary branch verification
+        // which can fail during branch rename operations
+        if (!hasUncommittedChanges && !hasUnpushedCommits) {
+          return Response.json({ committed: false, pushed: false, commitMessage: "", currentBranch })
+        }
+
         // Look up the current branch name from DB using branchId
         // This avoids race conditions where client has stale branch name after rename
         const branchId = body.branchId
@@ -199,20 +231,12 @@ export async function POST(req: Request) {
             return badRequest(branchError)
           }
         }
-        // Get the current branch from the sandbox after verification
-        const currentStatus = await sandbox.git.status(repoPath)
-        const currentBranch = currentStatus.currentBranch
-        if (!currentBranch) {
-          return badRequest("Could not determine current branch")
-        }
         const pushBranch = expectedBranch || currentBranch
-        // Check for uncommitted changes and commit them if any
+
+        // Commit uncommitted changes if any
         let committed = false
         let commitMessage = ""
-        const statusResult = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git status --porcelain 2>&1`
-        )
-        if (!statusResult.exitCode && statusResult.result.trim()) {
+        if (hasUncommittedChanges) {
           // Stage all changes first so we can get a complete diff
           await sandbox.process.executeCommand(
             `cd ${repoPath} && git add -A 2>&1`
@@ -247,19 +271,14 @@ export async function POST(req: Request) {
             committed = true
           }
         }
-        // Check if there are unpushed commits by comparing local HEAD with remote
-        // Use ls-remote since single-branch clones don't have origin/branchName refs
-        const localHead = await sandbox.process.executeCommand(
+
+        // Push if needed (re-check in case commit added new commits)
+        let pushed = false
+        const finalLocalHead = await sandbox.process.executeCommand(
           `cd ${repoPath} && git rev-parse HEAD 2>/dev/null`
         )
-        const remoteHead = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git ls-remote origin refs/heads/${pushBranch} 2>/dev/null | cut -f1`
-        )
-        const localSha = localHead.result.trim()
-        const remoteSha = remoteHead.result.trim()
-        // Push if local has commits and remote is different (or doesn't exist)
-        const needsPush = localSha && localSha !== remoteSha
-        let pushed = false
+        const finalLocalSha = finalLocalHead.result.trim()
+        const needsPush = finalLocalSha && finalLocalSha !== remoteSha
         if (needsPush) {
           const pushResult = await pushWithRetry(sandbox, repoPath, githubToken, pushBranch)
           if (!pushResult.success) {
