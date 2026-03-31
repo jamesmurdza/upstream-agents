@@ -2,8 +2,9 @@
  * E2E test setup/teardown endpoint.
  *
  * POST: Creates a test user, mints a session JWT, creates N Daytona sandboxes,
- *       seeds DB records, starts agents, and returns everything the test needs.
- *       Sets the auth cookie so subsequent requests (status, active) work.
+ *       and seeds DB scaffold (Repo → Branch → Sandbox). Does NOT create
+ *       messages or start agents — the test page's handleSend does that
+ *       through the real /api/branches/messages and /api/agent/execute routes.
  *
  * DELETE: Cleans up Daytona sandboxes and DB records created by POST.
  *
@@ -13,7 +14,6 @@ import { cookies } from "next/headers"
 import { encode } from "next-auth/jwt"
 import { Daytona } from "@daytonaio/sdk"
 import { prisma } from "@/lib/db/prisma"
-import { createBackgroundAgentSession } from "@/lib/agents/agent-session"
 import { PATHS } from "@/lib/shared/constants"
 
 const E2E_USER_ID = "e2e-test-user"
@@ -49,7 +49,6 @@ async function setSessionCookie() {
 export async function POST(req: Request) {
   const body = await req.json()
   const count: number = body.count ?? 3
-  const prompts: string[] = body.prompts ?? Array.from({ length: count }, (_, i) => `What is ${(i + 1) * 10} + ${(i + 1) * 10}? Reply with ONLY the number.`)
 
   const daytonaApiKey = process.env.DAYTONA_API_KEY
   if (!daytonaApiKey) {
@@ -67,12 +66,11 @@ export async function POST(req: Request) {
       Array.from({ length: count }, () => daytona.create())
     )
 
-    // 3. Seed DB records and start agents
+    // 3. Seed DB scaffold: Repo → Branch → Sandbox (no messages, no executions)
     const branches: Array<{
       branchId: string
-      messageId: string
       sandboxId: string
-      repoId: string
+      repoName: string
     }> = []
 
     for (let i = 0; i < count; i++) {
@@ -82,7 +80,6 @@ export async function POST(req: Request) {
       // Create repo dir in sandbox so agent has a working directory
       await sandbox.process.executeCommand(`mkdir -p ${PATHS.SANDBOX_HOME}/${repoName}`)
 
-      // DB: Repo → Branch → Sandbox → Message → AgentExecution
       const repo = await prisma.repo.create({
         data: {
           userId: E2E_USER_ID,
@@ -97,60 +94,25 @@ export async function POST(req: Request) {
           repoId: repo.id,
           name: `e2e-branch-${i}`,
           baseBranch: "main",
-          status: "running",
+          status: "idle",
           agent: "opencode",
         },
       })
 
-      const sandboxRecord = await prisma.sandbox.create({
+      await prisma.sandbox.create({
         data: {
           sandboxId: sandbox.id,
           sandboxName: `e2e-sandbox-${i}`,
           userId: E2E_USER_ID,
           branchId: branch.id,
-          status: "running",
+          status: "idle",
         },
       })
-
-      const message = await prisma.message.create({
-        data: {
-          branchId: branch.id,
-          role: "assistant",
-          content: "",
-          timestamp: new Date().toISOString(),
-          assistantSource: "model",
-        },
-      })
-
-      // Create background session and start agent
-      const repoPath = `${PATHS.SANDBOX_HOME}/${repoName}`
-      const bgSession = await createBackgroundAgentSession(sandbox, {
-        repoPath,
-        agent: "opencode",
-      })
-
-      // Persist session ID on sandbox record
-      await prisma.sandbox.update({
-        where: { id: sandboxRecord.id },
-        data: { sessionId: bgSession.backgroundSessionId, sessionAgent: "opencode" },
-      })
-
-      const agentExecution = await prisma.agentExecution.create({
-        data: {
-          messageId: message.id,
-          sandboxId: sandbox.id,
-          status: "running",
-        },
-      })
-
-      // Start the agent
-      await bgSession.start(prompts[i])
 
       branches.push({
         branchId: branch.id,
-        messageId: message.id,
         sandboxId: sandbox.id,
-        repoId: repo.id,
+        repoName,
       })
     }
 
@@ -175,7 +137,6 @@ export async function DELETE(req: Request) {
 
   const daytona = new Daytona({ apiKey: daytonaApiKey })
 
-  // Delete Daytona sandboxes
   for (const id of sandboxIds) {
     try {
       const sandbox = await daytona.get(id)
@@ -183,7 +144,6 @@ export async function DELETE(req: Request) {
     } catch { /* best effort */ }
   }
 
-  // Clean up all e2e DB records
   try {
     const repos = await prisma.repo.findMany({
       where: { userId: E2E_USER_ID },
