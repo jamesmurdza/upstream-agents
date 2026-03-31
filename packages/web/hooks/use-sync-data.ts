@@ -203,6 +203,33 @@ export function useSyncData({ setRepos, activeBranchIdRef, streamingMessageIdRef
                   status: syncBranch.status as Branch["status"],
                 })
               )
+
+              // When a non-active branch just finished (running → idle/error),
+              // eagerly fetch its messages so content is ready when the user
+              // switches to it — avoids a visible reload or stale "Thinking...".
+              const justFinished =
+                lastBranch.status === "running" &&
+                syncBranch.status !== "running" &&
+                syncBranch.id !== activeBranchIdRef.current
+              if (justFinished) {
+                fetch(`/api/branches/messages?branchId=${syncBranch.id}`)
+                  .then((r) => r.json())
+                  .then((msgData) => {
+                    if (msgData.messages) {
+                      setRepos((prev) =>
+                        updateBranchAcrossRepos(prev, syncBranch.id, {
+                          messages: mergeMessages(
+                            prev.find((r) =>
+                              r.branches.some((b) => b.id === syncBranch.id)
+                            )?.branches.find((b) => b.id === syncBranch.id)?.messages || [],
+                            msgData.messages
+                          ),
+                        })
+                      )
+                    }
+                  })
+                  .catch(() => {})
+              }
             }
 
             // PR URL change
