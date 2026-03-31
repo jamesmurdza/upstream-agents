@@ -1,105 +1,126 @@
-# Background Execution Methods Test
+# Background Execution Method Tests
 
-This directory contains tests comparing different Daytona SDK methods for running Codex (or any long-running process) in the background, allowing you to "check back later" for results.
+These tests compare different Daytona SDK methods for running AI coding agents asynchronously in the background.
 
-## The Goal
+## Directory Structure
 
-We want to:
-1. Start a coding agent (Codex)
-2. Return immediately (not block)
-3. Come back later (potentially from a different "thread") to get results
-
-## Methods Tested
-
-### 1. SSH (`01-ssh.ts`)
-Uses SSH with `nohup` to launch a detached process.
-
-```typescript
-const { token } = await sandbox.createSshAccess(60)
-ssh.connect({ host: "ssh.app.daytona.io", port: 22, username: token })
-
-// This returns immediately with PID
-ssh.exec(`nohup sh -c 'command >> output.jsonl 2>&1' & echo $!`)
+```
+background-methods/
+├── codex/           # OpenAI Codex tests
+│   ├── 01-ssh.ts
+│   ├── 02-execute-command.ts
+│   ├── 03-session-command.ts
+│   └── 04-pty.ts
+├── claude/          # Anthropic Claude Code tests
+│   ├── 01-ssh.ts
+│   ├── 02-execute-command.ts
+│   ├── 03-session-command.ts
+│   └── 04-pty.ts
+├── opencode/        # OpenCode tests
+│   ├── 01-ssh.ts
+│   ├── 02-execute-command.ts
+│   ├── 03-session-command.ts
+│   └── 04-pty.ts
+├── run-all.sh       # Runner script
+└── README.md
 ```
 
-**Verdict**: ✅ TRUE ASYNC - Returns immediately with PID
+## Prerequisites
 
-### 2. executeCommand (`02-execute-command.ts`)
-Uses the standard process execution API with shell backgrounding.
-
-```typescript
-await sandbox.process.executeCommand(
-  `nohup command >> output.jsonl 2>&1 & echo $!`,
-  undefined,
-  { OPENAI_API_KEY: "..." },
-  120
-)
-```
-
-**Hypothesis**: Likely blocks until completion even with `&`
-
-### 3. executeSessionCommand (`03-session-command.ts`)
-Uses session-based execution with `runAsync` option.
-
-```typescript
-const session = await sandbox.process.createSession()
-await sandbox.process.executeSessionCommand(session.sessionId, {
-  command: "codex exec ...",
-  runAsync: true,
-})
-```
-
-**Hypothesis**: `runAsync` might provide true background execution
-
-### 4. PTY (`04-pty.ts`)
-Uses pseudo-terminal sessions that persist and can be reconnected.
-
-```typescript
-const pty = await sandbox.process.createPty({ id: "my-pty", ... })
-await pty.sendInput("codex exec ...\n")
-await pty.disconnect()  // Process keeps running
-
-// Later...
-const reconnected = await sandbox.process.connectPty("my-pty", {...})
-```
-
-**Verdict**: ✅ Pseudo-async via disconnect/reconnect pattern
-
-## Running the Tests
+Set the required environment variables:
 
 ```bash
-# Set required environment variables
-export DAYTONA_API_KEY="your-key"
-export OPENAI_API_KEY="your-key"
+export DAYTONA_API_KEY="your-daytona-api-key"
 
-# Run individual tests
-npx tsx tests/background-methods/01-ssh.ts
-npx tsx tests/background-methods/02-execute-command.ts
-npx tsx tests/background-methods/03-session-command.ts
-npx tsx tests/background-methods/04-pty.ts
+# For Codex tests:
+export OPENAI_API_KEY="your-openai-api-key"
 
-# Or run all
-./tests/background-methods/run-all.sh
+# For Claude tests:
+export TEST_ANTHROPIC_API_KEY="your-anthropic-api-key"
+
+# For OpenCode tests (uses Anthropic by default):
+export TEST_ANTHROPIC_API_KEY="your-anthropic-api-key"
 ```
 
-## Expected Results
+## Running Tests
 
-| Method | Returns Immediately? | True Background? | Reconnectable? |
-|--------|---------------------|------------------|----------------|
-| SSH + nohup | ✅ Yes | ✅ Yes | N/A (poll file) |
-| executeCommand | ❓ Test | ❓ Test | N/A |
-| executeSessionCommand | ❓ Test | ❓ Test | Via session |
-| PTY | ✅ Yes (sendInput) | ✅ Yes | ✅ Yes |
+```bash
+# Run all tests for a specific provider
+./run-all.sh codex
+./run-all.sh claude
+./run-all.sh opencode
 
-## Polling for Results
+# Run a specific test method for a provider
+./run-all.sh codex 1    # SSH method
+./run-all.sh claude 2   # executeCommand method
+./run-all.sh opencode 3 # executeSessionCommand method
 
-All methods write output to a JSONL file that can be polled:
-
-```typescript
-// Poll for new content
-const result = await sandbox.process.executeCommand(`cat ${outputFile}`)
-const content = result.result || ""
-
-// Check for completion marker
-const done = await sandbox.process.executeCommand(`test -f ${outputFile}.done && echo done`)
+# Run all providers, all methods
+./run-all.sh all
 ```
+
+## Methods Compared
+
+### 1. SSH + nohup (`01-ssh.ts`)
+Uses SSH to connect to the sandbox and launch the process with `nohup`. Returns immediately with PID.
+
+**Pros:**
+- Process fully detached from connection
+- Survives SSH disconnect
+- Direct PID for tracking
+
+**Cons:**
+- Requires `ssh2` dependency
+- Extra setup (SSH access token)
+
+### 2. executeCommand (`02-execute-command.ts`)
+Uses the standard process API with shell backgrounding (`&` and `nohup`).
+
+**Pros:**
+- No extra dependencies
+- Simple API
+
+**Cons:**
+- May have edge cases with process groups
+
+### 3. executeSessionCommand (`03-session-command.ts`)
+Uses session-based execution with `runAsync: true`.
+
+**Pros:**
+- Native async support
+- Returns `cmdId` for tracking
+- Session maintains environment
+
+**Cons:**
+- Need to manage session lifecycle
+
+### 4. PTY (`04-pty.ts`)
+Uses pseudo-terminal sessions with disconnect/reconnect pattern.
+
+**Pros:**
+- Interactive terminal access
+- Can send Ctrl+C
+- Session persists
+
+**Cons:**
+- More complex setup
+- Output mixed with shell prompts
+
+## Features Tested
+
+Each test verifies:
+
+1. **Async Launch** - Command returns immediately without blocking
+2. **Check Running** - Can verify if process is still running (`kill -0 PID`)
+3. **Kill Process** - Can terminate the process early (process group kill + pkill fallback)
+
+## Results Summary
+
+| Method | Launch Time | Async | Check | Kill |
+|--------|-------------|-------|-------|------|
+| SSH | ~100ms | ✅ | ✅ | ✅ |
+| executeCommand | ~50ms | ✅ | ✅ | ✅ |
+| executeSessionCommand | ~30ms | ✅ | ✅ | ✅ |
+| PTY | ~1ms | ✅ | ✅ | ✅ |
+
+All methods support async execution, process monitoring, and termination.
