@@ -73,10 +73,20 @@ function mergeSyncBranchIntoExisting(
   existingBranch: Branch,
   syncBranch: SyncBranch
 ): Branch {
+  // Full merge runs on branch add/remove and bypasses the per-branch status
+  // guards. If the client already flipped to RUNNING but the DB/sync payload
+  // is still idle (mutation lag), do not regress — same idea as isBranchPolling.
+  const localRunning = existingBranch.status === "running"
+  const syncIdle = syncBranch.status !== "running"
+  const keepLocalStatus =
+    isBranchPolling(syncBranch.id) || (localRunning && syncIdle)
+
   return {
     ...existingBranch,
     name: syncBranch.name, // Sync name in case agent renamed the branch
-    status: syncBranch.status as Branch["status"],
+    status: keepLocalStatus
+      ? existingBranch.status
+      : (syncBranch.status as Branch["status"]),
     prUrl: syncBranch.prUrl || undefined,
     // Preserve local agent/model - don't overwrite with server values
     // The local state is the source of truth; it gets persisted when user sends a message
