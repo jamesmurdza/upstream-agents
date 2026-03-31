@@ -14,10 +14,10 @@ import { SwitchAgentDialog } from "@/components/modals/switch-agent-dialog"
 // Import hooks
 import {
   useDraftSync,
-  useExecutionPolling,
   useGitActions,
   useBranchRenaming,
 } from "@/components/chat/hooks"
+import { useExecutionPoller } from "@/hooks/use-execution-poller"
 
 // Import sub-components
 import { ChatHeader } from "@/components/chat/chat-header"
@@ -204,8 +204,8 @@ export function ChatPanel({
     onSaveDraftForBranch,
   })
 
-  // Ref to hold startPolling so loop continue and runAgentExecute can start polling before the hook returns
-  const startPollingRef = useRef<(messageId: string, executionId?: string) => void>(() => {})
+  // Ref to hold startPolling so loop continue and runAgentExecute can access it
+  const startPollingRef = useRef<(messageId: string) => void>(() => {})
 
   const runAgentExecute = useCallback(
     async (args: {
@@ -301,8 +301,8 @@ export function ChatPanel({
             throw new Error(executeHttpErrorMessage(retryRes, rData, rRaw) || "Failed to start agent after sandbox recreation")
           }
 
-          startPollingRef.current(messageId)
-          return
+      startPollingRef.current(messageId)
+      return
         }
 
         throw new Error(executeHttpErrorMessage(response, data, rawText) || "Failed to start agent")
@@ -328,13 +328,6 @@ export function ChatPanel({
       }
       await onAddMessage(branchId, userMsg)
 
-      const now = Date.now()
-      onUpdateBranch(branchId, {
-        status: BRANCH_STATUS.RUNNING,
-        lastActivity: "now",
-        lastActivityTs: now,
-      })
-
       const assistantMsg: Message = {
         id: generateId(),
         role: "assistant",
@@ -344,6 +337,13 @@ export function ChatPanel({
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }
       const messageId = await onAddMessage(branchId, assistantMsg)
+
+      startPollingRef.current(messageId)
+      onUpdateBranch(branchId, {
+        status: BRANCH_STATUS.RUNNING,
+        lastActivity: "now",
+        lastActivityTs: Date.now(),
+      })
 
       try {
         await runAgentExecute({
@@ -385,28 +385,18 @@ export function ChatPanel({
     onRebaseConflictChange?.(!!(r?.inRebase || r?.inMerge))
   }, [gitActions.gitDialogs.rebaseConflict?.inRebase, gitActions.gitDialogs.rebaseConflict?.inMerge, onRebaseConflictChange])
 
-  const {
-    currentExecutionIdRef,
-    currentMessageIdRef,
-    startPolling,
-    stopPolling,
-  } = useExecutionPolling({
+  // Execution poller — handles both real-time polling and page-refresh recovery.
+  // No external recovery logic needed; the hook auto-detects running branches on mount.
+  const { startPolling } = useExecutionPoller({
     branch,
-    repoName,
-    repoOwner,
-    repoApiName: repoName, // repoName is the API name (without owner)
     onUpdateMessage,
     onUpdateBranch,
-    onAddMessage,
     onForceSave,
     onCommitsDetected,
-    streamingMessageIdRef,
-    globalActiveBranchIdRef,
     onLoopContinue: handleLoopContinue,
     onRefreshGitConflictState: refreshGitConflictState,
   })
 
-  // Update ref after hook returns
   useEffect(() => {
     startPollingRef.current = startPolling
   }, [startPolling])
@@ -418,13 +408,13 @@ export function ChatPanel({
       if (!info) return { success: false, error: "Nothing to retry" }
 
       const b = branchRef.current
+      onUpdateMessage(b.id, messageId, { content: "", executeError: undefined })
+      startPollingRef.current(messageId)
       onUpdateBranch(b.id, {
         status: BRANCH_STATUS.RUNNING,
         lastActivity: "now",
         lastActivityTs: Date.now(),
       })
-      onUpdateMessage(b.id, messageId, { content: "", executeError: undefined })
-      currentMessageIdRef.current = messageId
 
       try {
         await runAgentExecute({
@@ -441,12 +431,10 @@ export function ChatPanel({
           executeError: { errorMessage: errMsg, prompt: info.prompt },
         })
         onUpdateBranch(b.id, { status: BRANCH_STATUS.IDLE })
-        currentMessageIdRef.current = null
-        currentExecutionIdRef.current = null
         return { success: false, error: errMsg }
       }
     },
-    [onUpdateBranch, onUpdateMessage, runAgentExecute, currentMessageIdRef, currentExecutionIdRef]
+    [onUpdateBranch, onUpdateMessage, runAgentExecute]
   )
 
   const handleClearExecuteError = useCallback(
@@ -494,6 +482,15 @@ export function ChatPanel({
 
     setInput("")
 
+    // Show spinner immediately — onUpdateBranch sets local state AND persists
+    // to DB, so sync won't revert it back to "idle".
+    onUpdateBranch(branch.id, {
+      status: BRANCH_STATUS.RUNNING,
+      draftPrompt: "",
+      lastActivity: "now",
+      lastActivityTs: Date.now(),
+    })
+
     const userMsg: Message = {
       id: generateId(),
       role: "user",
@@ -502,16 +499,7 @@ export function ChatPanel({
     }
     await onAddMessage(branch.id, userMsg)
 
-    const now = Date.now()
-    onUpdateBranch(branch.id, {
-      status: BRANCH_STATUS.RUNNING,
-      draftPrompt: "",
-      lastActivity: "now",
-      lastActivityTs: now,
-    })
-
-    // Fetch current HEAD and persist it as lastShownCommitHash before starting execution
-    // This ensures we can accurately detect new commits made during this execution
+    // Fetch HEAD before starting execution (for commit detection)
     try {
       const headRes = await fetch("/api/sandbox/git", {
         method: "POST",
@@ -525,7 +513,6 @@ export function ChatPanel({
       if (headRes.ok) {
         const headData = await headRes.json()
         if (headData.head) {
-          // Persist to server and update local state
           await fetch("/api/branches", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -538,7 +525,7 @@ export function ChatPanel({
         }
       }
     } catch {
-      // Non-critical - commit detection will fall back to existing behavior
+      // Non-critical
     }
 
     const assistantMsg: Message = {
@@ -550,7 +537,8 @@ export function ChatPanel({
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
     const messageId = await onAddMessage(branch.id, assistantMsg)
-    currentMessageIdRef.current = messageId
+
+    startPollingRef.current(messageId)
 
     try {
       await runAgentExecute({
@@ -559,8 +547,6 @@ export function ChatPanel({
         prompt,
         b: branch,
       })
-
-      console.log(`[POLLER-DEBUG] ChatPanel runAgentExecute finished for branch ${branch.id}`)
 
       if (branch.messages.length === 0 && canSuggestName) {
         renaming.autoSuggestBranchName(prompt)
@@ -572,16 +558,25 @@ export function ChatPanel({
         executeError: { errorMessage: message, prompt },
       })
       onUpdateBranch(branch.id, { status: BRANCH_STATUS.IDLE })
-      currentMessageIdRef.current = null
-      currentExecutionIdRef.current = null
     }
-  }, [input, branch, repoName, onAddMessage, onUpdateMessage, onUpdateBranch, currentMessageIdRef, currentExecutionIdRef, setInput, canSuggestName, renaming, runAgentExecute])
+  }, [input, branch, repoName, onAddMessage, onUpdateMessage, onUpdateBranch, setInput, canSuggestName, renaming, runAgentExecute])
 
-  // Stop handler
+  // Stop handler — setting branch to IDLE triggers the hook's cleanup automatically
   const handleStop = useCallback(() => {
-    stopPolling()
+    const lastMsg = branch.messages.filter(m => m.role === "assistant").at(-1)
+    if (lastMsg) {
+      const content = lastMsg.content ?? ""
+      onUpdateMessage(branch.id, lastMsg.id, {
+        content: content ? `${content}\n\n[Stopped by user]` : "[Stopped by user]",
+      })
+    }
+    onUpdateBranch(branch.id, {
+      status: BRANCH_STATUS.IDLE,
+      loopEnabled: false,
+      loopCount: 0,
+    })
     abortControllerRef.current?.abort()
-  }, [stopPolling])
+  }, [branch.id, branch.messages, onUpdateMessage, onUpdateBranch])
 
   // Handle commit click
   const handleCommitClick = useCallback((hash: string, msg: string) => {

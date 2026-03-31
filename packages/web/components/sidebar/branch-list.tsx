@@ -68,7 +68,6 @@ export function BranchList({
   const [baseBranchOpen, setBaseBranchOpen] = useState(false)
   const [branchSearch, setBranchSearch] = useState("")
   const [newBranchBase, setNewBranchBase] = useState(repo.defaultBranch || "main")
-  const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [startCommit, setStartCommit] = useState<string | null>(null)
   const [githubBranches, setGithubBranches] = useState<string[]>([])
@@ -145,8 +144,6 @@ export function BranchList({
   }
 
   const handleCreateBranch = useCallback(async (commitOverride?: string) => {
-    if (creating) return
-
     // Generate a new branch name
     const branchName = randomBranchName()
 
@@ -166,7 +163,6 @@ export function BranchList({
       return
     }
 
-    setCreating(true)
     setCreateError(null)
 
     const branchId = generateId()
@@ -197,8 +193,6 @@ export function BranchList({
         },
         {
           onDone: (result) => {
-            // Don't include agent here - it's already set in local state and
-            // result.agent is the default, which would overwrite user's selection
             onUpdateBranch(branchId, {
               id: result.branchId,
               status: BRANCH_STATUS.IDLE,
@@ -219,10 +213,8 @@ export function BranchList({
       const message = err instanceof Error ? err.message : "Failed to create branch"
       onUpdateBranch(branchId, { status: BRANCH_STATUS.ERROR })
       setCreateError(message)
-    } finally {
-      setCreating(false)
     }
-  }, [newBranchBase, creating, repo, quota, onAddBranch, onUpdateBranch, onQuotaRefresh, startCommit, githubBranches, credentials])
+  }, [newBranchBase, repo, quota, onAddBranch, onUpdateBranch, onQuotaRefresh, startCommit, githubBranches, credentials])
 
   // Handle creating branch from a commit selected in git history
   useEffect(() => {
@@ -345,7 +337,11 @@ export function BranchList({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        deleteDialog.handleDeleteClick(branch.id)
+                        if (e.altKey) {
+                          deleteDialog.handleConfirm(branch.id, false)
+                        } else {
+                          deleteDialog.handleDeleteClick(branch.id)
+                        }
                       }}
                       disabled={isCreating}
                       className={cn(
@@ -368,15 +364,11 @@ export function BranchList({
         <div className="flex flex-col gap-2">
           <button
             onClick={() => handleCreateBranch()}
-            disabled={creating || githubBranchesLoading}
+            disabled={githubBranchesLoading}
             className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md bg-secondary px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
           >
-            {creating ? (
-              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-            ) : (
-              <Plus className="h-3.5 w-3.5 shrink-0" />
-            )}
-            <span className="truncate">{creating ? "Creating..." : "New branch"}</span>
+            <Plus className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">New branch</span>
           </button>
 
           {createError && (

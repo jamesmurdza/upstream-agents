@@ -143,30 +143,32 @@ export function useBranchOperations({
 
   // Save draft prompt for a specific branch
   const handleSaveDraftForBranch = useCallback((branchId: string, draftPrompt: string) => {
-    if (!activeRepo) return
-
-    setRepos((prev) => updateBranchInRepo(prev, activeRepo.id, branchId, { draftPrompt }))
+    // Find repo inside setRepos to use latest state (not stale closure)
+    setRepos((prev) => {
+      const targetRepo = prev.find(r => r.branches.some(b => b.id === branchId))
+      if (!targetRepo) return prev
+      return updateBranchInRepo(prev, targetRepo.id, branchId, { draftPrompt })
+    })
 
     // Persist to database
     saveDraftMutation.mutate({ branchId, draftPrompt })
-  }, [activeRepo, setRepos, saveDraftMutation])
+  }, [setRepos, saveDraftMutation])
 
   // Add a message to a branch
   const handleAddMessage = useCallback(async (branchId: string, message: Message): Promise<string> => {
-    // Find which repo actually contains this branch
-    const targetRepo = repos.find(r => r.branches.some(b => b.id === branchId))
-    if (!targetRepo) return message.id
-
     const now = Date.now()
     // Add message and bump branch to top of list
-    setRepos((prev) =>
-      updateBranchInRepo(
+    // Find the repo inside setRepos to use latest state (not stale closure)
+    setRepos((prev) => {
+      const targetRepo = prev.find(r => r.branches.some(b => b.id === branchId))
+      if (!targetRepo) return prev
+      return updateBranchInRepo(
         addMessageToBranch(prev, targetRepo.id, branchId, message),
         targetRepo.id,
         branchId,
         { lastActivity: "now", lastActivityTs: now }
       )
-    )
+    })
 
     // Save message to database and get the real DB ID
     try {
@@ -175,7 +177,15 @@ export function useBranchOperations({
 
       if (dbId && dbId !== message.id) {
         // Update local state with the real database ID
-        setRepos((prev) => updateMessageInBranch(prev, targetRepo.id, branchId, message.id, { id: dbId }))
+        // Find repo inside setRepos to use latest state
+        setRepos((prev) => {
+          const targetRepo = prev.find(r => r.branches.some(b => b.id === branchId))
+          if (!targetRepo) return prev
+          const targetBranch = targetRepo.branches.find(b => b.id === branchId)
+          const messageExists = targetBranch?.messages.some(m => m.id === message.id)
+          if (!messageExists) return prev
+          return updateMessageInBranch(prev, targetRepo.id, branchId, message.id, { id: dbId })
+        })
         return dbId
       }
       return message.id
@@ -183,16 +193,20 @@ export function useBranchOperations({
       console.error("Error saving message to database:", error)
       throw error
     }
-  }, [repos, setRepos, addMessageMutation])
+  }, [setRepos, addMessageMutation])
 
   // Update an existing message
   const handleUpdateMessage = useCallback((branchId: string, messageId: string, updates: Partial<Message>): void | Promise<void> => {
-    if (!activeRepo) return
-
-    setRepos((prev) => updateMessageInBranch(prev, activeRepo.id, branchId, messageId, updates))
+    // Find the repo that actually contains this branch inside setRepos to use latest state
+    // (don't rely on activeRepo from closure which may be stale during polling)
+    setRepos((prev) => {
+      const targetRepo = prev.find(r => r.branches.some(b => b.id === branchId))
+      if (!targetRepo) return prev
+      return updateMessageInBranch(prev, targetRepo.id, branchId, messageId, updates)
+    })
 
     return updateMessageMutation.mutateAsync({ messageId, updates }).then(() => {})
-  }, [activeRepo, setRepos, updateMessageMutation])
+  }, [setRepos, updateMessageMutation])
 
   return {
     handleUpdateBranch,

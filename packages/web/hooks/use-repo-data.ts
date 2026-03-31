@@ -16,6 +16,7 @@ import {
 import { BRANCH_STATUS } from "@/lib/shared/constants"
 import { queryKeys } from "@/lib/api/query-keys"
 import { apiFetch } from "@/lib/api/fetcher"
+import { isBranchPolling } from "@/hooks/use-execution-poller"
 
 /**
  * Response shape from /api/user/me
@@ -180,10 +181,20 @@ export function useRepoData({ isAuthenticated }: UseRepoDataOptions) {
       const branch = repo?.branches.find((b) => b.id === branchId)
       if (!branch) return
 
-      // Skip if we already have messages with full content loaded
+      if (isBranchPolling(branchId)) {
+        return
+      }
+
+      // Skip if we already have messages with full content loaded.
+      // Exception: if a model assistant message has empty content while branch
+      // is idle, the content is stale (agent completed while we were on another
+      // branch) and must be re-fetched.
       const hasFullContent =
         branch.messages.length > 0 && branch.messages.every((m) => m.contentLoaded !== false)
-      if (skipIfHasMessages && hasFullContent) return
+      const hasStaleAssistant = branch.status !== "running" && branch.messages.some(
+        (m) => m.role === "assistant" && m.assistantSource === "model" && !m.content
+      )
+      if (skipIfHasMessages && hasFullContent && !hasStaleAssistant) return
 
       const seq = (messageLoadSeqRef.current.get(branchId) || 0) + 1
       messageLoadSeqRef.current.set(branchId, seq)
@@ -196,6 +207,10 @@ export function useRepoData({ isAuthenticated }: UseRepoDataOptions) {
       try {
         const data = await fetchBranchMessages(branchId, false)
         if (messageLoadSeqRef.current.get(branchId) !== seq) {
+          return
+        }
+
+        if (isBranchPolling(branchId)) {
           return
         }
 

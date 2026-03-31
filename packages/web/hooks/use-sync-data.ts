@@ -7,9 +7,14 @@ import {
 } from "@/lib/shared/state-utils"
 import {
   isLocalRicher,
-  shouldSkipSync,
   hasNewMessages,
 } from "@/lib/core/sync"
+import { isBranchPolling } from "@/hooks/use-execution-poller"
+
+const pendingDeletes = new Set<string>()
+export function markBranchDeleting(branchId: string) { pendingDeletes.add(branchId) }
+export function unmarkBranchDeleting(branchId: string) { pendingDeletes.delete(branchId) }
+
 
 // Sync data shape from the API
 export interface SyncBranch {
@@ -40,7 +45,7 @@ export interface SyncData {
 interface UseSyncDataOptions {
   setRepos: React.Dispatch<React.SetStateAction<TransformedRepo[]>>
   activeBranchIdRef: React.MutableRefObject<string | null>
-  /** Ref to check if a message is currently being streamed - skip sync if so */
+  /** @deprecated No longer used - execution store is checked directly */
   streamingMessageIdRef?: React.MutableRefObject<string | null>
 }
 
@@ -90,13 +95,15 @@ function mergeBranchesWithLocalOnly(
   syncBranches: SyncBranch[]
 ): Branch[] {
   const syncIds = new Set(syncBranches.map((b) => b.id))
-  const localOnly = existingBranches.filter((b) => !syncIds.has(b.id))
-  const fromSync = syncBranches.map((syncBranch) => {
-    const existing = existingBranches.find((b) => b.id === syncBranch.id)
-    return existing
-      ? mergeSyncBranchIntoExisting(existing, syncBranch)
-      : syncBranchToBranch(syncBranch)
-  })
+  const localOnly = existingBranches.filter((b) => !syncIds.has(b.id) && !pendingDeletes.has(b.id))
+  const fromSync = syncBranches
+    .filter((b) => !pendingDeletes.has(b.id))
+    .map((syncBranch) => {
+      const existing = existingBranches.find((b) => b.id === syncBranch.id)
+      return existing
+        ? mergeSyncBranchIntoExisting(existing, syncBranch)
+        : syncBranchToBranch(syncBranch)
+    })
   return [...fromSync, ...localOnly]
 }
 
@@ -194,13 +201,42 @@ export function useSyncData({ setRepos, activeBranchIdRef, streamingMessageIdRef
               )
             }
 
-            // Status change
-            if (lastBranch.status !== syncBranch.status) {
+            // Status change — but never overwrite while the poller owns
+            // this branch's lifecycle. The poller will set the final status
+            // itself after delivering the last content update.
+            if (lastBranch.status !== syncBranch.status && !isBranchPolling(syncBranch.id)) {
               setRepos((prev) =>
                 updateBranchAcrossRepos(prev, syncBranch.id, {
                   status: syncBranch.status as Branch["status"],
                 })
               )
+
+              // When a non-active branch just finished (running → idle/error),
+              // eagerly fetch its messages so content is ready when the user
+              // switches to it — avoids a visible reload or stale "Thinking...".
+              const justFinished =
+                lastBranch.status === "running" &&
+                syncBranch.status !== "running" &&
+                syncBranch.id !== activeBranchIdRef.current
+              if (justFinished) {
+                fetch(`/api/branches/messages?branchId=${syncBranch.id}`)
+                  .then((r) => r.json())
+                  .then((msgData) => {
+                    if (msgData.messages) {
+                      setRepos((prev) =>
+                        updateBranchAcrossRepos(prev, syncBranch.id, {
+                          messages: mergeMessages(
+                            prev.find((r) =>
+                              r.branches.some((b) => b.id === syncBranch.id)
+                            )?.branches.find((b) => b.id === syncBranch.id)?.messages || [],
+                            msgData.messages
+                          ),
+                        })
+                      )
+                    }
+                  })
+                  .catch(() => {})
+              }
             }
 
             // PR URL change
@@ -222,16 +258,8 @@ export function useSyncData({ setRepos, activeBranchIdRef, streamingMessageIdRef
               // selects the branch. This significantly reduces Neon network transfer.
               // The unread indicator can be derived when rendering the sidebar.
               if (syncBranch.id === activeBranchIdRef.current) {
-                // CRITICAL: Skip message reload if a message is currently being streamed
-                // This prevents sync from overwriting streaming content with stale DB data
-                // The polling mechanism handles real-time updates during streaming
-                // Uses pure function from lib/core/sync for this check
-                if (shouldSkipSync(
-                  streamingMessageIdRef?.current ?? null,
-                  syncBranch.id,
-                  activeBranchIdRef.current
-                )) {
-                  // Skip this sync cycle - streaming is in progress
+                // Skip message reload while a poller is actively streaming for this branch
+                if (isBranchPolling(syncBranch.id)) {
                   return
                 }
 
@@ -239,8 +267,7 @@ export function useSyncData({ setRepos, activeBranchIdRef, streamingMessageIdRef
                 fetch(`/api/branches/messages?branchId=${syncBranch.id}`)
                   .then((r) => r.json())
                   .then((msgData) => {
-                    // Double-check streaming hasn't started while we were fetching
-                    if (streamingMessageIdRef?.current) {
+                    if (isBranchPolling(syncBranch.id)) {
                       return
                     }
                     if (msgData.messages) {
@@ -270,7 +297,7 @@ export function useSyncData({ setRepos, activeBranchIdRef, streamingMessageIdRef
         lastMessageIdsRef.current.set(branch.id, branch.lastMessageId)
       }
     }
-  }, [setRepos, activeBranchIdRef, streamingMessageIdRef])
+  }, [setRepos, activeBranchIdRef])
 
   return {
     handleSyncData,

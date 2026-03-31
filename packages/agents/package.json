@@ -30,7 +30,6 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "@types/ssh2": "^1.15.5",
     "typescript": "^5.3.0",
     "vitest": "^1.0.0"
   },
@@ -53,7 +52,6 @@
   },
   "dependencies": {
     "@daytonaio/sdk": "^0.150.0",
-    "dotenv": "^17.3.1",
-    "ssh2": "^1.17.0"
+    "dotenv": "^17.3.1"
   }
 }

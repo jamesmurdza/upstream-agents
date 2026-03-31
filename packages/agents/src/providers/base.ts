@@ -418,18 +418,26 @@ export abstract class Provider implements IProvider {
 
   /**
    * Cancel the current turn's process in the sandbox (kill pid from meta).
-   * Uses killBackgroundProcess when available (same channel as start, e.g. SSH); else executeCommand.
-   * Writes the done file after kill so isRunning() becomes false (the wrapper never gets to write it).
+   * Uses robust multi-step kill: SIGTERM -> SIGKILL -> pkill fallback.
+   * Writes the done file after kill so isRunning() becomes false.
    */
   async cancelSandboxBackground(sessionDir: string): Promise<void> {
     const meta = await this.readSandboxMeta(sessionDir)
     if (meta?.pid == null) return
     const mgr = this.sandboxManager
+
     if (mgr?.killBackgroundProcess) {
-      await mgr.killBackgroundProcess(meta.pid)
+      // Use the robust kill implementation (includes TERM -> KILL -> pkill)
+      await mgr.killBackgroundProcess(meta.pid, this.name)
     } else if (mgr?.executeCommand) {
-      await mgr.executeCommand(`kill ${meta.pid} 2>/dev/null || true`, 10)
+      // Fallback: manual multi-step kill
+      await mgr.executeCommand(`kill -TERM ${meta.pid} 2>/dev/null || true`, 10)
+      await new Promise(r => setTimeout(r, 500))
+      await mgr.executeCommand(`kill -9 ${meta.pid} 2>/dev/null || true`, 10)
+      await mgr.executeCommand(`pkill -9 -f "${this.name}" 2>/dev/null || true`, 10)
     }
+
+    // Write done file so isRunning() returns false
     if (meta.outputFile && mgr?.executeCommand) {
       const donePath = meta.outputFile + ".done"
       const escaped = donePath.replace(/'/g, "'\\''")
@@ -466,7 +474,7 @@ export abstract class Provider implements IProvider {
 
   /**
    * Get new events for the current turn; reads and updates cursor in sandbox meta.
-   * Use isSandboxBackgroundProcessRunning() to check if the agent is still running.
+   * Uses optimized polling when available (2 round trips instead of 4).
    */
   async getEventsSandboxBackgroundFromMeta(sessionDir: string): Promise<{
     sessionId: string | null
@@ -474,84 +482,85 @@ export abstract class Provider implements IProvider {
     cursor: string
     running: boolean
   }> {
-    const meta = await this.readSandboxMeta(sessionDir)
-    if (!meta?.runId || !meta.outputFile) {
-      debugLog(`getEventsSandboxBackgroundFromMeta provider=${this.name} sessionDir=${sessionDir} (no turn in progress) meta=${JSON.stringify(meta)}`, this.sessionId)
-      return {
-        sessionId: meta?.sessionId ?? this.sessionId ?? null,
-        events: [],
-        cursor: String(meta?.cursor ?? 0),
-        running: false,
+    // Optimized path: read meta + output + done status together
+    let meta: Awaited<ReturnType<typeof this.readSandboxMeta>> = null
+    let outputContent: string | null = null
+    let stillRunning: boolean
+
+    if (this.sandboxManager?.pollBackgroundState) {
+      const state = await this.sandboxManager.pollBackgroundState(sessionDir)
+      if (state?.meta) {
+        try {
+          const parsed = JSON.parse(state.meta)
+          if (typeof parsed.currentTurn === "number" && typeof parsed.cursor === "number") {
+            meta = parsed
+          }
+        } catch { /* invalid JSON */ }
       }
+      outputContent = state?.output ?? null
+      stillRunning = !state?.done
+    } else {
+      // Legacy path: separate calls
+      meta = await this.readSandboxMeta(sessionDir)
+      stillRunning = meta?.outputFile ? await this.isSandboxBackgroundOutputRunning(meta.outputFile) : false
     }
-    const outputFile = meta.outputFile
+
+    if (!meta?.runId || !meta.outputFile) {
+      debugLog(`getEventsSandboxBackgroundFromMeta provider=${this.name} sessionDir=${sessionDir} (no turn in progress)`, this.sessionId)
+      return { sessionId: meta?.sessionId ?? this.sessionId ?? null, events: [], cursor: String(meta?.cursor ?? 0), running: false }
+    }
+
     const cursor = String(meta.cursor)
     debugLog(`getEventsSandboxBackgroundFromMeta provider=${this.name} sessionDir=${sessionDir} turn=${meta.currentTurn} cursor=${cursor}`, this.sessionId)
-    const result = await this.pollSandboxBackground(
-      outputFile,
-      cursor,
-      meta.rawCursor != null ? String(meta.rawCursor) : null
-    )
+
+    // Poll output (uses pre-fetched content if available)
+    const result = await this.pollSandboxBackground(meta.outputFile, cursor, meta.rawCursor != null ? String(meta.rawCursor) : null, outputContent)
     const sawEnd = meta.sawEnd || result.events.some((e) => e.type === "end")
-    const stillRunning = await this.isSandboxBackgroundOutputRunning(outputFile)
-    // Clear run when process stopped or we've seen end event (sawEnd can be true before .done file exists)
+
+    // Handle completion states and update meta
+    return this._handlePollResult(sessionDir, meta, result, stillRunning, sawEnd)
+  }
+
+  /** Process poll result and update meta. Shared by all polling paths. */
+  private async _handlePollResult(
+    sessionDir: string,
+    meta: NonNullable<Awaited<ReturnType<typeof this.readSandboxMeta>>>,
+    result: Awaited<ReturnType<typeof this.pollSandboxBackground>>,
+    stillRunning: boolean,
+    sawEnd: boolean
+  ): Promise<{ sessionId: string | null; events: Event[]; cursor: string; running: boolean }> {
+    const baseMeta = {
+      cursor: Number(result.cursor) || 0,
+      rawCursor: Number(result.rawCursor) || meta.rawCursor || 0,
+      provider: this.name as import("../types/index.js").ProviderName,
+      sessionId: this.sessionId ?? meta.sessionId ?? null,
+    }
+
     if (!stillRunning || sawEnd) {
       const nextTurn = (meta.currentTurn ?? 0) + 1
-      const metaUpdate = {
-        currentTurn: nextTurn,
-        cursor: Number(result.cursor) || 0,
-        rawCursor: Number(result.rawCursor) || meta.rawCursor || 0,
-        sawEnd,
-        provider: this.name as import("../types/index.js").ProviderName,
-        sessionId: this.sessionId ?? meta.sessionId ?? null,
+      await this.writeSandboxMetaIfChanged(sessionDir, {
+        currentTurn: nextTurn, ...baseMeta, sawEnd,
         ...(sawEnd ? {} : { outputFile: meta.outputFile, runId: meta.runId }),
-      }
-      await this.writeSandboxMetaIfChanged(sessionDir, metaUpdate, meta)
-    }
-    if (stillRunning && !sawEnd) {
+      }, meta)
+    } else {
       await this.writeSandboxMetaIfChanged(sessionDir, {
-        currentTurn: meta.currentTurn,
-        cursor: Number(result.cursor) || 0,
-        rawCursor: Number(result.rawCursor) || meta.rawCursor || 0,
-        pid: meta.pid,
-        runId: meta.runId,
-        outputFile: meta.outputFile,
-        sawEnd,
-        startedAt: meta.startedAt,
-        provider: this.name,
-        sessionId: this.sessionId,
+        currentTurn: meta.currentTurn, ...baseMeta, sawEnd,
+        pid: meta.pid, runId: meta.runId, outputFile: meta.outputFile, startedAt: meta.startedAt,
       }, meta)
     }
+
+    // Crashed: process exited without end event
     if (!stillRunning && !sawEnd) {
-      const maxOutputChars = 4096
       const raw = (result.rawOutput ?? "").trim()
-      const nonJsonLines = raw.split("\n").filter((line) => {
-        const t = line.trim()
-        return t && !(t.startsWith("{") && t.endsWith("}"))
-      })
-      const filtered = nonJsonLines.join("\n").trim()
-      const output = filtered.length > maxOutputChars ? filtered.slice(-maxOutputChars) : filtered || undefined
-      const crashEvent: Event = {
-        type: "agent_crashed",
-        message: "Agent process exited without completing (crashed or killed)",
-        output,
-      }
-      debugLog("session end", this.sessionId ?? meta.sessionId, "reason=crashed", crashEvent.message, output ? `output=${output.slice(0, 200)}${output.length > 200 ? "…" : ""}` : "")
-      const nextTurn = (meta.currentTurn ?? 0) + 1
-      await this.writeSandboxMetaIfChanged(sessionDir, {
-        currentTurn: nextTurn,
-        cursor: Number(result.cursor) || 0,
-        rawCursor: Number(result.rawCursor) || meta.rawCursor || 0,
-        sawEnd: true,
-        provider: this.name,
-        sessionId: this.sessionId ?? meta.sessionId ?? null,
-      }, meta)
+      const nonJsonLines = raw.split("\n").filter((l) => { const t = l.trim(); return t && !(t.startsWith("{") && t.endsWith("}")) })
+      const output = nonJsonLines.join("\n").trim().slice(-4096) || undefined
+      const crashEvent: Event = { type: "agent_crashed", message: "Agent process exited without completing (crashed or killed)", output }
+      debugLog("session end", this.sessionId ?? meta.sessionId, "reason=crashed", crashEvent.message)
+      await this.writeSandboxMetaIfChanged(sessionDir, { currentTurn: (meta.currentTurn ?? 0) + 1, ...baseMeta, sawEnd: true }, meta)
       return { sessionId: result.sessionId, events: [...result.events, crashEvent], cursor: result.cursor, running: false }
     }
-    if (!stillRunning || sawEnd) {
-      return { sessionId: result.sessionId, events: result.events, cursor: result.cursor, running: false }
-    }
-    return { sessionId: result.sessionId, events: result.events, cursor: result.cursor, running: true }
+
+    return { sessionId: result.sessionId, events: result.events, cursor: result.cursor, running: stillRunning && !sawEnd }
   }
 
   /**
@@ -628,12 +637,13 @@ export abstract class Provider implements IProvider {
 
   /**
    * Poll a background sandbox run by reading the JSONL log file.
-   * Cursor is an opaque string representing the last processed line index.
+   * If prefetchedContent is provided, uses that instead of fetching from sandbox.
    */
   async pollSandboxBackground(
     outputFile: string,
     cursor?: string | null,
-    rawCursor?: string | null
+    rawCursor?: string | null,
+    prefetchedContent?: string | null
   ): Promise<{
     status: "running" | "completed"
     sessionId: string | null
@@ -642,107 +652,49 @@ export abstract class Provider implements IProvider {
     rawCursor: string
     rawOutput?: string
   }> {
-    if (!this.sandboxManager || !this.sandboxManager.executeCommand) {
-      throw new Error("Sandbox background mode requires a sandbox with executeCommand support")
+    // Get content: use prefetched if available, otherwise fetch
+    let rawOutput: string
+    if (prefetchedContent != null) {
+      rawOutput = prefetchedContent
+    } else {
+      if (!this.sandboxManager?.executeCommand) {
+        throw new Error("Sandbox background mode requires a sandbox with executeCommand support")
+      }
+      const result = await this.sandboxManager.executeCommand(`cat ${outputFile}`, 30)
+      rawOutput = result.output ?? ""
     }
 
-    const decodeCursor = (c?: string | null) => (c ? Number(c) || 0 : 0)
-    const encodeCursor = (index: number) => String(index)
-
-    const startIndex = decodeCursor(cursor)
-    const rawStartIndex = decodeCursor(rawCursor)
-
-    const catCommand = `cat ${outputFile}`
-    const result = await this.sandboxManager.executeCommand(catCommand, 30)
-    const rawOutput = result.output ?? ""
-
+    const startIndex = cursor ? Number(cursor) || 0 : 0
+    void rawCursor // used for tracking but not filtering in simplified version
     const rawLines = rawOutput.split("\n")
-    debugLog(`pollSandboxBackground provider=${this.name} outputFile=${outputFile} cursor=${cursor ?? "null"} rawLines=${rawLines.length}`, this.sessionId)
     const lines: string[] = []
+    const isJson = (s: string) => s.startsWith("{") && s.endsWith("}")
 
-    const isJsonLine = (line: string): boolean => {
-      const trimmed = line.trim()
-      return trimmed.startsWith("{") && trimmed.endsWith("}")
-    }
-
-    const isRereading = rawStartIndex >= rawLines.length
     for (let i = 0; i < rawLines.length; i++) {
-      const line = rawLines[i]
-      if (i >= rawStartIndex) {
-        debugLog(`raw file line [${i}]: ${line}`, this.sessionId)
-      }
-      const trimmed = line.trim()
+      const trimmed = rawLines[i].trim()
       if (!trimmed) continue
-      if (!isJsonLine(trimmed) && i === rawLines.length - 1) {
-        if (!isRereading) debugLog(`background poll skipped (partial last line) [${i}]: ${trimmed}`, this.sessionId)
-        continue
-      }
-      if (isJsonLine(trimmed)) {
-        lines.push(trimmed)
-      } else {
-        if (!isRereading) debugLog(`background poll skipped (not JSONL) [${i}]: ${trimmed}`, this.sessionId)
-      }
+      if (!isJson(trimmed) && i === rawLines.length - 1) continue // skip partial last line
+      if (isJson(trimmed)) lines.push(trimmed)
     }
 
     if (startIndex >= lines.length) {
-      // No new JSONL events since the last cursor; keep status as running
-      // and only advance the cursor based on JSON lines, not raw lines.
-      const nextCursor = lines.length
-      const nextRawCursor = encodeCursor(rawLines.length)
-      return {
-        status: "running",
-        sessionId: this.sessionId,
-        events: [],
-        cursor: encodeCursor(nextCursor),
-        rawCursor: nextRawCursor,
-        rawOutput,
-      }
-    }
-
-    const slice = lines.slice(startIndex)
-    for (let i = 0; i < slice.length; i++) {
-      const l = slice[i]
-      debugLog(`raw line (background poll) [${startIndex + i}]: ${l ?? ""}`, this.sessionId)
+      return { status: "running", sessionId: this.sessionId, events: [], cursor: String(lines.length), rawCursor: String(rawLines.length), rawOutput }
     }
 
     const eventsOut: Event[] = []
     let status: "running" | "completed" = "running"
 
-    for (const line of slice) {
+    for (const line of lines.slice(startIndex)) {
       const raw = this.parse(line)
-      if (raw === null) {
-        debugLog(`unparsed line (background poll):`, this.sessionId, line)
-      }
       const events = raw === null ? [] : Array.isArray(raw) ? raw : [raw]
       for (const event of events) {
-        if (event.type === "session") {
-          this.sessionId = event.id
-        }
-        if (event.type === "end") {
-          status = "completed"
-          debugLog("session end", this.sessionId, event.error ? `reason=error ${event.error}` : "reason=completed")
-        } else if (event.type === "agent_crashed") {
-          debugLog("session end", this.sessionId, "reason=crashed", event.message ?? event.output ?? "")
-        }
+        if (event.type === "session") this.sessionId = event.id
+        if (event.type === "end") status = "completed"
         eventsOut.push(event)
       }
     }
 
-    const newCursor = encodeCursor(lines.length)
-    const newRawCursor = encodeCursor(rawLines.length)
-    debugLog(
-      `pollSandboxBackground result provider=${this.name} status=${status} events=${eventsOut.length} newCursor=${newCursor} newRawCursor=${newRawCursor}`,
-      this.sessionId
-    )
-
-    return {
-      status,
-      sessionId: this.sessionId,
-      events: eventsOut,
-      cursor: newCursor,
-      rawCursor: newRawCursor,
-      rawOutput,
-    }
+    return { status, sessionId: this.sessionId, events: eventsOut, cursor: String(lines.length), rawCursor: String(rawLines.length), rawOutput }
   }
 
   /**

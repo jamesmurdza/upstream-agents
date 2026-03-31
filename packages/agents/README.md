@@ -1,37 +1,42 @@
 # Background Agents SDK
 
-A unified TypeScript interface for AI coding agents—Claude, Codex, Gemini, and OpenCode. Commands run in secure [Daytona](https://daytona.io) sandboxes by default, with real-time PTY streaming.
+A TypeScript SDK for running AI coding agents (Claude, Codex, Gemini, OpenCode) in secure [Daytona](https://daytona.io) sandboxes. Designed for background execution with polling-based event streaming.
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
-import { createSession } from "background-agents"
+import { createBackgroundSession } from "background-agents"
 
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
 const sandbox = await daytona.create()
-const session = await createSession("claude", {
+
+const session = await createBackgroundSession("claude", {
   sandbox,
   env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY }
 })
 
-for await (const event of session.run("Hello!")) {
-  if (event.type === "token") process.stdout.write(event.text)
-  if (event.type === "end") break
+await session.start("Refactor the auth module")
+
+// Poll for events
+while (await session.isRunning()) {
+  const { events } = await session.getEvents()
+  for (const event of events) {
+    if (event.type === "token") process.stdout.write(event.text)
+  }
+  await new Promise(r => setTimeout(r, 1000))
 }
 
 await sandbox.delete()
 ```
 
-Same pattern for any provider: create a sandbox, create a session, stream events, then tear down. Swap the provider name and env keys as needed.
-
 ---
 
 ## Features
 
-- **Secure by default** — Execution runs in isolated Daytona sandboxes
-- **Real-time streaming** — PTY-based streaming for live token output
+- **Secure sandboxed execution** — Agents run in isolated Daytona sandboxes
+- **Background execution** — Start agents, poll for events, survive restarts
 - **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://geminicli.com/docs/), and [OpenCode](https://opencode.ai/docs/)
-- **Zero-friction setup** — Provider CLI is installed when you create a session (`skipInstall: true` to skip). Env and Codex login run on every `run()`.
-- **Session persistence** — Resume conversations across runs
+- **Zero-friction setup** — Provider CLI auto-installed in sandbox
+- **Session persistence** — Resume conversations across runs and restarts
 
 ---
 
@@ -59,237 +64,52 @@ export DAYTONA_API_KEY=dtn_your_api_key
 ## Installation
 
 ```bash
-npm install background-agents
-```
-
-For sandboxed execution, also install the Daytona SDK:
-
-```bash
-npm install @daytonaio/sdk
-```
-
-**Next.js:** Merge the SDK's Next config so native deps (e.g. `ssh2` / `cpu-features`) are not bundled:
-
-```js
-// next.config.js or next.config.mjs
-import codeagentsdk from 'background-agents/next.config'
-export default { ...codeagentsdk, ...yourConfig }
+npm install background-agents @daytonaio/sdk
 ```
 
 ---
 
 ## Quick start
 
-**1. Create a sandbox** — The SDK does not read your host env; pass API keys when creating the session.
-
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
-import { createSession } from "background-agents"
+import { createBackgroundSession } from "background-agents"
 
+// 1. Create sandbox
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
 const sandbox = await daytona.create()
-```
 
-**2. Create a session** — The provider CLI is installed in the sandbox (unless `skipInstall: true`). Pass environment variables at session creation.
-
-```typescript
-const session = await createSession("claude", {
+// 2. Create background session
+const session = await createBackgroundSession("claude", {
   sandbox,
   env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
   model: "sonnet",
-  timeout: 120,
   systemPrompt: "You are a helpful coding assistant.",
 })
-```
 
-**3. Stream responses**
+// 3. Start a task
+await session.start("Create a hello world script")
 
-```typescript
-for await (const event of session.run("Hello!")) {
-  if (event.type === "token") process.stdout.write(event.text)
-  if (event.type === "tool_start") console.log(`\n[Tool: ${event.name}]`)
-  if (event.type === "end") break
+// 4. Poll for events
+while (await session.isRunning()) {
+  const { events } = await session.getEvents()
+  for (const event of events) {
+    if (event.type === "token") process.stdout.write(event.text)
+    if (event.type === "tool_start") console.log(`\n[Tool: ${event.name}]`)
+    if (event.type === "end") console.log("\nDone.")
+  }
+  await new Promise(r => setTimeout(r, 1000))
 }
-```
 
-**4. Cleanup**
-
-```typescript
+// 5. Cleanup
 await sandbox.delete()
 ```
 
-**Optional: Git workflow** — Use the [Daytona Git SDK](https://www.daytona.io/docs/en/typescript-sdk/git/) to clone before and push after:
-
-```typescript
-const repoPath = "workspace/repo"
-await sandbox.git.clone("https://github.com/user/repo.git", repoPath)
-// ... run session ...
-await sandbox.git.push(repoPath)
-```
-
 ---
 
-## Full example
+## Restart-tolerant workflows
 
-End-to-end example with event handling and cleanup:
-
-```typescript
-import { Daytona } from "@daytonaio/sdk"
-import { createSession } from "background-agents"
-
-async function main() {
-  const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
-  const sandbox = await daytona.create()
-
-  try {
-    const session = await createSession("claude", {
-      sandbox,
-      env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY }
-    })
-
-    for await (const event of session.run("List /tmp then write /tmp/out.txt with 'done'")) {
-      switch (event.type) {
-        case "token":
-          process.stdout.write(event.text)
-          break
-        case "tool_start":
-          console.log("\n🛠️", event.name, event.input ?? "")
-          break
-        case "end":
-          console.log("\nDone.")
-          break
-      }
-    }
-  } finally {
-    await sandbox.delete()
-  }
-}
-
-main()
-```
-
-### CLI commands (reference)
-
-Each provider is invoked via its CLI. Optional flags in brackets.
-
-| Provider | Command |
-|----------|---------|
-| **Claude** | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions` `[--system-prompt …] [--model <m>] [--resume <id>]` `<prompt>` |
-| **Codex** | `codex exec --json --skip-git-repo-check --yolo` `[--model <m>]` `resume <threadId>` `<prompt>` |
-| **OpenCode** | `bash -lc 'opencode run --format json --variant medium [-m <m>] [-s <id>] <prompt> 2>&1'` |
-| **Gemini** | `gemini --output-format stream-json` `[--model <m>] [--resume <id>] -p` `<prompt>` |
-
----
-
-## API reference
-
-### `createSession(provider, options)`
-
-Creates a session with the given provider and options (e.g. `sandbox`, `env`, `model`, `timeout`, `systemPrompt`). Installs the provider CLI in the sandbox before returning unless `skipInstall: true`. Codex login runs automatically on each `run()` when needed.
-
-```typescript
-const session = await createSession("claude", {
-  sandbox,
-  env: { ANTHROPIC_API_KEY: "sk-..." },  // Session-level env (persistent)
-  model: "sonnet",
-  timeout: 120,
-  systemPrompt: "You are a helpful coding assistant.",
-})
-```
-
-### `session.run(prompt)`
-
-Returns an async iterable of events. Stream and handle them uniformly across providers.
-
-```typescript
-for await (const event of session.run("Hello")) {
-  // event.type: "session" | "token" | "tool_start" | "tool_delta" | "tool_end" | "end" | "agent_crashed"
-}
-```
-
-### Event stream
-
-| Event | Description | Fields |
-|-------|-------------|--------|
-| `session` | Session started (for resumption) | `id: string` |
-| `token` | Streamed assistant text | `text: string` |
-| `tool_start` | Tool invoked | `name: string`, `input?: unknown` |
-| `tool_delta` | Streaming tool input | `text: string` |
-| `tool_end` | Tool finished | `output?: string` |
-| `end` | Turn complete (or CLI error) | `error?: string` when the provider reported a failure |
-| `agent_crashed` | Process exited without completing (crash/kill) | `message?: string`, `output?: string` (raw tail of stdout/stderr; often not JSONL) |
-
-```typescript
-type Event =
-  | { type: "session"; id: string }
-  | { type: "token"; text: string }
-  | { type: "tool_start"; name: string; input?: unknown }
-  | { type: "tool_delta"; text: string }
-  | { type: "tool_end"; output?: string }
-  | { type: "end" }
-  | { type: "agent_crashed"; message?: string; output?: string }
-```
-
-### Normalized tool names
-
-Tool names are normalized across providers. Each has a defined `tool_start` input and `tool_end` output.
-
-| Tool | `tool_start` input | Claude | Codex | OpenCode |
-|------|--------------------|:------:|:-----:|:--------:|
-| **write** | `{ file_path, content?, kind }` | ✅ | ✅ | ✅ |
-| **read** | `{ file_path }` | ✅ | — | ✅ |
-| **edit** | `{ file_path, ... }` | ✅ | — | ✅ |
-| **glob** | `{ pattern }` | ✅ | — | ✅ |
-| **grep** | `{ pattern, path? }` | ✅ | — | ✅ |
-| **shell** | `{ command, description? }` | ✅ | ✅ | ✅ |
-
----
-
-## Environment variables
-
-Pass environment variables at **session creation** (not sandbox creation):
-
-```typescript
-const session = await createSession("claude", {
-  sandbox,
-  env: { ANTHROPIC_API_KEY: "sk-..." }
-})
-```
-
-Override per-run if needed:
-
-```typescript
-await session.run({
-  prompt: "Task",
-  env: { ANTHROPIC_API_KEY: "sk-override-..." }
-})
-```
-
----
-
-## Model selection
-
-Set `model` when creating the session.
-
-| Provider | Example | Docs |
-|----------|---------|------|
-| **Claude** | `model: "sonnet"` or `"opus"`, `"haiku"` | [Claude Code models](https://code.claude.com/docs/en/model-config) |
-| **Codex** | `model: "gpt-4o"` or `"o1"`, `"o3"` | [Codex CLI models](https://developers.openai.com/codex/models) |
-| **OpenCode** | `model: "openai/gpt-4o"` (provider/model) | [OpenCode models](https://opencode.ai/docs/models/) |
-| **Gemini** | `model: "gemini-2.0-flash"` or `"gemini-1.5-pro"` | [Gemini CLI model](https://geminicli.com/docs/cli/model) |
-
----
-
-## Sandboxed background sessions
-
-For long-running or restart-tolerant flows: start the agent in the sandbox, write the event stream to log files there, and poll with **getEvents**. All state except the session ID lives in the sandbox.
-
-- **Session ID** — One UUID per background session; host stores only this.
-- **start()** — Returns immediately with `{ executionId, pid, outputFile }`; the agent runs in the background.
-- **isRunning()** — True while the turn is in progress, false after.
-- **Crash detection** — If the process exits without completing, **getEvents** returns an `agent_crashed` event. You can treat it like `end` to stop polling and show a warning.
-
-**Example:** start, persist `sandboxId` and `backgroundSessionId`, then reattach after a restart.
+The SDK is designed for long-running tasks that may outlive your server process. Persist `sandbox.id` and `session.id`, then reattach after restart.
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
@@ -298,78 +118,148 @@ import { createBackgroundSession, getBackgroundSession } from "background-agents
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY! })
 const sandbox = await daytona.create()
 
-const bgSession = await createBackgroundSession("claude", {
+// Start a task
+const session = await createBackgroundSession("claude", {
   sandbox,
   env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY! },
   model: "sonnet",
-  // Optional: per-session system prompt (applied once, persisted across turns).
-  systemPrompt: "You are a helpful coding assistant.",
 })
-await bgSession.start("Do a long-running refactor...")
-// Persist sandbox.id and bgSession.id, then exit.
+await session.start("Do a long-running refactor...")
+
+// Persist these IDs, then exit
+const sandboxId = sandbox.id
+const sessionId = session.id
 
 // --- After restart ---
+
+// Reattach to existing session
 const sandboxAgain = await daytona.get(sandboxId)
-const bgAgain = await getBackgroundSession({
+const sessionAgain = await getBackgroundSession({
   sandbox: sandboxAgain,
-  backgroundSessionId,
-  // Re-apply session options so the provider is recreated with the same env,
-  // model, and system prompt when reattaching.
+  backgroundSessionId: sessionId,
   env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY! },
   model: "sonnet",
-  systemPrompt: "You are a helpful coding assistant.",
 })
 
-async function poll() {
-  const { events } = await bgAgain.getEvents()
-  for (const e of events) {
-    if (e.type === "token") process.stdout.write(e.text)
-    else if (e.type === "tool_start") console.log("[Tool]", e.name)
-  }
-  if (!(await bgAgain.isRunning())) return
-  setTimeout(poll, 2000)
+// Continue polling
+const { events, running } = await sessionAgain.getEvents()
+for (const event of events) {
+  if (event.type === "token") process.stdout.write(event.text)
 }
-poll()
 
-await bgAgain.cancel() // kill agent in sandbox (no-op if stopped)
+// Cancel if needed
+await sessionAgain.cancel()
 ```
 
 ---
 
-## Interactive REPL
+## API reference
 
-```bash
-# Claude (default)
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl.ts
+### `createBackgroundSession(provider, options)`
 
-# Other providers
-npx tsx scripts/repl.ts --provider codex   # OPENAI_API_KEY
-npx tsx scripts/repl.ts --provider opencode
-npx tsx scripts/repl.ts --provider gemini  # GEMINI_API_KEY
+Creates a background session. The provider CLI is installed automatically.
 
-# Polling-based (background session)
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl-polling.ts
+```typescript
+const session = await createBackgroundSession("claude", {
+  sandbox,                                    // Daytona sandbox
+  env: { ANTHROPIC_API_KEY: "sk-..." },      // Environment variables
+  model: "sonnet",                            // Optional: model name
+  systemPrompt: "You are helpful.",           // Optional: system prompt
+  skipInstall: false,                         // Optional: skip CLI install
+})
 ```
 
-```bash
-npx tsx scripts/repl.ts -h   # help; providers: claude, codex, opencode, gemini
+### `session.start(prompt)`
+
+Starts a background task. Returns immediately with process info.
+
+```typescript
+const { pid, outputFile } = await session.start("Your task here")
 ```
+
+### `session.getEvents()`
+
+Polls for new events since last call.
+
+```typescript
+const { events, running } = await session.getEvents()
+// events: Event[] - new events since last poll
+// running: boolean - true if agent is still running
+```
+
+### `session.isRunning()`
+
+Returns `true` while the agent is running.
+
+### `session.cancel()`
+
+Kills the running agent process.
+
+### `getBackgroundSession(options)`
+
+Reattaches to an existing background session.
+
+```typescript
+const session = await getBackgroundSession({
+  sandbox,
+  backgroundSessionId: "uuid-from-earlier",
+  env: { ... },  // Re-supply session options
+  model: "...",
+})
+```
+
+---
+
+## Event types
+
+| Event | Description | Fields |
+|-------|-------------|--------|
+| `session` | Session started | `id: string` |
+| `token` | Streamed text | `text: string` |
+| `tool_start` | Tool invoked | `name: string`, `input?: unknown` |
+| `tool_delta` | Tool streaming | `text: string` |
+| `tool_end` | Tool finished | `output?: string` |
+| `end` | Task complete | `error?: string` |
+| `agent_crashed` | Process crashed | `message?: string`, `output?: string` |
+
+```typescript
+type Event =
+  | { type: "session"; id: string }
+  | { type: "token"; text: string }
+  | { type: "tool_start"; name: string; input?: unknown }
+  | { type: "tool_delta"; text: string }
+  | { type: "tool_end"; output?: string }
+  | { type: "end"; error?: string }
+  | { type: "agent_crashed"; message?: string; output?: string }
+```
+
+---
+
+## Model selection
+
+| Provider | Example | Docs |
+|----------|---------|------|
+| **Claude** | `model: "sonnet"` | [Claude Code models](https://code.claude.com/docs/en/model-config) |
+| **Codex** | `model: "gpt-4o"` | [Codex CLI models](https://developers.openai.com/codex/models) |
+| **OpenCode** | `model: "openai/gpt-4o"` | [OpenCode models](https://opencode.ai/docs/models/) |
+| **Gemini** | `model: "gemini-2.0-flash"` | [Gemini CLI model](https://geminicli.com/docs/cli/model) |
 
 ---
 
 ## How it works
 
-1. **Sandbox** — You create a Daytona sandbox and pass it to `createSession`.
-2. **CLI** — Provider CLI is installed in the sandbox at session creation (unless `skipInstall: true`). Each `run()` sets env and, for Codex, runs `codex login --with-api-key`.
-3. **PTY** — Commands run in a PTY for real-time streaming.
-4. **Events** — JSON from the CLI is parsed into typed events.
-5. **Cleanup** — You call `sandbox.delete()` when done.
+1. **Sandbox** — Create a Daytona sandbox for isolated execution
+2. **CLI install** — Provider CLI is installed in the sandbox automatically
+3. **Background execution** — Agent runs via `nohup`, outputs to a log file
+4. **Polling** — SDK polls the log file for new JSON events
+5. **Completion** — A `.done` file signals when the agent finishes
+6. **Cleanup** — You call `sandbox.delete()` when done
 
 ```
 ┌─────────────┐     ┌──────────────────────────────────────┐
 │   Your App  │────▶│          Daytona Sandbox             │
-│             │◀────│  ┌─────────────┐    ┌─────────────┐  │
-│             │     │  │  PTY Stream │◀──▶│  Agent CLI  │  │
+│             │     │  ┌─────────────┐    ┌─────────────┐  │
+│  (polling)  │◀────│  │  Log File   │◀───│  Agent CLI  │  │
 │             │     │  └─────────────┘    └─────────────┘  │
 └─────────────┘     └──────────────────────────────────────┘
 ```
@@ -378,14 +268,10 @@ npx tsx scripts/repl.ts -h   # help; providers: claude, codex, opencode, gemini
 
 ## Debug mode
 
-Set `CODING_AGENTS_DEBUG=1` (or any non-empty value) to log debugging information to stderr:
-
-- **Agent lifecycle** — when sessions and background sessions are created, when runs start and end
-- **Background agents** — when a turn starts (session dir, turn number, output file), when the background process is started (pid), and each time events are polled (cursor, event count)
-- **Unparsed output** — any CLI line that didn’t parse as an event (helps spot hangs where the agent prints something the SDK doesn’t recognize)
+Set `CODING_AGENTS_DEBUG=1` to enable debug logging:
 
 ```bash
-CODING_AGENTS_DEBUG=1 npx tsx scripts/repl-polling.ts
+CODING_AGENTS_DEBUG=1 npx tsx your-script.ts
 ```
 
 ---
@@ -395,10 +281,16 @@ CODING_AGENTS_DEBUG=1 npx tsx scripts/repl-polling.ts
 ```bash
 npm install
 npm run build
-npm test                    # unit tests (integration/sandbox-background skipped without keys)
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npm run test -- tests/integration/sandbox-background.test.ts   # real sandbox background test
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/test-sdk-full.ts   # integration
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl.ts            # REPL
+npm test
+
+# Integration tests (OpenCode — no provider key needed)
+DAYTONA_API_KEY=... npm test -- tests/integration/polling-e2e.test.ts
+
+# Integration tests (Claude — needs Anthropic key)
+DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npm test -- tests/integration/sandbox-background.test.ts
+
+# Interactive REPL
+DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl-polling.ts
 ```
 
 ---

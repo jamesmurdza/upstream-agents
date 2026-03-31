@@ -23,3 +23,6 @@ export type { SyncDataHandler, SyncData, SyncRepo, SyncBranch } from "./use-sync
 // Existing hooks
 export { useCrossDeviceSync } from "./use-cross-device-sync"
 export { useIsMobile } from "./use-mobile"
+
+// Execution polling
+export { useExecutionPoller, isBranchPolling } from "./use-execution-poller"
