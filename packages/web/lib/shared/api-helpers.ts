@@ -510,16 +510,22 @@ export async function updateSandboxAndBranchStatus(
   status: SandboxStatus,
   extraSandboxData?: { lastActiveAt?: Date }
 ): Promise<void> {
-  await prisma.sandbox.update({
+  const sandboxResult = await prisma.sandbox.updateMany({
     where: { id: sandboxDbId },
     data: {
       status,
       ...extraSandboxData,
     },
   })
+  if (sandboxResult.count === 0) {
+    console.warn("[updateSandboxAndBranchStatus] sandbox row missing; updating branch only if any", {
+      sandboxDbId,
+      branchDbId,
+    })
+  }
 
   if (branchDbId) {
-    await prisma.branch.update({
+    await prisma.branch.updateMany({
       where: { id: branchDbId },
       data: { status },
     })
