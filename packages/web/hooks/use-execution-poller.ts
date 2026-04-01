@@ -12,6 +12,7 @@ import {
   STOPPED_WITHOUT_END_NOTE,
 } from "@/lib/core/polling"
 import { detectAndShowCommits } from "@/lib/core/execution/detect-and-show-commits"
+import { streamDebug } from "@/lib/e2e/stream-debug"
 
 // Module-level tracking for sync guard — prevents sync from overwriting
 // streaming content while a branch is being actively polled.
@@ -96,6 +97,9 @@ export function useExecutionPoller({
   const branchRef = useRef(branch)
   branchRef.current = branch
 
+  const activeMessageIdRef = useRef<string | null>(null)
+  activeMessageIdRef.current = activeMessageId
+
   // Clear tracking when branch stops running
   useEffect(() => {
     if (branch.status !== BRANCH_STATUS.RUNNING && activeMessageId) {
@@ -112,6 +116,7 @@ export function useExecutionPoller({
 
     const run = async () => {
       let resolvedId: string | null = activeMessageId
+      streamDebug("effect:start", { branchId, activeMessageId, branchStatus: branch.status })
 
       // Recovery: no explicit messageId — ask the server which execution is running.
       // On page refresh this fires automatically; during normal sends the caller
@@ -124,9 +129,21 @@ export function useExecutionPoller({
             body: JSON.stringify({ branchId }),
           })
           if (cancelled) return
-          if (!res.ok) return
+          if (!res.ok) {
+            streamDebug("recovery:active", { ok: false, status: res.status, branchId })
+            return
+          }
           const data = await res.json()
           if (cancelled) return
+          streamDebug("recovery:active", {
+            branchId,
+            execution: data.execution
+              ? {
+                  messageId: data.execution.messageId,
+                  status: data.execution.status,
+                }
+              : null,
+          })
           if (data.execution?.messageId && data.execution?.status === "running") {
             resolvedId = data.execution.messageId as string
           } else if (data.execution?.messageId && (data.execution?.status === "completed" || data.execution?.status === "error")) {
@@ -152,19 +169,34 @@ export function useExecutionPoller({
                 }
               }
             } catch { /* best effort */ }
+            streamDebug("recovery:completed-on-load", { branchId, messageId: data.execution.messageId })
+            if (cancelled) return
+            if (activeMessageIdRef.current) return
             cbRef.current.onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE })
             return
           } else {
-            // No execution at all — truly stale branch status
-            cbRef.current.onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE })
-            return
+            if (cancelled) return
+            // startPolling() may run while /execution/active is in flight — poll instead of forcing idle.
+            if (activeMessageIdRef.current) {
+              resolvedId = activeMessageIdRef.current
+              streamDebug("recovery:use-explicit-message-after-empty-execution", {
+                branchId,
+                messageId: resolvedId,
+              })
+            } else {
+              streamDebug("recovery:no-execution-force-idle", { branchId })
+              cbRef.current.onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE })
+              return
+            }
           }
-        } catch {
+        } catch (e) {
+          streamDebug("recovery:active:catch", { branchId, err: String(e) })
           return
         }
       }
 
       const messageId: string = resolvedId
+      streamDebug("poll:loop-enter", { branchId, messageId })
       pollingBranches.add(branchId)
       let notFoundRetries = 0
       let highestSnapshotVersion = 0
@@ -181,7 +213,9 @@ export function useExecutionPoller({
           if (!res.ok) {
             if (res.status === 404) {
               notFoundRetries++
+              streamDebug("poll:status-404", { messageId, notFoundRetries })
               if (notFoundRetries >= MAX_NOT_FOUND_RETRIES) {
+                streamDebug("poll:status-404-give-up", { messageId })
                 cbRef.current.onUpdateMessage(branchId, messageId, { content: STOPPED_WITHOUT_END_NOTE.trim() })
                 cbRef.current.onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE })
                 break
@@ -189,6 +223,7 @@ export function useExecutionPoller({
               await sleep(NOT_FOUND_INTERVAL_MS)
               continue
             }
+            streamDebug("poll:status-http-error", { messageId, status: res.status })
             await sleep(POLL_INTERVAL_MS)
             continue
           }
@@ -200,10 +235,19 @@ export function useExecutionPoller({
           // Monotonic version guard — reject stale out-of-order responses
           const ver = typeof data.snapshotVersion === "number" ? data.snapshotVersion : 0
           if (ver < highestSnapshotVersion) {
+            streamDebug("poll:stale-snapshot-skipped", { messageId, ver, highestSnapshotVersion })
             await sleep(POLL_INTERVAL_MS)
             continue
           }
           highestSnapshotVersion = ver
+          streamDebug("poll:tick", {
+            messageId,
+            ver,
+            execStatus: data.status,
+            contentLen: (data.content as string | undefined)?.length ?? 0,
+            toolCalls: data.toolCalls?.length ?? 0,
+            blocks: data.contentBlocks?.length ?? 0,
+          })
 
           // Unexpected status (e.g. "cancelled", "timeout")
           if (data.status != null && !["running", "completed", "error"].includes(data.status)) {
@@ -227,10 +271,12 @@ export function useExecutionPoller({
 
           // Completion / error
           if (data.status === "completed" || data.status === "error") {
+            streamDebug("poll:terminal", { messageId, status: data.status })
             await handleCompletion(data, branchId, messageId)
             break
           }
-        } catch {
+        } catch (e) {
+          streamDebug("poll:iteration-catch", { messageId, err: String(e) })
           // Network error — will retry on next iteration
         }
 
