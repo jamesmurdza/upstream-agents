@@ -3,7 +3,7 @@
 import { cn } from "@/lib/shared/utils"
 import type { Repo } from "@/lib/shared/types"
 import { BRANCH_STATUS } from "@/lib/shared/constants"
-import { Plus, X, LogOut, Settings, Box, Shield } from "lucide-react"
+import { Plus, X, LogOut, Settings, Box, Shield, Users } from "lucide-react"
 import Link from "next/link"
 import { useState, useRef } from "react"
 import {
@@ -255,6 +255,13 @@ export function RepoSidebar({
               <DropdownMenuItem onClick={onOpenSettings} className="cursor-pointer text-xs">
                 <Settings className="h-3.5 w-3.5" />
                 Settings
+              </DropdownMenuItem>
+
+              <DropdownMenuItem asChild className="cursor-pointer text-xs">
+                <Link href="/team">
+                  <Users className="h-3.5 w-3.5" />
+                  Team
+                </Link>
               </DropdownMenuItem>
 
               {isAdmin && (
