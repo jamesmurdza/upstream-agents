@@ -2,13 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import type { Branch, Message, ToolCall, ContentBlock } from "@/lib/shared/types"
-import { isLoopFinished } from "@/lib/shared/types"
 import { BRANCH_STATUS } from "@/lib/shared/constants"
 import {
   addToolCallIds,
   addContentBlockIds,
   buildErrorContent,
-  shouldContinueLoop,
   STOPPED_WITHOUT_END_NOTE,
 } from "@/lib/core/polling"
 import { detectAndShowCommits } from "@/lib/core/execution/detect-and-show-commits"
@@ -41,7 +39,6 @@ interface UseExecutionPollerOptions {
   onAddMessage: (branchId: string, message: Message) => Promise<string>
   onForceSave: () => void
   onCommitsDetected?: () => void
-  onLoopContinue?: (branchId: string) => void
   onRefreshGitConflictState?: () => void
 }
 
@@ -67,7 +64,6 @@ export function useExecutionPoller({
   onAddMessage,
   onForceSave,
   onCommitsDetected,
-  onLoopContinue,
   onRefreshGitConflictState,
 }: UseExecutionPollerOptions) {
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
@@ -79,7 +75,6 @@ export function useExecutionPoller({
     onAddMessage,
     onForceSave,
     onCommitsDetected,
-    onLoopContinue,
     onRefreshGitConflictState,
   })
   useEffect(() => {
@@ -89,7 +84,6 @@ export function useExecutionPoller({
       onAddMessage,
       onForceSave,
       onCommitsDetected,
-      onLoopContinue,
       onRefreshGitConflictState,
     }
   })
@@ -291,46 +285,25 @@ export function useExecutionPoller({
         })
       }
 
-      const cur = branchRef.current
-      const continueLoop = shouldContinueLoop(
-        data.status as "completed" | "error",
-        cur.loopEnabled || false,
-        cur.loopCount || 0,
-        cur.loopMaxIterations || 10,
-        data.content || "",
-        isLoopFinished,
-      )
+      cbRef.current.onUpdateBranch(branchId, {
+        status: BRANCH_STATUS.IDLE,
+        lastActivity: "now",
+        lastActivityTs: Date.now(),
+      })
 
-      if (continueLoop && cbRef.current.onLoopContinue) {
-        cbRef.current.onUpdateBranch(branchId, {
-          status: BRANCH_STATUS.RUNNING,
-          loopCount: (cur.loopCount || 0) + 1,
-          lastActivity: "now",
-          lastActivityTs: Date.now(),
-        })
-        cbRef.current.onLoopContinue(branchId)
-      } else {
-        cbRef.current.onUpdateBranch(branchId, {
-          status: BRANCH_STATUS.IDLE,
-          lastActivity: "now",
-          lastActivityTs: Date.now(),
-          ...(cur.loopEnabled ? { loopCount: 0 } : {}),
-        })
-
-        try {
-          const ctx = new AudioContext()
-          const osc = ctx.createOscillator()
-          const gain = ctx.createGain()
-          osc.connect(gain)
-          gain.connect(ctx.destination)
-          osc.frequency.value = 880
-          osc.type = "sine"
-          gain.gain.setValueAtTime(0.15, ctx.currentTime)
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
-          osc.start(ctx.currentTime)
-          osc.stop(ctx.currentTime + 0.3)
-        } catch { /* ignore audio errors */ }
-      }
+      try {
+        const ctx = new AudioContext()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.value = 880
+        osc.type = "sine"
+        gain.gain.setValueAtTime(0.15, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + 0.3)
+      } catch { /* ignore audio errors */ }
     }
 
     run()

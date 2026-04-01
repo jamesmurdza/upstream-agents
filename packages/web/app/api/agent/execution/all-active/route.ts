@@ -51,9 +51,6 @@ export async function GET() {
       repoId: exec.message.branch.repo.id,
       repoName: exec.message.branch.repo.name,
       repoOwner: exec.message.branch.repo.owner,
-      loopEnabled: exec.message.branch.loopEnabled,
-      loopCount: exec.message.branch.loopCount,
-      loopMaxIterations: exec.message.branch.loopMaxIterations,
       lastShownCommitHash: exec.message.branch.lastShownCommitHash,
     })),
   })

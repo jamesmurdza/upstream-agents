@@ -493,8 +493,6 @@ export default function Home() {
                   credentials={credentials}
                   onOpenSettings={() => openSettings()}
                   onOpenSettingsWithHighlight={handleOpenSettingsWithHighlight}
-                  defaultLoopMaxIterations={credentials?.defaultLoopMaxIterations}
-                  loopUntilFinishedEnabled={credentials?.loopUntilFinishedEnabled}
                 />
               ) : (
                 <EmptyChatPanel hasRepos={repos.length > 0} />
@@ -547,8 +545,6 @@ export default function Home() {
               credentials={credentials}
               onOpenSettings={() => openSettings()}
               onOpenSettingsWithHighlight={handleOpenSettingsWithHighlight}
-              defaultLoopMaxIterations={credentials?.defaultLoopMaxIterations}
-              loopUntilFinishedEnabled={credentials?.loopUntilFinishedEnabled}
               onRebaseConflictChange={setDesktopRebaseConflict}
             />
           ) : (
