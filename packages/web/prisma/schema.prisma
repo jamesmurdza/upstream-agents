@@ -85,8 +85,6 @@ model UserCredentials {
   openaiApiKey              String?
   daytonaApiKey             String?
   opencodeApiKey            String?
-  defaultLoopMaxIterations  Int      @default(10)
-  loopUntilFinishedEnabled  Boolean  @default(false)
   user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -143,11 +141,6 @@ model Branch {
   // Agent configuration
   agent String @default("claude-code") // "claude-code" | "opencode" | "codex"
   model String? // Model selection for the agent (e.g., "sonnet", "gpt-4o")
-
-  // Loop mode configuration
-  loopEnabled       Boolean @default(false) // Is loop mode active for this branch?
-  loopCount         Int     @default(0)     // Current number of loop iterations
-  loopMaxIterations Int     @default(10)    // Max iterations before stopping
 
   // Commit tracking - HEAD at start of last execution, used for detecting new commits
   lastShownCommitHash String?
@@ -217,7 +210,6 @@ model AgentExecution {
   latestSnapshot       Json?
   accumulatedEvents    Json?
   lastSnapshotPolledAt DateTime?
-  isLoopIteration      Boolean   @default(false)
   snapshotVersion      Int       @default(0) // Monotonic counter for optimistic concurrency
   message              Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
 

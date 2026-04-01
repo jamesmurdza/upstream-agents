@@ -78,8 +78,6 @@ export async function ensureDevUserExists(): Promise<void> {
       userId: DEV_USER_ID,
       anthropicAuthType: "api-key",
       sandboxAutoStopInterval: 5,
-      defaultLoopMaxIterations: 10,
-      loopUntilFinishedEnabled: false,
     },
   })
 

@@ -1,12 +1,12 @@
 "use client"
 
 import { cn } from "@/lib/shared/utils"
-import { X, Terminal, Copy, Check, Loader2, Clock, Bot, Box, Key, ExternalLink, AlertTriangle, Trash2, FlaskConical } from "lucide-react"
+import { X, Terminal, Copy, Check, Loader2, Clock, Bot, Box, Key, ExternalLink, AlertTriangle, Trash2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 
-type SettingsTab = "agents" | "sandboxes" | "experimental"
+type SettingsTab = "agents" | "sandboxes"
 
 interface SettingsModalProps {
   open: boolean
@@ -19,8 +19,6 @@ interface SettingsModalProps {
     hasOpencodeApiKey: boolean
     hasDaytonaApiKey: boolean
     sandboxAutoStopInterval?: number
-    defaultLoopMaxIterations?: number
-    loopUntilFinishedEnabled?: boolean
   } | null
   onCredentialsUpdate: () => void
   /** Field to highlight with error styling (e.g., "anthropicApiKey", "openaiApiKey") */
@@ -48,12 +46,6 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
   const [initialAutoStopInterval, setInitialAutoStopInterval] = useState(5)
   const [daytonaApiKey, setDaytonaApiKey] = useState("")
 
-  // Experimental settings
-  const [defaultLoopMaxIterations, setDefaultLoopMaxIterations] = useState(10)
-  const [initialLoopMaxIterations, setInitialLoopMaxIterations] = useState(10)
-  const [loopUntilFinishedEnabled, setLoopUntilFinishedEnabled] = useState(false)
-  const [initialLoopUntilFinishedEnabled, setInitialLoopUntilFinishedEnabled] = useState(false)
-
   // Track keys to clear
   const [keysToClear, setKeysToClear] = useState<Set<ClearableKey>>(new Set())
 
@@ -77,12 +69,6 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       const interval = credentials?.sandboxAutoStopInterval ?? 5
       setSandboxAutoStopInterval(interval)
       setInitialAutoStopInterval(interval)
-      const loopIterations = credentials?.defaultLoopMaxIterations ?? 10
-      setDefaultLoopMaxIterations(loopIterations)
-      setInitialLoopMaxIterations(loopIterations)
-      const loopEnabled = credentials?.loopUntilFinishedEnabled ?? false
-      setLoopUntilFinishedEnabled(loopEnabled)
-      setInitialLoopUntilFinishedEnabled(loopEnabled)
       setSaveStatus(null)
       setShowDaytonaWarning(false)
       setDaytonaWarningConfirmed(false)
@@ -126,8 +112,6 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
     const newOpencodeKey = opencodeApiKey.trim()
     const newDaytonaKey = daytonaApiKey.trim()
     const autoStopChanged = sandboxAutoStopInterval !== initialAutoStopInterval
-    const loopIterationsChanged = defaultLoopMaxIterations !== initialLoopMaxIterations
-    const loopEnabledChanged = loopUntilFinishedEnabled !== initialLoopUntilFinishedEnabled
 
     // Check if Daytona key is being changed and show warning (if not already confirmed)
     if ((newDaytonaKey || keysToClear.has("daytonaApiKey")) && !skipDaytonaWarning && !daytonaWarningConfirmed) {
@@ -143,8 +127,6 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       newOpencodeKey ||
       newDaytonaKey ||
       autoStopChanged ||
-      loopIterationsChanged ||
-      loopEnabledChanged ||
       keysToClear.size > 0
 
     if (!hasAnyChanges) {
@@ -177,12 +159,6 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       }
       if (autoStopChanged) {
         payload.sandboxAutoStopInterval = sandboxAutoStopInterval
-      }
-      if (loopIterationsChanged) {
-        payload.defaultLoopMaxIterations = defaultLoopMaxIterations
-      }
-      if (loopEnabledChanged) {
-        payload.loopUntilFinishedEnabled = loopUntilFinishedEnabled
       }
 
       // Add keys to clear (send null to clear them)
@@ -327,18 +303,6 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
           >
             <Box className="h-3.5 w-3.5" />
             Sandboxes
-          </button>
-          <button
-            onClick={() => setActiveTab("experimental")}
-            className={cn(
-              "flex items-center gap-2 px-3 py-2.5 text-xs font-medium transition-colors cursor-pointer border-b-2 -mb-px",
-              activeTab === "experimental"
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <FlaskConical className="h-3.5 w-3.5" />
-            Experimental
           </button>
         </div>
 
@@ -629,46 +593,6 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
                 <p className="text-[11px] text-muted-foreground">
                   Sandboxes will auto-stop after {sandboxAutoStopInterval} minutes of inactivity
                 </p>
-              </div>
-            </>
-          )}
-
-          {activeTab === "experimental" && (
-            <>
-              {/* Experimental Features Info */}
-              <p className="text-[11px] text-muted-foreground">
-                These features are experimental and may change or be removed in future updates.
-              </p>
-
-              {/* Loop until finished: chat toggle + max iterations */}
-              <div className="flex flex-col gap-1.5 pt-2 border-t border-border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FlaskConical className="h-3.5 w-3.5 text-muted-foreground" />
-                    <label className="text-xs font-medium text-foreground">Loop Until Finished</label>
-                  </div>
-                  <Switch
-                    checked={loopUntilFinishedEnabled}
-                    onCheckedChange={setLoopUntilFinishedEnabled}
-                    className="h-4 w-7 data-[state=checked]:bg-primary [&_[data-slot=switch-thumb]]:size-3"
-                  />
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  When enabled, the &quot;Loop until finished&quot; toggle will appear in the chat input area.
-                </p>
-                <div className="flex items-center gap-2 pt-0.5">
-                  <span className="text-[11px] text-muted-foreground shrink-0">Max iterations</span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={25}
-                    value={defaultLoopMaxIterations}
-                    onChange={(e) => setDefaultLoopMaxIterations(Number(e.target.value))}
-                    className="flex-1 min-w-0 h-1 bg-secondary rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
-                    aria-label="Max loop iterations"
-                  />
-                  <span className="text-[11px] tabular-nums text-muted-foreground w-6 text-right">{defaultLoopMaxIterations}</span>
-                </div>
               </div>
             </>
           )}

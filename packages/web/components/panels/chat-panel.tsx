@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/shared/utils"
 import type { Agent, Branch, Message, PushErrorInfo, UserCredentialFlags } from "@/lib/shared/types"
-import { defaultAgentModel, getDefaultModelForAgent, LOOP_CONTINUATION_MESSAGE, DEFAULT_LOOP_MAX_ITERATIONS } from "@/lib/shared/types"
+import { defaultAgentModel, getDefaultModelForAgent } from "@/lib/shared/types"
 import { generateId } from "@/lib/shared/store"
 import { ASSISTANT_SOURCE, BRANCH_STATUS, PATHS } from "@/lib/shared/constants"
 import { waitForSSEResult } from "@/lib/shared/sse-utils"
@@ -94,10 +94,6 @@ interface ChatPanelProps {
   onOpenSettings?: () => void
   /** Callback to open settings modal with a specific field highlighted */
   onOpenSettingsWithHighlight?: (field: string) => void
-  /** Default loop max iterations from user settings */
-  defaultLoopMaxIterations?: number
-  /** Whether the loop until finished feature is enabled (experimental) */
-  loopUntilFinishedEnabled?: boolean
   /** Notifies parent when rebase conflict state changes (e.g. for layout chrome) */
   onRebaseConflictChange?: (inRebaseConflict: boolean) => void
 }
@@ -122,8 +118,6 @@ export function ChatPanel({
   credentials,
   onOpenSettings,
   onOpenSettingsWithHighlight,
-  defaultLoopMaxIterations = DEFAULT_LOOP_MAX_ITERATIONS,
-  loopUntilFinishedEnabled = false,
   onRebaseConflictChange,
 }: ChatPanelProps) {
   // Refs
@@ -213,10 +207,8 @@ export function ChatPanel({
       messageId: string
       prompt: string
       b: Branch
-      /** Loop iteration: 410 sandbox gone stops the loop instead of recreate */
-      loopMode?: boolean
     }) => {
-      const { branchId, messageId, prompt, b, loopMode } = args
+      const { branchId, messageId, prompt, b } = args
       if (!b.sandboxId) throw new Error("No sandbox")
 
       const effectiveAgent = (b.agent || "claude-code") as Agent
@@ -238,14 +230,6 @@ export function ChatPanel({
 
       if (!response.ok) {
         const { data, rawText } = await readExecuteErrorResponse(response)
-
-        if (loopMode && response.status === 410 && data.error === "SANDBOX_NOT_FOUND") {
-          onUpdateMessage(branchId, messageId, {
-            content: "Sandbox was deleted. Please send a new message to recreate it.",
-          })
-          onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE, loopCount: 0, loopEnabled: false })
-          return
-        }
 
         if (response.status === 410 && data.error === "SANDBOX_NOT_FOUND" && data.recreateInfo?.branchId) {
           onUpdateMessage(branchId, messageId, { content: "Sandbox was deleted. Recreating..." })
@@ -313,87 +297,6 @@ export function ChatPanel({
     [credentials, onUpdateMessage, onUpdateBranch, repoName]
   )
 
-  // Loop continuation handler - sends the continuation message when loop should continue
-  const handleLoopContinue = useCallback(
-    async (branchId: string) => {
-      const currentBranch = branchRef.current
-      if (currentBranch.id !== branchId) return
-      if (!currentBranch.sandboxId) return
-
-      const userMsg: Message = {
-        id: generateId(),
-        role: "user",
-        content: LOOP_CONTINUATION_MESSAGE,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      }
-      await onAddMessage(branchId, userMsg)
-
-      // Snapshot HEAD before the next run so detectAndShowCommits can list new commits (same as handleSend).
-      try {
-        const headRes = await fetch("/api/sandbox/git", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sandboxId: currentBranch.sandboxId,
-            repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
-            action: "head",
-          }),
-        })
-        if (headRes.ok) {
-          const headData = await headRes.json()
-          if (headData.head) {
-            await fetch("/api/branches", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                branchId: currentBranch.id,
-                lastShownCommitHash: headData.head,
-              }),
-            })
-            onUpdateBranch(currentBranch.id, { lastShownCommitHash: headData.head })
-          }
-        }
-      } catch {
-        // Non-critical
-      }
-
-      const assistantMsg: Message = {
-        id: generateId(),
-        role: "assistant",
-        assistantSource: ASSISTANT_SOURCE.MODEL,
-        content: "",
-        toolCalls: [],
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      }
-      const messageId = await onAddMessage(branchId, assistantMsg)
-
-      startPollingRef.current(messageId)
-      onUpdateBranch(branchId, {
-        status: BRANCH_STATUS.RUNNING,
-        lastActivity: "now",
-        lastActivityTs: Date.now(),
-      })
-
-      try {
-        await runAgentExecute({
-          branchId,
-          messageId,
-          prompt: LOOP_CONTINUATION_MESSAGE,
-          b: currentBranch,
-          loopMode: true,
-        })
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Unknown error"
-        onUpdateMessage(branchId, messageId, {
-          content: "",
-          executeError: { errorMessage: message, prompt: LOOP_CONTINUATION_MESSAGE },
-        })
-        onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE, loopCount: 0 })
-      }
-    },
-    [onAddMessage, onUpdateBranch, onUpdateMessage, runAgentExecute, repoName]
-  )
-
   const gitActions = useGitActions({
     branch,
     repoName,
@@ -426,7 +329,6 @@ export function ChatPanel({
     onAddMessage,
     onForceSave,
     onCommitsDetected,
-    onLoopContinue: handleLoopContinue,
     onRefreshGitConflictState: refreshGitConflictState,
   })
 
@@ -605,8 +507,6 @@ export function ChatPanel({
     }
     onUpdateBranch(branch.id, {
       status: BRANCH_STATUS.IDLE,
-      loopEnabled: false,
-      loopCount: 0,
     })
     abortControllerRef.current?.abort()
   }, [branch.id, branch.messages, onUpdateMessage, onUpdateBranch])
@@ -654,36 +554,6 @@ export function ChatPanel({
   const handleModelChange = useCallback((model: string) => {
     onUpdateBranch(branch.id, { model })
   }, [branch.id, onUpdateBranch])
-
-  // Handle loop toggle
-  const handleLoopToggle = useCallback(async (enabled: boolean) => {
-    // Update branch with loop settings
-    const updates: Partial<Branch> = {
-      loopEnabled: enabled,
-      loopCount: 0, // Reset count when toggling
-    }
-    // If enabling, set max iterations from user setting
-    if (enabled) {
-      updates.loopMaxIterations = defaultLoopMaxIterations
-    }
-    onUpdateBranch(branch.id, updates)
-
-    // Persist to server
-    try {
-      await fetch("/api/branches", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          branchId: branch.id,
-          loopEnabled: enabled,
-          loopCount: 0,
-          ...(enabled && { loopMaxIterations: defaultLoopMaxIterations }),
-        }),
-      })
-    } catch (err) {
-      console.error("Failed to persist loop toggle:", err)
-    }
-  }, [branch.id, onUpdateBranch, defaultLoopMaxIterations])
 
   // Handle push retry - force-push to sync diverged history (preserves PRs)
   const handleRetryPush = useCallback(async (pushError: PushErrorInfo): Promise<{ success: boolean; error?: string }> => {
@@ -775,12 +645,9 @@ export function ChatPanel({
           onStop={handleStop}
           onAgentChange={handleAgentChange}
           onModelChange={handleModelChange}
-          onLoopToggle={handleLoopToggle}
           onOpenSettings={onOpenSettings}
           onOpenSettingsWithHighlight={onOpenSettingsWithHighlight}
           credentials={credentials}
-          defaultLoopMaxIterations={defaultLoopMaxIterations}
-          loopUntilFinishedEnabled={loopUntilFinishedEnabled}
           isMobile={isMobile}
           inRebaseConflict={
             !!(gitActions.gitDialogs.rebaseConflict?.inRebase || gitActions.gitDialogs.rebaseConflict?.inMerge)
