@@ -19,8 +19,6 @@ interface UseExecutionManagerOptions {
   onForceSave: () => void
   /** Commits were detected */
   onCommitsDetected?: () => void
-  /** Loop continuation callback */
-  onLoopContinue?: (branchId: string) => void
   /** Refresh git conflict state */
   onRefreshGitConflictState?: () => void
 }
@@ -42,7 +40,6 @@ export function useExecutionManager({
   onAddMessage,
   onForceSave,
   onCommitsDetected,
-  onLoopContinue,
   onRefreshGitConflictState,
 }: UseExecutionManagerOptions) {
   const setCallbacks = useExecutionStore(state => state.setCallbacks)
@@ -57,7 +54,6 @@ export function useExecutionManager({
     onAddMessage,
     onForceSave,
     onCommitsDetected,
-    onLoopContinue,
     onRefreshGitConflictState,
   })
 
@@ -68,7 +64,6 @@ export function useExecutionManager({
       onAddMessage,
       onForceSave,
       onCommitsDetected,
-      onLoopContinue,
       onRefreshGitConflictState,
     }
   })
@@ -90,8 +85,6 @@ export function useExecutionManager({
         callbacksRef.current.onForceSave(),
       onCommitsDetected: () =>
         callbacksRef.current.onCommitsDetected?.(),
-      onLoopContinue: (branchId) =>
-        callbacksRef.current.onLoopContinue?.(branchId),
       onRefreshGitConflictState: () =>
         callbacksRef.current.onRefreshGitConflictState?.(),
     })
@@ -122,9 +115,6 @@ export function useExecutionManager({
       branchName: branch.name,
       lastShownCommitHash: branch.lastShownCommitHash || null,
       messages: branch.messages,
-      loopEnabled: branch.loopEnabled || false,
-      loopCount: branch.loopCount || 0,
-      loopMaxIterations: branch.loopMaxIterations || 10,
     }
 
     startExecution(context)

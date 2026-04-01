@@ -47,7 +47,6 @@ describe('execution-store', () => {
         onAddMessage: null,
         onForceSave: null,
         onCommitsDetected: null,
-        onLoopContinue: null,
         onRefreshGitConflictState: null,
       },
     })
@@ -74,9 +73,6 @@ describe('execution-store', () => {
         branchName: 'main',
         lastShownCommitHash: null,
         messages: [],
-        loopEnabled: false,
-        loopCount: 0,
-        loopMaxIterations: 10,
       })
 
       const state = useExecutionStore.getState()
@@ -119,9 +115,6 @@ describe('execution-store', () => {
         branchName: 'main',
         lastShownCommitHash: null,
         messages: [],
-        loopEnabled: false,
-        loopCount: 0,
-        loopMaxIterations: 10,
       })
 
       // Mock successful poll response
@@ -174,9 +167,6 @@ describe('execution-store', () => {
         branchName: 'main',
         lastShownCommitHash: null,
         messages: [],
-        loopEnabled: false,
-        loopCount: 0,
-        loopMaxIterations: 10,
       })
 
       expect(store.isStreaming('msg-1')).toBe(true)
@@ -199,9 +189,6 @@ describe('execution-store', () => {
         branchName: 'main',
         lastShownCommitHash: null,
         messages: [],
-        loopEnabled: false,
-        loopCount: 0,
-        loopMaxIterations: 10,
       })
 
       expect(store.isStreaming('msg-1')).toBe(true)
