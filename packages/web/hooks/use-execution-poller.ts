@@ -132,7 +132,7 @@ export function useExecutionPoller({
           } else if (data.execution?.messageId && (data.execution?.status === "completed" || data.execution?.status === "error")) {
             // Execution completed while we were away (e.g. page refresh raced with
             // completion). Do one final status fetch to get the persisted content,
-            // then mark idle.
+            // run commit detection, then mark idle.
             try {
               const statusRes = await fetch("/api/agent/status", {
                 method: "POST",
@@ -152,6 +152,29 @@ export function useExecutionPoller({
                 }
               }
             } catch { /* best effort */ }
+            // Run commit detection for execution that completed while away
+            const b = branchRef.current
+            const sandboxId = b.sandboxId || ""
+            if (sandboxId && repoName) {
+              try {
+                await detectAndShowCommits({
+                  runAutoCommit: true,
+                  sandboxId,
+                  branchId,
+                  branchName: b.name,
+                  repoName,
+                  repoOwner,
+                  repoApiName,
+                  lastShownCommitHash: b.lastShownCommitHash || null,
+                  messages: b.messages,
+                  onAddMessage: cbRef.current.onAddMessage,
+                  onUpdateMessage: cbRef.current.onUpdateMessage,
+                  onUpdateBranch: cbRef.current.onUpdateBranch,
+                  onCommitsDetected: cbRef.current.onCommitsDetected,
+                  onRefreshGitConflictState: cbRef.current.onRefreshGitConflictState,
+                })
+              } catch { /* non-critical */ }
+            }
             cbRef.current.onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE })
             return
           } else {
@@ -183,6 +206,29 @@ export function useExecutionPoller({
               notFoundRetries++
               if (notFoundRetries >= MAX_NOT_FOUND_RETRIES) {
                 cbRef.current.onUpdateMessage(branchId, messageId, { content: STOPPED_WITHOUT_END_NOTE.trim() })
+                // Still try to detect commits in case agent made commits before disappearing
+                const b = branchRef.current
+                const sandboxId = b.sandboxId || ""
+                if (sandboxId && repoName) {
+                  try {
+                    await detectAndShowCommits({
+                      runAutoCommit: true,
+                      sandboxId,
+                      branchId,
+                      branchName: b.name,
+                      repoName,
+                      repoOwner,
+                      repoApiName,
+                      lastShownCommitHash: b.lastShownCommitHash || null,
+                      messages: b.messages,
+                      onAddMessage: cbRef.current.onAddMessage,
+                      onUpdateMessage: cbRef.current.onUpdateMessage,
+                      onUpdateBranch: cbRef.current.onUpdateBranch,
+                      onCommitsDetected: cbRef.current.onCommitsDetected,
+                      onRefreshGitConflictState: cbRef.current.onRefreshGitConflictState,
+                    })
+                  } catch { /* non-critical */ }
+                }
                 cbRef.current.onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE })
                 break
               }
@@ -210,6 +256,29 @@ export function useExecutionPoller({
             cbRef.current.onUpdateMessage(branchId, messageId, {
               content: (data.content ?? "") + STOPPED_WITHOUT_END_NOTE,
             })
+            // Still try to detect commits - agent may have made commits before interruption
+            const b = branchRef.current
+            const sandboxId = b.sandboxId || ""
+            if (sandboxId && repoName) {
+              try {
+                await detectAndShowCommits({
+                  runAutoCommit: true,
+                  sandboxId,
+                  branchId,
+                  branchName: b.name,
+                  repoName,
+                  repoOwner,
+                  repoApiName,
+                  lastShownCommitHash: b.lastShownCommitHash || null,
+                  messages: b.messages,
+                  onAddMessage: cbRef.current.onAddMessage,
+                  onUpdateMessage: cbRef.current.onUpdateMessage,
+                  onUpdateBranch: cbRef.current.onUpdateBranch,
+                  onCommitsDetected: cbRef.current.onCommitsDetected,
+                  onRefreshGitConflictState: cbRef.current.onRefreshGitConflictState,
+                })
+              } catch { /* non-critical */ }
+            }
             cbRef.current.onUpdateBranch(branchId, { status: BRANCH_STATUS.IDLE })
             break
           }
