@@ -146,7 +146,6 @@ export default function Home() {
     [repos]
   )
 
-  const executionLoopContinueRef = useRef<(branchId: string) => void | Promise<void>>(async () => {})
   const executionRefreshGitRef = useRef<(() => void) | null>(null)
 
   useExecutionManager({
@@ -155,7 +154,6 @@ export default function Home() {
     onAddMessage: handleAddMessage,
     onForceSave: () => {},
     onCommitsDetected: triggerGitHistoryRefresh,
-    onLoopContinue: (branchId) => executionLoopContinueRef.current(branchId),
     onRefreshGitConflictState: () => executionRefreshGitRef.current?.(),
   })
 
@@ -489,10 +487,7 @@ export default function Home() {
                   credentials={credentials}
                   onOpenSettings={() => openSettings()}
                   onOpenSettingsWithHighlight={handleOpenSettingsWithHighlight}
-                  defaultLoopMaxIterations={credentials?.defaultLoopMaxIterations}
-                  loopUntilFinishedEnabled={credentials?.loopUntilFinishedEnabled}
                   getBranchById={getBranchById}
-                  executionLoopContinueRef={executionLoopContinueRef}
                   executionRefreshGitRef={executionRefreshGitRef}
                 />
               ) : (
@@ -546,11 +541,8 @@ export default function Home() {
               credentials={credentials}
               onOpenSettings={() => openSettings()}
               onOpenSettingsWithHighlight={handleOpenSettingsWithHighlight}
-              defaultLoopMaxIterations={credentials?.defaultLoopMaxIterations}
-              loopUntilFinishedEnabled={credentials?.loopUntilFinishedEnabled}
               onRebaseConflictChange={setDesktopRebaseConflict}
               getBranchById={getBranchById}
-              executionLoopContinueRef={executionLoopContinueRef}
               executionRefreshGitRef={executionRefreshGitRef}
             />
           ) : (

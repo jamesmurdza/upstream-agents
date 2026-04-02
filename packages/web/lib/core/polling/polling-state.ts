@@ -54,7 +54,6 @@ export type PollingEffect =
   | { type: 'PLAY_COMPLETION_SOUND' }
   | { type: 'SET_BRANCH_IDLE'; unread: boolean }
   | { type: 'SET_BRANCH_RUNNING' }
-  | { type: 'CONTINUE_LOOP' }
   | { type: 'CLEAR_STREAMING_REF'; messageId: string; delayMs: number }
   | { type: 'FORCE_SAVE' }
   | { type: 'APPEND_STOPPED_NOTE' }
@@ -359,25 +358,6 @@ export function addContentBlockIds(contentBlocks: ContentBlock[]): ContentBlockW
       text: block.text,
     }
   })
-}
-
-/**
- * Determines if loop should continue after completion.
- */
-export function shouldContinueLoop(
-  status: 'completed' | 'error',
-  loopEnabled: boolean,
-  loopCount: number,
-  maxIterations: number,
-  content: string,
-  isLoopFinished: (content: string) => boolean
-): boolean {
-  return (
-    loopEnabled &&
-    status === 'completed' &&
-    loopCount < maxIterations &&
-    !isLoopFinished(content)
-  )
 }
 
 /**

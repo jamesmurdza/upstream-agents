@@ -127,7 +127,7 @@ export async function PATCH(req: Request) {
   const { userId } = authResult
 
   const body = await req.json()
-  const { branchId, status, prUrl, name, draftPrompt, agent, model, clearSession, loopEnabled, loopCount, loopMaxIterations, lastShownCommitHash } = body
+  const { branchId, status, prUrl, name, draftPrompt, agent, model, clearSession, lastShownCommitHash } = body
 
   if (!branchId) {
     return badRequest("Missing branch ID")
@@ -174,9 +174,6 @@ export async function PATCH(req: Request) {
       ...(draftPrompt !== undefined && { draftPrompt }),
       ...(agent && { agent }),
       ...(model !== undefined && { model }),
-      ...(loopEnabled !== undefined && { loopEnabled }),
-      ...(loopCount !== undefined && { loopCount }),
-      ...(loopMaxIterations !== undefined && { loopMaxIterations }),
       ...(lastShownCommitHash !== undefined && { lastShownCommitHash }),
     },
     include: INCLUDE_BRANCH_WITH_MESSAGES,

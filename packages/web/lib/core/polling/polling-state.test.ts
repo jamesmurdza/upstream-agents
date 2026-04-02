@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   pollingReducer,
   initialPollingState,
-  shouldContinueLoop,
   buildErrorContent,
   MAX_NOT_FOUND_RETRIES,
   type PollingState,
@@ -42,19 +41,6 @@ describe('pollingReducer', () => {
     const { state: newState, effects } = pollingReducer(state, { type: 'POLL_NOT_FOUND' })
     expect(newState.status).toBe('error')
     expect(effects).toContainEqual({ type: 'CANCEL_POLL' })
-  })
-})
-
-describe('shouldContinueLoop', () => {
-  const isFinished = (c: string) => c.includes('[DONE]')
-
-  it('continues when conditions met', () => {
-    expect(shouldContinueLoop('completed', true, 2, 10, 'working', isFinished)).toBe(true)
-  })
-
-  it('stops when disabled or max reached', () => {
-    expect(shouldContinueLoop('completed', false, 2, 10, 'working', isFinished)).toBe(false)
-    expect(shouldContinueLoop('completed', true, 10, 10, 'working', isFinished)).toBe(false)
   })
 })
 

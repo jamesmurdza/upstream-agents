@@ -19,11 +19,9 @@ import {
   addToolCallIds,
   addContentBlockIds,
   buildErrorContent,
-  shouldContinueLoop,
   MAX_NOT_FOUND_RETRIES,
   STOPPED_WITHOUT_END_NOTE,
 } from "@/lib/core/polling"
-import { isLoopFinished } from "@/lib/shared/types"
 import { detectAndShowCommits } from "@/lib/core/execution/detect-and-show-commits"
 
 // =============================================================================
@@ -42,10 +40,6 @@ export interface ExecutionContext {
   branchName: string
   lastShownCommitHash: string | null
   messages: Message[]
-  // Loop mode state
-  loopEnabled: boolean
-  loopCount: number
-  loopMaxIterations: number
   // Polling state
   notFoundRetries: number
   highestSnapshotVersion: number
@@ -67,7 +61,6 @@ interface ExecutionState {
     onAddMessage: ((branchId: string, message: Message) => Promise<string>) | null
     onForceSave: (() => void) | null
     onCommitsDetected: (() => void) | null
-    onLoopContinue: ((branchId: string) => void) | null
     onRefreshGitConflictState: (() => void) | null
   }
 }
@@ -114,7 +107,6 @@ const initialState: ExecutionState = {
     onAddMessage: null,
     onForceSave: null,
     onCommitsDetected: null,
-    onLoopContinue: null,
     onRefreshGitConflictState: null,
   },
 }
@@ -161,8 +153,6 @@ const storeCreator = (
     if (callbacks.onUpdateBranch) {
       callbacks.onUpdateBranch(execution.branchId, {
         status: BRANCH_STATUS.IDLE,
-        loopEnabled: false,
-        loopCount: 0,
       })
     }
   },
@@ -399,60 +389,35 @@ async function processExecution(messageId: string): Promise<void> {
       })
     }
 
-    // Check loop continuation
-    const loopShouldContinue = shouldContinueLoop(
-      data.status as 'completed' | 'error',
-      execution.loopEnabled,
-      execution.loopCount,
-      execution.loopMaxIterations,
-      data.content || "",
-      isLoopFinished
-    )
+    // Check if this is a background branch (not currently active)
+    // If so, mark it as unread so the user knows there's new content
+    const isBackgroundBranch = store.activeBranchId !== execution.branchId
+    const unreadUpdate = isBackgroundBranch ? { unread: true } : {}
 
-    if (loopShouldContinue && callbacks.onUpdateBranch && callbacks.onLoopContinue) {
-      const newLoopCount = execution.loopCount + 1
+    if (callbacks.onUpdateBranch) {
       callbacks.onUpdateBranch(execution.branchId, {
-        status: BRANCH_STATUS.RUNNING,
-        loopCount: newLoopCount,
+        status: BRANCH_STATUS.IDLE,
         lastActivity: "now",
         lastActivityTs: Date.now(),
+        ...unreadUpdate,
       })
-      callbacks.onLoopContinue(execution.branchId)
-    } else {
-      // Normal completion
-      const loopUpdates = execution.loopEnabled ? { loopCount: 0 } : {}
+    }
 
-      // Check if this is a background branch (not currently active)
-      // If so, mark it as unread so the user knows there's new content
-      const isBackgroundBranch = store.activeBranchId !== execution.branchId
-      const unreadUpdate = isBackgroundBranch ? { unread: true } : {}
-
-      if (callbacks.onUpdateBranch) {
-        callbacks.onUpdateBranch(execution.branchId, {
-          status: BRANCH_STATUS.IDLE,
-          lastActivity: "now",
-          lastActivityTs: Date.now(),
-          ...loopUpdates,
-          ...unreadUpdate,
-        })
-      }
-
-      // Play completion sound
-      try {
-        const ctx = new AudioContext()
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        osc.frequency.value = 880
-        osc.type = "sine"
-        gain.gain.setValueAtTime(0.15, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
-        osc.start(ctx.currentTime)
-        osc.stop(ctx.currentTime + 0.3)
-      } catch {
-        // Ignore audio errors
-      }
+    // Play completion sound
+    try {
+      const ctx = new AudioContext()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = 880
+      osc.type = "sine"
+      gain.gain.setValueAtTime(0.15, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.3)
+    } catch {
+      // Ignore audio errors
     }
 
     // Clear execution
@@ -560,9 +525,6 @@ export async function recoverActiveExecutions(): Promise<void> {
         branchName: exec.branchName,
         lastShownCommitHash: exec.lastShownCommitHash || null,
         messages: [], // Will be populated by polling
-        loopEnabled: exec.loopEnabled || false,
-        loopCount: exec.loopCount || 0,
-        loopMaxIterations: exec.loopMaxIterations || 10,
       })
     }
   } catch {

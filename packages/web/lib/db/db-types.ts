@@ -52,10 +52,6 @@ export interface DbBranch {
   draftPrompt: string | null
   agent: string | null
   model: string | null
-  // Loop mode fields
-  loopEnabled: boolean
-  loopCount: number
-  loopMaxIterations: number
   // Commit tracking
   lastShownCommitHash: string | null
   // Timestamps
@@ -87,8 +83,6 @@ export interface UserCredentials {
   hasOpencodeApiKey: boolean
   hasDaytonaApiKey: boolean
   sandboxAutoStopInterval?: number
-  defaultLoopMaxIterations?: number
-  loopUntilFinishedEnabled?: boolean
 }
 
 function resolveAssistantSource(m: DbMessage): AssistantSource | undefined {
@@ -162,10 +156,6 @@ export function transformBranch(dbBranch: DbBranch): Branch {
     draftPrompt: dbBranch.draftPrompt || undefined,
     agent: (dbBranch.agent || "claude-code") as Branch["agent"],
     model: dbBranch.model || undefined,
-    // Loop mode fields
-    loopEnabled: dbBranch.loopEnabled ?? false,
-    loopCount: dbBranch.loopCount ?? 0,
-    loopMaxIterations: dbBranch.loopMaxIterations ?? 10,
     // Commit tracking
     lastShownCommitHash: dbBranch.lastShownCommitHash || undefined,
     // Activity timestamp for sorting (uses DB updatedAt)
