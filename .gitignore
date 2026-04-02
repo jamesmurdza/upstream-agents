@@ -5,6 +5,7 @@ node_modules/
 packages/*/dist/
 packages/web/.next/
 packages/web/.next-e2e/
+packages/web/test-results/
 # Stray Next output if dev is run without an explicit app directory
 .next/
 
