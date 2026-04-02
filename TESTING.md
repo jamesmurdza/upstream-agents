@@ -22,57 +22,13 @@ npm run test -w @upstream/agents
 
 ## Agent SDK integration tests
 
-Integration tests verify that each AI coding agent provider (Claude, Codex, Gemini, OpenCode) works correctly in both streaming and background modes. These tests create real Daytona sandboxes and run actual provider CLIs.
+Integration tests run each provider (Claude, Codex, Gemini, OpenCode) in real Daytona sandboxes. Tests are skipped when required API keys are not set.
 
-**Required environment variables:**
-
-| Provider | Required Keys |
-|----------|---------------|
-| Claude | `DAYTONA_API_KEY`, `ANTHROPIC_API_KEY` |
-| Codex | `DAYTONA_API_KEY`, `OPENAI_API_KEY` |
-| Gemini | `DAYTONA_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) |
-| OpenCode | `DAYTONA_API_KEY`, `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`) |
-
-Tests are automatically skipped when required API keys are not set.
-
-### Provider tests
-
-Tests all 4 providers in both streaming and background modes. Verifies:
-- Simple prompt completion with token and end events
-- `isRunning` state transitions
-- `getPid` returns pid while running, null after completion
-- Session event with id in streaming mode
-
-Run from the repo root:
+Run the command below from the repo root.
 
 ```bash
 DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... OPENAI_API_KEY=... GEMINI_API_KEY=... \
-  npm test -w @upstream/agents -- tests/integration/providers.test.ts
-```
-
-### Background session lifecycle tests
-
-Comprehensive tests for background session features using Claude. Verifies:
-- Session reattachment (create session, reattach by id, continue polling)
-- Multiple sequential turns in same session
-- Cancellation (cancel running process, start new turn after)
-- Crash detection (process exits without end event)
-- Concurrent polling (multiple getEvents calls)
-- Process lifecycle (isRunning, getPid state machine)
-- Edge cases (empty prompt, very long prompt)
-
-Run from the repo root:
-
-```bash
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... \
-  npm test -w @upstream/agents -- tests/integration/sandbox-background.test.ts
-```
-
-### Run all agent SDK tests
-
-```bash
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... OPENAI_API_KEY=... GEMINI_API_KEY=... \
-  npm test -w @upstream/agents
+  npm test -w @upstream/agents -- tests/integration
 ```
 
 ---
