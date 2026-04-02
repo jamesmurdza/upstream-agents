@@ -45,17 +45,32 @@ const CONTENT_CACHE_TTL = 60000 // 1 minute
 
 /**
  * Extract display info from file path
- * Returns first letter of filename and extension
+ * Returns short name (2-4 chars) and extension
  */
-function getFileDisplayInfo(filePath: string): { letter: string; ext: string; filename: string } {
+function getFileDisplayInfo(filePath: string): { shortName: string; ext: string; filename: string } {
   const parts = filePath.split("/")
   const filename = parts[parts.length - 1] || ""
   const dotIndex = filename.lastIndexOf(".")
 
-  const letter = filename[0]?.toUpperCase() || "?"
+  const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename
   const ext = dotIndex > 0 ? filename.slice(dotIndex) : ""
 
-  return { letter, ext, filename }
+  // Create a short name: up to 4 chars, smart truncation
+  let shortName: string
+  if (baseName.length <= 4) {
+    shortName = baseName
+  } else {
+    // Try to find natural break points (camelCase, snake_case, kebab-case)
+    const camelMatch = baseName.match(/^[a-z]+/i)
+    if (camelMatch && camelMatch[0].length >= 2 && camelMatch[0].length <= 4) {
+      shortName = camelMatch[0]
+    } else {
+      // Just take first 3-4 chars
+      shortName = baseName.slice(0, 4)
+    }
+  }
+
+  return { shortName: shortName.toLowerCase(), ext, filename }
 }
 
 /**
@@ -74,6 +89,8 @@ function getExtColor(ext: string): string {
     ".md": "text-gray-500",
     ".css": "text-pink-500",
     ".html": "text-red-500",
+    ".txt": "text-gray-400",
+    ".log": "text-amber-500",
   }
   return colors[ext] || "text-muted-foreground"
 }
@@ -106,8 +123,11 @@ function FileIcon({ file, isLoading, onClick, isOpen, isPinned }: {
   isOpen: boolean
   isPinned: boolean
 }) {
-  const { letter, ext, filename } = getFileDisplayInfo(file.path)
+  const { shortName, ext, filename } = getFileDisplayInfo(file.path)
   const extColor = getExtColor(ext)
+
+  // Adjust font size based on name length
+  const nameSize = shortName.length <= 2 ? "text-[10px]" : shortName.length <= 3 ? "text-[9px]" : "text-[8px]"
 
   return (
     <Tooltip>
@@ -124,9 +144,9 @@ function FileIcon({ file, isLoading, onClick, isOpen, isPinned }: {
             isPinned && "ring-2 ring-primary"
           )}
         >
-          <div className="flex flex-col items-center justify-center leading-none">
-            <span className="text-[10px] font-bold text-foreground">{letter}</span>
-            <span className={cn("text-[8px] font-medium", extColor)}>{ext}</span>
+          <div className="flex flex-col items-center justify-center leading-none gap-0.5">
+            <span className={cn(nameSize, "font-semibold text-foreground font-mono")}>{shortName}</span>
+            <span className={cn("text-[7px] font-medium", extColor)}>{ext}</span>
           </div>
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-md">
