@@ -25,13 +25,15 @@ const DEFAULT_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".json", ".py", ".go",
 const DEFAULT_IGNORE = ["node_modules", ".git", "dist", "build", ".next", "__pycache__", ".venv", "vendor"]
 
 /**
- * Build the find command to locate files modified after the .git directory was created
- * (i.e., since the repo was cloned)
+ * Build the find command to locate files modified AFTER the clone completed.
+ * We get the .git directory timestamp, add a small buffer, and find files
+ * modified after that time.
  */
 function buildFindCommandSinceClone(
   path: string,
   extensions: string[],
-  ignore: string[]
+  ignore: string[],
+  cloneTimestamp: number // Unix timestamp in seconds
 ): string {
   const safePath = escapeShell(path)
 
@@ -45,9 +47,12 @@ function buildFindCommandSinceClone(
     .map((ext) => `-name '*${escapeShell(ext)}'`)
     .join(" -o ")
 
-  // Use -newer to find files modified after .git directory was created (when repo was cloned)
+  // Add 2 second buffer after clone time to exclude files created during clone
+  const afterTimestamp = cloneTimestamp + 2
+
+  // Use -newermt with a timestamp to find files modified after clone completed
   // Output: path|mtime|size (using stat for metadata)
-  const command = `find '${safePath}' \\( ${ignoreArgs} \\) -o -type f \\( ${extPatterns} \\) -newer '${safePath}/.git' -print0 2>/dev/null | xargs -0 -r stat --format='%n|%Y|%s' 2>/dev/null | head -20 || true`
+  const command = `find '${safePath}' \\( ${ignoreArgs} \\) -o -type f \\( ${extPatterns} \\) -newermt "@${afterTimestamp}" -print0 2>/dev/null | xargs -0 -r stat --format='%n|%Y|%s' 2>/dev/null | head -20 || true`
 
   return command
 }
@@ -110,8 +115,20 @@ export async function POST(req: Request) {
 
     switch (action) {
       case "list-modified": {
-        // Get files modified since the repo was cloned (using .git dir as reference)
-        const command = buildFindCommandSinceClone(repoPath, DEFAULT_EXTENSIONS, DEFAULT_IGNORE)
+        // First, get the .git directory creation time (when the repo was cloned)
+        const safePath = escapeShell(repoPath)
+        const gitStatResult = await sandbox.process.executeCommand(
+          `stat --format='%Y' '${safePath}/.git' 2>/dev/null || echo '0'`
+        )
+        const cloneTimestamp = parseInt(gitStatResult.result?.trim() || "0", 10)
+
+        if (cloneTimestamp === 0) {
+          // No .git directory found, return empty
+          return Response.json({ files: [] })
+        }
+
+        // Get files modified AFTER the clone completed (with buffer)
+        const command = buildFindCommandSinceClone(repoPath, DEFAULT_EXTENSIONS, DEFAULT_IGNORE, cloneTimestamp)
 
         const result = await sandbox.process.executeCommand(command, undefined, undefined, 30)
         const files = parseStatOutput(result.result || "")
