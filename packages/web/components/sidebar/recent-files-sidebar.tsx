@@ -7,12 +7,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { Loader2 } from "lucide-react"
 
 interface ModifiedFile {
@@ -123,13 +117,13 @@ function FileIcon({ file, isLoading, onClick, isOpen, isPinned }: {
   isOpen: boolean
   isPinned: boolean
 }) {
-  const { shortName, ext, filename } = getFileDisplayInfo(file.path)
+  const { shortName, ext } = getFileDisplayInfo(file.path)
   const extColor = getExtColor(ext)
 
   // Adjust font size based on name length
   const nameSize = shortName.length <= 2 ? "text-[10px]" : shortName.length <= 3 ? "text-[9px]" : "text-[8px]"
 
-  const button = (
+  return (
     <button
       onClick={(e) => {
         e.stopPropagation()
@@ -156,25 +150,6 @@ function FileIcon({ file, isLoading, onClick, isOpen, isPinned }: {
         <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
       )}
     </button>
-  )
-
-  // Don't show tooltip when popover is open
-  if (isOpen) {
-    return button
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {button}
-      </TooltipTrigger>
-      <TooltipContent side="left" className="max-w-xs">
-        <p className="font-mono text-xs truncate">{filename}</p>
-        <p className="text-[10px] text-muted-foreground">
-          {formatRelativeTime(file.modifiedAt)}
-        </p>
-      </TooltipContent>
-    </Tooltip>
   )
 }
 
@@ -446,8 +421,7 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey }: RecentFile
   }
 
   return (
-    <TooltipProvider delayDuration={300}>
-      <aside className="flex h-full w-[52px] shrink-0 flex-col items-center gap-1.5 border-l border-border bg-sidebar py-3 overflow-y-auto">
+    <aside className="flex h-full w-[52px] shrink-0 flex-col items-center gap-1.5 border-l border-border bg-sidebar py-3 overflow-y-auto">
         {files.map((file, index) => {
           const isPinned = pinnedFileIndex === index
           const isHovered = hoveredFileIndex === index
@@ -482,7 +456,6 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey }: RecentFile
             </FilePreviewPopover>
           )
         })}
-      </aside>
-    </TooltipProvider>
+    </aside>
   )
 }
