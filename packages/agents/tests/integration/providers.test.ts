@@ -4,11 +4,14 @@
  * These tests create real Daytona sandboxes and run actual provider CLIs.
  * Skip when required API keys are not set.
  *
- * Required env vars per provider:
+ * Required env vars per provider (TEST_ prefixed versions take precedence):
  *   - claude: DAYTONA_API_KEY, ANTHROPIC_API_KEY
  *   - codex: DAYTONA_API_KEY, OPENAI_API_KEY
  *   - gemini: DAYTONA_API_KEY, GEMINI_API_KEY (or GOOGLE_API_KEY)
  *   - opencode: DAYTONA_API_KEY, ANTHROPIC_API_KEY (or OPENAI_API_KEY)
+ *
+ * You can use TEST_ prefixed keys (e.g., TEST_OPENAI_API_KEY) to avoid conflicts
+ * with running agents.
  *
  * Run all:
  *   DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npm test -- tests/integration/providers.test.ts
@@ -18,10 +21,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import { Daytona, type Sandbox } from "@daytonaio/sdk"
 import { createSession, createBackgroundSession, type Event } from "../../src/index.js"
 
-const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+// Check for TEST_ prefixed keys first, then fall back to regular keys
+// This allows running tests with separate keys that don't conflict with running agents
+const DAYTONA_API_KEY = process.env.TEST_DAYTONA_API_KEY || process.env.DAYTONA_API_KEY
+const ANTHROPIC_API_KEY = process.env.TEST_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY
+const OPENAI_API_KEY = process.env.TEST_OPENAI_API_KEY || process.env.OPENAI_API_KEY
+const GEMINI_API_KEY = process.env.TEST_GEMINI_API_KEY || process.env.TEST_GOOGLE_API_KEY || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
 
 // Simple prompt that should complete quickly
 const SIMPLE_PROMPT = "What is 2 + 2? Reply with just the number."

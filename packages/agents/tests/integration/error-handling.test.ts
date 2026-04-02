@@ -4,9 +4,12 @@
  * Tests timeout behavior, invalid API keys, network failures,
  * malformed events, and other error scenarios.
  *
- * Required env vars:
+ * Required env vars (TEST_ prefixed versions take precedence):
  *   - DAYTONA_API_KEY
  *   - ANTHROPIC_API_KEY (using Claude for these tests)
+ *
+ * You can use TEST_ prefixed keys (e.g., TEST_ANTHROPIC_API_KEY) to avoid conflicts
+ * with running agents.
  *
  * Run:
  *   DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npm test -- tests/integration/error-handling.test.ts
@@ -16,8 +19,10 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import { Daytona, type Sandbox } from "@daytonaio/sdk"
 import { createBackgroundSession, createSession, type Event } from "../../src/index.js"
 
-const DAYTONA_API_KEY = process.env.DAYTONA_API_KEY
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+// Check for TEST_ prefixed keys first, then fall back to regular keys
+// This allows running tests with separate keys that don't conflict with running agents
+const DAYTONA_API_KEY = process.env.TEST_DAYTONA_API_KEY || process.env.DAYTONA_API_KEY
+const ANTHROPIC_API_KEY = process.env.TEST_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY
 
 const SIMPLE_PROMPT = "What is 2 + 2? Reply with just the number."
 
