@@ -111,10 +111,10 @@ npx playwright test e2e/app/single-agent.spec.ts
 npx playwright test e2e/app
 ```
 
-**Stream / polling diagnostics** (reproducing flaky chat streams): run `e2e/diagnostics/stream-bug-repro.spec.ts` with `PLAYWRIGHT_STREAM_DEBUG=1` so the Next dev server sets `NEXT_PUBLIC_E2E_STREAM_DEBUG=1` and the browser logs `[stream-debug]` lines from `useExecutionPoller`. Failures attach `stream-instrumentation.txt` (browser + `/api/agent/*` response codes).
+**Stream / polling diagnostics** (reproducing flaky chat streams): run `e2e/diagnostics/stream-bug-repro.spec.ts`. Failures attach `stream-instrumentation.txt` (`/api/agent/*` response codes from the test browser).
 
 ```bash
-cd packages/web && PLAYWRIGHT_STREAM_DEBUG=1 npm run test:e2e -- e2e/diagnostics/stream-bug-repro.spec.ts
+cd packages/web && npm run test:e2e -- e2e/diagnostics/stream-bug-repro.spec.ts
 ```
 
 **Layout**

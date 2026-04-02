@@ -10,10 +10,6 @@ loadEnv({ path: path.resolve(__dirname, ".env.e2e"), override: true })
 const testDbUrl = process.env.DATABASE_URL!
 const port = 3001
 
-/** When set to 1, Next dev enables [stream-debug] console logs in useExecutionPoller (see e2e/diagnostics). */
-const e2eStreamDebug =
-  process.env.PLAYWRIGHT_STREAM_DEBUG === "1" ? "NEXT_PUBLIC_E2E_STREAM_DEBUG=1" : ""
-
 const webServerEnv: Record<string, string> = {
   ...Object.fromEntries(
     Object.entries(process.env).filter((e): e is [string, string] => e[1] !== undefined)
@@ -27,10 +23,6 @@ const webServerEnv: Record<string, string> = {
   DAYTONA_API_KEY: process.env.DAYTONA_API_KEY!,
   GITHUB_CLIENT_ID: "placeholder",
   GITHUB_CLIENT_SECRET: "placeholder",
-}
-
-if (e2eStreamDebug) {
-  webServerEnv.NEXT_PUBLIC_E2E_STREAM_DEBUG = "1"
 }
 
 // Same JSON blob as Settings → Claude subscription; must use env (not shell) so quotes survive.

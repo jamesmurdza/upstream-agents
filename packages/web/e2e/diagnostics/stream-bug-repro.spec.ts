@@ -1,8 +1,7 @@
 /**
  * Diagnostics for agent stream / polling bugs (stuck "working", missed content, etc.).
  *
- * Run with server-side poller logs (recommended):
- *   PLAYWRIGHT_STREAM_DEBUG=1 npm run test:e2e -- e2e/diagnostics/stream-bug-repro.spec.ts
+ * Run: `npm run test:e2e -- e2e/diagnostics/stream-bug-repro.spec.ts`
  *
  * On failure, open the test's `stream-instrumentation.txt` attachment (trace also if enabled).
  */
