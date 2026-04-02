@@ -26,16 +26,16 @@ const DEFAULT_IGNORE = ["node_modules", ".git", "dist", "build", ".next", "__pyc
 
 /**
  * Build the find command to locate files modified AFTER the clone completed.
- * We get the .git directory timestamp, add a small buffer, and find files
- * modified after that time.
+ * Uses a reference file to compare modification times.
  */
 function buildFindCommandSinceClone(
   path: string,
   extensions: string[],
   ignore: string[],
-  cloneTimestamp: number // Unix timestamp in seconds
+  referenceFile: string // Path to a temp file with the reference timestamp
 ): string {
   const safePath = escapeShell(path)
+  const safeRefFile = escapeShell(referenceFile)
 
   // Build ignore patterns for find -prune
   const ignoreArgs = ignore
@@ -47,12 +47,9 @@ function buildFindCommandSinceClone(
     .map((ext) => `-name '*${escapeShell(ext)}'`)
     .join(" -o ")
 
-  // Add 2 second buffer after clone time to exclude files created during clone
-  const afterTimestamp = cloneTimestamp + 2
-
-  // Use -newermt with a timestamp to find files modified after clone completed
+  // Use -newer with a reference file to find files modified after clone completed
   // Output: path|mtime|size (using stat for metadata)
-  const command = `find '${safePath}' \\( ${ignoreArgs} \\) -o -type f \\( ${extPatterns} \\) -newermt "@${afterTimestamp}" -print0 2>/dev/null | xargs -0 -r stat --format='%n|%Y|%s' 2>/dev/null | head -20 || true`
+  const command = `find '${safePath}' \\( ${ignoreArgs} \\) -o -type f \\( ${extPatterns} \\) -newer '${safeRefFile}' -print0 2>/dev/null | xargs -0 -r stat --format='%n|%Y|%s' 2>/dev/null | head -20 || true`
 
   return command
 }
@@ -127,11 +124,22 @@ export async function POST(req: Request) {
           return Response.json({ files: [] })
         }
 
-        // Get files modified AFTER the clone completed (with buffer)
-        const command = buildFindCommandSinceClone(repoPath, DEFAULT_EXTENSIONS, DEFAULT_IGNORE, cloneTimestamp)
+        // Create a temporary reference file with timestamp 2 seconds after clone
+        // Then use -newer against that file (more portable than -newermt with @)
+        const refFile = `/tmp/.ref_${sandboxId}`
+        const afterTimestamp = cloneTimestamp + 2
+        await sandbox.process.executeCommand(
+          `touch -d "@${afterTimestamp}" '${refFile}'`
+        )
+
+        // Get files modified AFTER the clone completed
+        const command = buildFindCommandSinceClone(repoPath, DEFAULT_EXTENSIONS, DEFAULT_IGNORE, refFile)
 
         const result = await sandbox.process.executeCommand(command, undefined, undefined, 30)
         const files = parseStatOutput(result.result || "")
+
+        // Clean up ref file
+        await sandbox.process.executeCommand(`rm -f '${refFile}'`)
 
         return Response.json({ files })
       }
