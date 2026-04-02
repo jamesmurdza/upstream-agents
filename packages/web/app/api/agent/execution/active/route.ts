@@ -45,7 +45,28 @@ export async function POST(req: Request) {
   })
 
   if (!execution) {
-    return Response.json({ execution: null })
+    // Add diagnostic info for debugging test failures
+    const [executionCount, latestMessage] = await Promise.all([
+      prisma.agentExecution.count({
+        where: { message: { branchId } },
+      }),
+      prisma.message.findFirst({
+        where: { branchId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, role: true, createdAt: true },
+      }),
+    ])
+
+    return Response.json({
+      execution: null,
+      debug: {
+        branchId,
+        executionCount,
+        latestMessage: latestMessage
+          ? { id: latestMessage.id, role: latestMessage.role }
+          : null,
+      },
+    })
   }
 
   return Response.json({

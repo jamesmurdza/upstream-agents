@@ -153,6 +153,7 @@ export async function POST(req: Request) {
         status: "running",
       },
     })
+    console.log(`[agent/execute] Created AgentExecution id=${agentExecution.id} messageId=${messageId} branchId=${branchId || 'unknown'}`)
 
     // 7. Update sandbox and branch status
     await updateSandboxAndBranchStatus(

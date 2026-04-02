@@ -114,10 +114,14 @@ export async function expectNotWorking(page: Page) {
   expect(stuck).toBe(false)
 }
 
-/** Poll the API until a branch's execution is completed or errored. */
-export async function waitForCompletionViaAPI(page: Page, branchId: string) {
-  let undefinedCount = 0
-  const maxUndefined = 5 // Fail fast if execution is missing after 5 polls
+/**
+ * Wait for execution record to exist in DB (any status).
+ * Use this BEFORE reload/navigation to ensure the execute API call completed.
+ * Without this, reload can race with message creation → execution never created.
+ */
+export async function waitForExecutionStarted(page: Page, branchId: string) {
+  const shortBranchId = branchId.slice(0, 8)
+  const startTime = Date.now()
 
   await expect(async () => {
     const res = await page.request.post("/api/agent/execution/active", {
@@ -125,12 +129,46 @@ export async function waitForCompletionViaAPI(page: Page, branchId: string) {
     })
     const data = await res.json()
     const status = data.execution?.status
+    const elapsedMs = Date.now() - startTime
+
+    console.log(`[waitExec] branch=${shortBranchId} status=${status ?? 'undefined'} elapsed=${elapsedMs}ms`)
+
+    // We just need ANY status (running, completed, error) - not undefined
+    expect(status).toBeDefined()
+  }).toPass({ timeout: TIMEOUT.AGENT_START, intervals: [200, 500, 1000] })
+}
+
+/** Poll the API until a branch's execution is completed or errored. */
+export async function waitForCompletionViaAPI(page: Page, branchId: string) {
+  let undefinedCount = 0
+  const maxUndefined = 5 // Fail fast if execution is missing after 5 polls
+  const startTime = Date.now()
+  const shortBranchId = branchId.slice(0, 8)
+
+  await expect(async () => {
+    const res = await page.request.post("/api/agent/execution/active", {
+      data: { branchId },
+    })
+    const data = await res.json()
+    const status = data.execution?.status
+    const elapsedMs = Date.now() - startTime
+
+    // Log every poll for debugging (include diagnostic info when available)
+    const debugInfo = data.debug ? ` execCount=${data.debug.executionCount} hasMsg=${!!data.debug.latestMessage}` : ''
+    console.log(`[poll] branch=${shortBranchId} status=${status ?? 'undefined'} elapsed=${elapsedMs}ms retries=${undefinedCount}${debugInfo}`)
 
     // Fail fast if execution is consistently undefined
     if (status === undefined) {
       undefinedCount++
       if (undefinedCount >= maxUndefined) {
-        throw new Error(`No execution found for branch ${branchId} after ${maxUndefined} polls`)
+        // Detailed error message for debugging with diagnostic info
+        const debugStr = data.debug ? JSON.stringify(data.debug) : 'no debug info'
+        throw new Error(
+          `No execution found for branch ${branchId} after ${maxUndefined} polls (${elapsedMs}ms elapsed). ` +
+          `Debug: ${debugStr}. ` +
+          `This usually means: 1) Message was not saved before execute, 2) AgentExecution create failed, ` +
+          `or 3) Message→Branch relationship is broken.`
+        )
       }
     } else {
       undefinedCount = 0 // Reset if we get a valid status
