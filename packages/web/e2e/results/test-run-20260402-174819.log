@@ -1,0 +1,114 @@
+
+> @upstream/web@0.1.0 test:e2e
+> playwright test
+
+[dotenv@17.3.1] injecting env (0) from ../../.env -- tip: 🛡️ auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (4) from .env.e2e -- tip: 🛡️ auth for agents: https://vestauth.com
+
+▶ each branch shows its own content
+✓ each branch shows its own content (32.5s)
+
+▶ branch switching shows correct content
+✓ branch switching shows correct content (30.1s)
+
+▶ one branch erroring does not affect others
+✓ one branch erroring does not affect others (22.0s)
+
+▶ concurrent completions render correctly
+✓ concurrent completions render correctly (23.2s)
+
+▶ 3 concurrent agents: send, stream, complete, refresh
+  ✓ [1490ms] navigate to repo
+  ✓ [2430ms] send message on each branch
+  ✓ [15168ms] all agents complete (via API)
+  ✓ [3523ms] each branch has content and is idle
+  ✓ [5889ms] refresh preserves all branches
+✓ 3 concurrent agents: send, stream, complete, refresh (29.8s)
+
+▶ content preserved after visiting admin page
+✓ content preserved after visiting admin page (22.6s)
+
+▶ content preserved after opening and closing settings modal
+✓ content preserved after opening and closing settings modal (17.8s)
+
+▶ content preserved after switching branches
+✓ content preserved after switching branches (6.1s)
+
+▶ agent continues while navigated away
+✗ agent continues while navigated away (62.6s)
+
+▶ rapid branch switching preserves state
+✓ rapid branch switching preserves state (22.4s)
+
+▶ recovers after reload mid-stream
+✗ recovers after reload mid-stream (62.3s)
+
+▶ recovers after navigating away mid-stream
+✗ recovers after navigating away mid-stream (61.3s)
+
+▶ shows correct state after multiple reloads
+✓ shows correct state after multiple reloads (16.9s)
+
+▶ polling resumes after tab becomes visible
+✗ polling resumes after tab becomes visible (61.6s)
+
+▶ error state renders correctly
+✓ error state renders correctly (20.8s)
+
+▶ send → stream → complete → refresh
+  ✓ [1701ms] navigate and select branch
+  ✓ [90ms] send message
+  ✓ [5ms] agent starts working
+  ✓ [5ms] user message rendered
+  ✓ [373ms] streaming content appears
+  ✓ [8933ms] tool calls appear
+  ✓ [155ms] agent completes
+  ✓ [8ms] snapshot pre-refresh content
+  ✓ [2314ms] refresh preserves content
+✓ send → stream → complete → refresh (14.4s)
+
+▶ UI updates when agent completes
+✓ UI updates when agent completes (20.7s)
+
+▶ content persists after page refresh
+✓ content persists after page refresh (14.5s)
+
+▶ working state persists after refresh mid-execution
+✗ working state persists after refresh mid-execution (63.8s)
+
+▶ idle state correct after completion
+✓ idle state correct after completion (12.6s)
+
+▶ no empty prose blocks after completion
+✓ no empty prose blocks after completion (11.1s)
+
+▶ no empty tool call blocks after completion
+✓ no empty tool call blocks after completion (19.2s)
+
+▶ user message renders completely
+✓ user message renders completely (2.7s)
+
+▶ content blocks have non-zero height
+✓ content blocks have non-zero height (22.1s)
+
+▶ baseline: send → stream → complete (instrumented)
+  ✓ [1577ms] navigate
+  ✓ [51ms] send
+  ✓ [413ms] working + content
+  ✓ [14912ms] complete
+✓ baseline: send → stream → complete (instrumented) (17.5s)
+
+▶ stress: reload mid-run then expect eventual idle
+  ✓ [826ms] reload while agent working
+  ✗ [57363ms] server run completes then UI shows prose
+✗ stress: reload mid-run then expect eventual idle (61.8s)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total: failed in 759.4s
+npm error Lifecycle script `test:e2e` failed with error:
+npm error code 1
+npm error path /home/daytona/upstream-agents/packages/web
+npm error workspace @upstream/web@0.1.0
+npm error location /home/daytona/upstream-agents/packages/web
+npm error command failed
+npm error command sh -c playwright test
