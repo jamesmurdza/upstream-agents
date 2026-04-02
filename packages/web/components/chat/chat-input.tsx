@@ -4,9 +4,9 @@ import { cn } from "@/lib/shared/utils"
 import type { Agent, Branch, UserCredentialFlags, ModelOption } from "@/lib/shared/types"
 import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials, hasCodexCredentials, hasCredentialsForModel, agentModels } from "@/lib/shared/types"
 import { BRANCH_STATUS } from "@/lib/shared/constants"
-import { Send, ChevronDown, Sparkles, Check } from "lucide-react"
+import { Send, ChevronDown, Sparkles, Check, Mic } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
-import { forwardRef, useEffect, useCallback, useState, useMemo } from "react"
+import { forwardRef, useEffect, useCallback, useState, useMemo, useRef } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +67,10 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
 
     // State for model combobox
     const [modelOpen, setModelOpen] = useState(false)
+
+    // Voice input state
+    const [isListening, setIsListening] = useState(false)
+    const recognitionRef = useRef<SpeechRecognition | null>(null)
 
     // Filter models based on available credentials
     const availableModels = getAvailableModels(currentAgent, credentials)
@@ -136,6 +140,65 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
       }
     }, [onModelChange, onOpenSettingsWithHighlight, credentials, currentAgent])
 
+    // Handle voice input toggle
+    const handleVoiceInput = useCallback(() => {
+      // Check if speech recognition is supported
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (!SpeechRecognition) {
+        return
+      }
+
+      if (isListening) {
+        // Stop listening
+        recognitionRef.current?.stop()
+        setIsListening(false)
+        return
+      }
+
+      // Start listening
+      const recognition = new SpeechRecognition()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = 'en-US'
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let finalTranscript = ''
+        let interimTranscript = ''
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript
+          } else {
+            interimTranscript = transcript
+          }
+        }
+
+        if (finalTranscript) {
+          onInputChange(input + (input ? ' ' : '') + finalTranscript)
+        }
+      }
+
+      recognition.onerror = () => {
+        setIsListening(false)
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+
+      recognitionRef.current = recognition
+      recognition.start()
+      setIsListening(true)
+    }, [isListening, input, onInputChange])
+
+    // Cleanup on unmount
+    useEffect(() => {
+      return () => {
+        recognitionRef.current?.stop()
+      }
+    }, [])
+
     return (
       <div
         className={cn(
@@ -173,6 +236,25 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
             disabled={!isReady && branch.status !== BRANCH_STATUS.CREATING}
             className="flex-1 resize-none bg-transparent text-base sm:text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none disabled:opacity-50"
           />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handleVoiceInput}
+                className={cn(
+                  "flex cursor-pointer h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
+                  isListening
+                    ? "bg-red-500/80 text-white hover:bg-red-500"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                <Mic className={cn("h-4 w-4", isListening && "animate-pulse")} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              {isListening ? "Stop listening" : "Voice input"}
+            </TooltipContent>
+          </Tooltip>
           <button
             onClick={branch.status === BRANCH_STATUS.RUNNING ? onStop : onSend}
             disabled={branch.status === BRANCH_STATUS.RUNNING ? false : !canSend}
