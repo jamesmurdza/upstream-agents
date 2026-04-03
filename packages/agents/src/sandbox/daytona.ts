@@ -4,7 +4,7 @@
  */
 import type { Sandbox } from "@daytonaio/sdk"
 import type { CodeAgentSandbox, AdaptSandboxOptions, ExecuteBackgroundOptions, ProviderName } from "../types/index.js"
-import { getPackageName } from "../utils/install.js"
+import { getPackageName, getShellInstaller } from "../utils/install.js"
 
 /** Escape a string for use in single-quoted shell strings */
 function escapeShell(str: string): string {
@@ -133,8 +133,13 @@ export function adaptDaytonaSandbox(
       if (checkResult.exitCode === 0) return
 
       console.log(`Installing ${name} CLI in sandbox...`)
+
+      // Check if provider uses shell installer or npm
+      const shellInstaller = getShellInstaller(name)
+      const installCommand = shellInstaller ?? `npm install -g ${getPackageName(name)}`
+
       const installResult = await sandbox.process.executeCommand(
-        `npm install -g ${getPackageName(name)}`, undefined, undefined, 120
+        installCommand, undefined, undefined, 120
       )
       if (installResult.exitCode !== 0) {
         throw new Error(`Failed to install ${name} CLI in sandbox`)

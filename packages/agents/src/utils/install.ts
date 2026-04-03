@@ -2,13 +2,22 @@ import { execSync, spawnSync } from "node:child_process"
 import type { ProviderName } from "../types/index.js"
 
 /**
- * CLI package information for each provider
+ * CLI package information for each provider.
+ * Note: goose uses a shell script installer, not npm.
  */
 const PROVIDER_PACKAGES: Record<ProviderName, string> = {
   claude: "@anthropic-ai/claude-code",
   codex: "@openai/codex",
+  goose: "", // goose uses shell script installer, not npm
   opencode: "opencode",
   gemini: "@google/gemini-cli",
+}
+
+/**
+ * Shell script installers for providers that don't use npm
+ */
+const PROVIDER_SHELL_INSTALLERS: Partial<Record<ProviderName, string>> = {
+  goose: "curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash",
 }
 
 /**
@@ -27,10 +36,19 @@ export function isCliInstalled(name: ProviderName): boolean {
 }
 
 /**
- * Get the npm package name for a provider
+ * Get the npm package name for a provider.
+ * Returns empty string for providers that don't use npm.
  */
 export function getPackageName(name: ProviderName): string {
   return PROVIDER_PACKAGES[name]
+}
+
+/**
+ * Get the shell installer command for a provider.
+ * Returns undefined for providers that use npm.
+ */
+export function getShellInstaller(name: ProviderName): string | undefined {
+  return PROVIDER_SHELL_INSTALLERS[name]
 }
 
 /**
@@ -93,7 +111,7 @@ export function ensureCliInstalled(
  * Check installation status of all providers
  */
 export function getInstallationStatus(): Record<ProviderName, boolean> {
-  const providers: ProviderName[] = ["claude", "codex", "opencode", "gemini"]
+  const providers: ProviderName[] = ["claude", "codex", "goose", "opencode", "gemini"]
   const status: Record<string, boolean> = {}
 
   for (const provider of providers) {
