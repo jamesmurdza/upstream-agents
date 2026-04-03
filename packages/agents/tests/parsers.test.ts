@@ -7,10 +7,12 @@ import {
   parseClaudeLine,
   parseCodexLine,
   parseGeminiLine,
+  parseGooseLine,
   parseOpencodeLine,
   CLAUDE_TOOL_MAPPINGS,
   CODEX_TOOL_MAPPINGS,
   GEMINI_TOOL_MAPPINGS,
+  GOOSE_TOOL_MAPPINGS,
   OPENCODE_TOOL_MAPPINGS,
 } from "../src/agents/index.js"
 import type { ParseContext } from "../src/core/agent.js"
@@ -357,5 +359,238 @@ describe("parseOpencodeLine", () => {
   it("returns null for unknown event types", () => {
     const ctx = createContext()
     expect(parseOpencodeLine('{"type": "unknown"}', mappings, ctx)).toBeNull()
+  })
+})
+
+describe("parseGooseLine", () => {
+  const mappings = GOOSE_TOOL_MAPPINGS
+
+  it("returns null for invalid JSON", () => {
+    expect(parseGooseLine("not json", mappings)).toBeNull()
+    expect(parseGooseLine("", mappings)).toBeNull()
+    expect(parseGooseLine("{not valid json}", mappings)).toBeNull()
+  })
+
+  it("parses Message event with assistant text content", () => {
+    const event = parseGooseLine(
+      JSON.stringify({
+        type: "Message",
+        Message: {
+          role: "assistant",
+          created: 1738803195,
+          content: [{ Text: { text: "Hello from Goose!" } }],
+        },
+      }),
+      mappings
+    )
+    expect(event).toEqual({ type: "token", text: "Hello from Goose!" })
+  })
+
+  it("returns null for user Message events", () => {
+    const event = parseGooseLine(
+      JSON.stringify({
+        type: "Message",
+        Message: {
+          role: "user",
+          created: 1738803195,
+          content: [{ Text: { text: "Hello" } }],
+        },
+      }),
+      mappings
+    )
+    expect(event).toBeNull()
+  })
+
+  it("parses Message event with ToolRequest", () => {
+    const event = parseGooseLine(
+      JSON.stringify({
+        type: "Message",
+        Message: {
+          role: "assistant",
+          created: 1738803195,
+          content: [
+            {
+              ToolRequest: {
+                id: "toolu_123",
+                tool_call: {
+                  Ok: {
+                    name: "developer__shell",
+                    arguments: { command: "ls -la" },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      }),
+      mappings
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "shell",
+      input: { command: "ls -la" },
+    })
+  })
+
+  it("parses Message event with ToolResponse success", () => {
+    const event = parseGooseLine(
+      JSON.stringify({
+        type: "Message",
+        Message: {
+          role: "user",
+          created: 1738803195,
+          content: [
+            {
+              ToolResponse: {
+                id: "toolu_123",
+                tool_result: {
+                  Ok: [{ type: "text", text: "file1.txt\nfile2.txt" }],
+                },
+              },
+            },
+          ],
+        },
+      }),
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_end", output: "file1.txt\nfile2.txt" })
+  })
+
+  it("parses Message event with ToolResponse error", () => {
+    const event = parseGooseLine(
+      JSON.stringify({
+        type: "Message",
+        Message: {
+          role: "user",
+          created: 1738803195,
+          content: [
+            {
+              ToolResponse: {
+                id: "toolu_123",
+                tool_result: {
+                  Err: "Command failed with exit code 1",
+                },
+              },
+            },
+          ],
+        },
+      }),
+      mappings
+    )
+    expect(event).toEqual({
+      type: "tool_end",
+      output: "Error: Command failed with exit code 1",
+    })
+  })
+
+  it("parses multiple content blocks in one Message", () => {
+    const events = parseGooseLine(
+      JSON.stringify({
+        type: "Message",
+        Message: {
+          role: "assistant",
+          created: 1738803195,
+          content: [
+            { Text: { text: "Let me check that for you." } },
+            {
+              ToolRequest: {
+                id: "toolu_456",
+                tool_call: {
+                  Ok: {
+                    name: "developer__text_editor",
+                    arguments: { file: "test.txt" },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      }),
+      mappings
+    )
+    expect(events).toEqual([
+      { type: "token", text: "Let me check that for you." },
+      { type: "tool_start", name: "edit", input: { file: "test.txt" } },
+    ])
+  })
+
+  it("parses Finish event", () => {
+    const event = parseGooseLine(
+      JSON.stringify({
+        type: "Finish",
+        Finish: { reason: "stop" },
+      }),
+      mappings
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses Error event", () => {
+    const event = parseGooseLine(
+      JSON.stringify({
+        type: "Error",
+        Error: "API rate limit exceeded",
+      }),
+      mappings
+    )
+    expect(event).toEqual({ type: "end", error: "API rate limit exceeded" })
+  })
+
+  it("returns null for Ping events", () => {
+    const event = parseGooseLine(
+      JSON.stringify({ type: "Ping" }),
+      mappings
+    )
+    expect(event).toBeNull()
+  })
+
+  it("returns null for Notification events", () => {
+    const event = parseGooseLine(
+      JSON.stringify({
+        type: "Notification",
+        Notification: { request_id: "req_123" },
+      }),
+      mappings
+    )
+    expect(event).toBeNull()
+  })
+
+  it("returns null for unknown event types", () => {
+    expect(parseGooseLine('{"type": "unknown"}', mappings)).toBeNull()
+  })
+
+  it("strips SSE data prefix", () => {
+    const event = parseGooseLine(
+      'data: {"type": "Finish", "Finish": {"reason": "stop"}}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("handles ToolRequest error", () => {
+    const event = parseGooseLine(
+      JSON.stringify({
+        type: "Message",
+        Message: {
+          role: "assistant",
+          created: 1738803195,
+          content: [
+            {
+              ToolRequest: {
+                id: "toolu_err",
+                tool_call: {
+                  Err: { message: "Invalid parameters" },
+                },
+              },
+            },
+          ],
+        },
+      }),
+      mappings
+    )
+    expect(event).toEqual({
+      type: "token",
+      text: "[Tool error: Invalid parameters]",
+    })
   })
 })

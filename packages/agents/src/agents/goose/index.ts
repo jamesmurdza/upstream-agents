@@ -28,6 +28,9 @@ export const gooseAgent: AgentDefinition = {
     // Use run subcommand for non-interactive execution
     args.push("run")
 
+    // Enable JSON streaming output for machine-readable events
+    args.push("--output-format", "stream-json")
+
     // Add prompt as text input
     if (options.prompt) {
       args.push("--text", options.prompt)
