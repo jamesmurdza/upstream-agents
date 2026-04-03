@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 4rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            animation: glow 2s ease-in-out infinite alternate;
+            margin-bottom: 20px;
+        }
+
+        @keyframes glow {
+            from {
+                filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.5));
+            }
+            to {
+                filter: drop-shadow(0 0 40px rgba(240, 147, 251, 0.8));
+            }
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .stats {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(102, 126, 234, 0.5);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 10px;
+        }
+
+        .interactive-btn {
+            padding: 15px 50px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .interactive-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .interactive-btn:hover::before {
+            left: 100%;
+        }
+
+        .interactive-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.5);
+        }
+
+        .particles-info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.8rem;
+        }
+
+        .mouse-follower {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(102, 126, 234, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.1s ease;
+        }
+
+        .color-picker {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .color-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .color-dot:hover {
+            transform: scale(1.2);
+            border-color: white;
+        }
+
+        .color-dot.purple { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .color-dot.blue { background: linear-gradient(135deg, #00f2fe, #4facfe); }
+        .color-dot.pink { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .color-dot.green { background: linear-gradient(135deg, #11998e, #38ef7d); }
+        .color-dot.orange { background: linear-gradient(135deg, #F2994A, #F2C94C); }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div class="mouse-follower" id="follower"></div>
+
+    <div class="color-picker">
+        <div class="color-dot purple" data-color="purple"></div>
+        <div class="color-dot blue" data-color="blue"></div>
+        <div class="color-dot pink" data-color="pink"></div>
+        <div class="color-dot green" data-color="green"></div>
+        <div class="color-dot orange" data-color="orange"></div>
+    </div>
+
+    <div class="container">
+        <h1>Cosmic Portal</h1>
+        <p class="subtitle">An interactive particle universe powered by Python & JavaScript</p>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="particleCount">0</div>
+                <div class="stat-label">Particles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="fps">0</div>
+                <div class="stat-label">FPS</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="connections">0</div>
+                <div class="stat-label">Connections</div>
+            </div>
+        </div>
+
+        <button class="interactive-btn" id="explodeBtn">Create Explosion</button>
+    </div>
+
+    <div class="particles-info">
+        Move your mouse to interact with particles | Click anywhere to add more
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const follower = document.getElementById('follower');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        const colorSchemes = {
+            purple: { primary: '#667eea', secondary: '#764ba2' },
+            blue: { primary: '#00f2fe', secondary: '#4facfe' },
+            pink: { primary: '#f093fb', secondary: '#f5576c' },
+            green: { primary: '#11998e', secondary: '#38ef7d' },
+            orange: { primary: '#F2994A', secondary: '#F2C94C' }
+        };
+
+        let currentScheme = colorSchemes.purple;
+        let particles = [];
+        let mouse = { x: width / 2, y: height / 2 };
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 0;
+
+        class Particle {
+            constructor(x, y, isExplosion = false) {
+                this.x = x || Math.random() * width;
+                this.y = y || Math.random() * height;
+                this.size = Math.random() * 3 + 1;
+                this.baseSize = this.size;
+                this.speedX = (Math.random() - 0.5) * (isExplosion ? 10 : 2);
+                this.speedY = (Math.random() - 0.5) * (isExplosion ? 10 : 2);
+                this.life = isExplosion ? 100 : Infinity;
+                this.isExplosion = isExplosion;
+            }
+
+            update() {
+                // Mouse attraction
+                const dx = mouse.x - this.x;
+                const dy = mouse.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < 200) {
+                    const force = (200 - dist) / 200;
+                    this.speedX += dx * force * 0.001;
+                    this.speedY += dy * force * 0.001;
+                    this.size = this.baseSize + force * 3;
+                } else {
+                    this.size = this.baseSize;
+                }
+
+                // Apply velocity with damping
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.speedX *= 0.99;
+                this.speedY *= 0.99;
+
+                // Bounce off edges
+                if (this.x < 0 || this.x > width) this.speedX *= -1;
+                if (this.y < 0 || this.y > height) this.speedY *= -1;
+
+                // Keep in bounds
+                this.x = Math.max(0, Math.min(width, this.x));
+                this.y = Math.max(0, Math.min(height, this.y));
+
+                if (this.isExplosion) this.life--;
+            }
+
+            draw() {
+                const alpha = this.isExplosion ? this.life / 100 : 1;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = currentScheme.primary + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+                ctx.fill();
+            }
+        }
+
+        // Initialize particles
+        for (let i = 0; i < 150; i++) {
+            particles.push(new Particle());
+        }
+
+        function drawConnections() {
+            let connectionCount = 0;
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 120) {
+                        connectionCount++;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        const alpha = (1 - dist / 120) * 0.5;
+                        ctx.strokeStyle = `rgba(102, 126, 234, ${alpha})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+            return connectionCount;
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Remove dead particles
+            particles = particles.filter(p => !p.isExplosion || p.life > 0);
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            const connections = drawConnections();
+
+            // Update stats
+            frameCount++;
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastTime = now;
+            }
+
+            document.getElementById('particleCount').textContent = particles.length;
+            document.getElementById('fps').textContent = fps;
+            document.getElementById('connections').textContent = connections;
+
+            requestAnimationFrame(animate);
+        }
+
+        // Event listeners
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            follower.style.left = e.clientX - 10 + 'px';
+            follower.style.top = e.clientY - 10 + 'px';
+        });
+
+        canvas.addEventListener('click', (e) => {
+            for (let i = 0; i < 5; i++) {
+                particles.push(new Particle(e.clientX, e.clientY));
+            }
+        });
+
+        document.getElementById('explodeBtn').addEventListener('click', () => {
+            for (let i = 0; i < 50; i++) {
+                particles.push(new Particle(width / 2, height / 2, true));
+            }
+        });
+
+        document.querySelectorAll('.color-dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+                currentScheme = colorSchemes[dot.dataset.color];
+            });
+        });
+
+        animate();
+    </script>
+</body>
+</html>
