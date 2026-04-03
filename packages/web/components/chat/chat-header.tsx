@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { cn } from "@/lib/shared/utils"
 import type { Branch } from "@/lib/shared/types"
 import { BRANCH_STATUS } from "@/lib/shared/constants"
@@ -258,6 +259,21 @@ export function ChatHeader({
             return null
           }
 
+          // Build tooltip content for diff action
+          let tooltipContent: ReactNode = hasPR ? "Open PR" : action.label
+          if (isDiff && gitActions.diffStats) {
+            const { additions, deletions } = gitActions.diffStats
+            tooltipContent = (
+              <span className="flex items-center gap-2">
+                <span>Diff</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-green-400">+{additions}</span>
+                  <span className="text-red-400">−{deletions}</span>
+                </span>
+              </span>
+            )
+          }
+
           return (
             <span key={action.label} className="contents">
               <Tooltip>
@@ -282,7 +298,7 @@ export function ChatHeader({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs">
-                  {hasPR ? "Open PR" : action.label}
+                  {tooltipContent}
                 </TooltipContent>
               </Tooltip>
               {action.action === "rebase" && <div className="mx-1.5 h-4 w-px bg-border shrink-0" />}
