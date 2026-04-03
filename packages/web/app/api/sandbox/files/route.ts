@@ -84,7 +84,7 @@ function parseStatOutput(output: string): Array<{ path: string; modifiedAt: numb
   // Sort by modification time (most recent first) and limit to 20
   return files
     .sort((a, b) => b.modifiedAt - a.modifiedAt)
-    .slice(0, 20)
+    .slice(0, 10)
 }
 
 export async function POST(req: Request) {
