@@ -92,21 +92,21 @@ function getFileDisplayInfo(filePath: string): { shortName: string; ext: string;
  */
 function getExtColor(ext: string): string {
   const colors: Record<string, string> = {
-    ".ts": "text-blue-500",
-    ".tsx": "text-blue-400",
-    ".js": "text-yellow-500",
-    ".jsx": "text-yellow-400",
-    ".json": "text-orange-500",
-    ".py": "text-green-500",
-    ".go": "text-cyan-500",
-    ".rs": "text-orange-600",
-    ".md": "text-gray-500",
-    ".css": "text-pink-500",
-    ".html": "text-red-500",
-    ".txt": "text-gray-400",
-    ".log": "text-amber-500",
+    ".ts": "text-blue-600",
+    ".tsx": "text-blue-500",
+    ".js": "text-yellow-600",
+    ".jsx": "text-yellow-500",
+    ".json": "text-orange-600",
+    ".py": "text-green-600",
+    ".go": "text-cyan-600",
+    ".rs": "text-orange-700",
+    ".md": "text-gray-600",
+    ".css": "text-pink-600",
+    ".html": "text-red-600",
+    ".txt": "text-gray-600",
+    ".log": "text-amber-600",
   }
-  return colors[ext] || "text-muted-foreground"
+  return colors[ext] || "text-foreground"
 }
 
 /**
@@ -286,7 +286,7 @@ function FilePreviewPopover({
         <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-muted/30 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <FileCode className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="font-mono text-xs truncate">{filename}</span>
+            <span className="font-mono text-xs font-medium truncate">{filename}</span>
           </div>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground shrink-0">
             <span>{formatSize(file.size)}</span>
@@ -319,7 +319,7 @@ function FilePreviewPopover({
 
         {/* Footer with full path */}
         <div className="border-t border-border px-3 py-1.5 bg-muted/30 shrink-0">
-          <p className="font-mono text-[10px] text-muted-foreground truncate">{file.path}</p>
+          <p className="font-mono text-[10px] text-foreground/70 truncate">{file.path}</p>
         </div>
       </PopoverContent>
     </Popover>
