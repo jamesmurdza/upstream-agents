@@ -7,7 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Loader2, Terminal, Globe, ExternalLink, FileCode } from "lucide-react"
+import { Loader2, Terminal, SquareTerminal, Globe, ExternalLink, FileCode } from "lucide-react"
 import { highlight } from "sugar-high"
 
 interface ModifiedFile {
@@ -631,7 +631,7 @@ function TerminalPopover({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-muted/30">
           <div className="flex items-center gap-2 min-w-0">
-            <Terminal className="h-3.5 w-3.5 text-foreground shrink-0" />
+            <SquareTerminal className="h-3.5 w-3.5 text-foreground shrink-0" />
             <span className="font-mono text-xs truncate">{currentDir}</span>
           </div>
         </div>
