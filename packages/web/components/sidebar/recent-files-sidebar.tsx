@@ -210,10 +210,6 @@ function FileIcon({ file, onClick, isPinned }: {
 }) {
   const { shortName, ext } = getFileDisplayInfo(file.path)
   const extColor = getExtColor(ext)
-
-  // Adjust font size based on name length
-  const nameSize = shortName.length <= 2 ? "text-[10px]" : shortName.length <= 3 ? "text-[9px]" : "text-[8px]"
-
   return (
     <button
       onClick={(e) => {
@@ -226,10 +222,11 @@ function FileIcon({ file, onClick, isPinned }: {
         isPinned && "ring-2 ring-primary"
       )}
     >
-      <div className="flex flex-col items-center justify-center leading-none gap-0.5">
-        <span className={cn(nameSize, "font-semibold text-foreground font-mono")}>{shortName}</span>
-        <span className={cn("text-[7px] font-medium", extColor)}>{ext}</span>
-      </div>
+      <span className="text-[9px] font-semibold font-mono leading-tight text-left">
+        <span className="text-foreground">{shortName}</span>
+        <br />
+        <span className={extColor}>{ext}</span>
+      </span>
     </button>
   )
 }
