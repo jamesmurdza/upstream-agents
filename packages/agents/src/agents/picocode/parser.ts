@@ -1,60 +1,46 @@
 /**
  * Picocode CLI output parser
  *
- * Parses Picocode CLI output. Since Picocode doesn't have native JSON output,
- * we use RUST_LOG=picocode=trace to capture structured tracing logs in JSON format.
+ * Parses Picocode CLI plain text output. Picocode outputs:
+ * 1. ASCII art banner with version/model info
+ * 2. A separator line
+ * 3. The response text
+ * 4. Then exits (no explicit end marker)
  *
- * The tracing-subscriber JSON format produces lines like:
- * {"timestamp":"...","level":"INFO","target":"picocode","fields":{"message":"..."}}
+ * Since picocode doesn't emit an "end" event, the SDK will detect completion
+ * via the process exiting. We need to emit session and token events.
  */
 
 import type { Event } from "../../types/events.js"
 import type { ParseContext } from "../../core/agent.js"
 import { createToolStartEvent, normalizeToolName } from "../../core/tools.js"
-import { safeJsonParse } from "../../utils/json.js"
-
-/**
- * Tracing JSON log format from tracing-subscriber
- */
-interface TracingLogLine {
-  timestamp?: string
-  level?: string
-  target?: string
-  message?: string
-  fields?: {
-    message?: string
-    tool_name?: string
-    tool_args?: unknown
-    tool_result?: string
-    text?: string
-    error?: string
-    [key: string]: unknown
-  }
-  // Span information
-  spans?: Array<{
-    name?: string
-    [key: string]: unknown
-  }>
-}
-
-/**
- * Alternative: Plain text patterns from Picocode console output
- * We also parse these since --quiet mode might not emit tracing logs
- */
 
 // Pattern for tool invocation header (e.g., "── read_file ──────────────────────")
 const TOOL_HEADER_REGEX = /^──\s+(\w+)\s+─+$/
 
-// Pattern for thinking indicator
-const THINKING_REGEX = /^(?:⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏)?\s*Thinking\.{0,3}$/
+// Pattern for the picocode banner line (contains "picocode |")
+const BANNER_REGEX = /picocode\s*\|/
 
-// Pattern for error messages
+// Pattern for error messages (picocode outputs "Error: ..." for errors)
 const ERROR_REGEX = /^Error:\s*(.+)$/i
+
+// Pattern for API/HTTP errors (often multiline, check for key phrases)
+const API_ERROR_PATTERNS = [
+  /invalid.*api.*key/i,
+  /unauthorized/i,
+  /authentication.*error/i,
+  /credit.*balance/i,
+  /rate.*limit/i,
+]
+
+// Pattern for separator lines (used after banner and between sections)
+const SEPARATOR_REGEX = /^[─═]{10,}$/
+
+// Pattern for the ASCII art (contains box-drawing characters in specific pattern)
+const ASCII_ART_REGEX = /^[\s▄█░▀│┌┐└┘├┤┬┴┼]+$/
 
 /**
  * Parse a line of Picocode CLI output into event(s).
- *
- * Handles both JSON tracing output and plain text console output.
  */
 export function parsePicocodeLine(
   line: string,
@@ -64,104 +50,36 @@ export function parsePicocodeLine(
   const trimmedLine = line.trim()
   if (!trimmedLine) return null
 
-  // First, try to parse as JSON (tracing-subscriber output)
-  const json = safeJsonParse<TracingLogLine>(trimmedLine)
-  if (json && (json.target === "picocode" || json.fields || json.level)) {
-    return parseTracingJson(json, toolMappings, context)
+  // Initialize state
+  if (!context.state.initialized) {
+    context.state.initialized = true
+    context.state.seenBanner = false
+    context.state.seenSeparator = false
+    context.state.inResponse = false
   }
 
-  // Fall back to plain text parsing
-  return parsePlainText(trimmedLine, toolMappings, context)
-}
-
-/**
- * Parse JSON tracing log lines from tracing-subscriber
- */
-function parseTracingJson(
-  json: TracingLogLine,
-  toolMappings: Record<string, string>,
-  context: ParseContext
-): Event | Event[] | null {
-  const fields = json.fields || {}
-  const message = fields.message || json.message || ""
-
-  // Session start - emit session event (use a generated ID since picocode doesn't have sessions)
-  if (message.includes("starting") || message.includes("initialized")) {
-    if (!context.sessionId) {
-      const sessionId = `picocode-${Date.now()}`
-      context.sessionId = sessionId
-      return { type: "session", id: sessionId }
-    }
-    return null
-  }
-
-  // Tool call events
-  if (fields.tool_name) {
-    const toolName = fields.tool_name as string
-    const normalized = normalizeToolName(toolName, toolMappings)
-    return createToolStartEvent(normalized, fields.tool_args, toolMappings)
-  }
-
-  // Tool result
-  if (fields.tool_result !== undefined) {
-    return { type: "tool_end", output: String(fields.tool_result) }
-  }
-
-  // Text output from assistant
-  if (fields.text) {
-    return { type: "token", text: fields.text as string }
-  }
-
-  // Error handling
-  if (json.level === "ERROR" || fields.error) {
-    const errorMsg = fields.error || message || "Unknown error"
-    return { type: "end", error: String(errorMsg) }
-  }
-
-  // Check if message contains text content (assistant response)
-  if (message && !message.includes("tool") && !message.includes("Thinking")) {
-    // Could be assistant text output
-    if (message.length > 10 && !message.startsWith("Starting")) {
-      return { type: "token", text: message }
-    }
-  }
-
-  return null
-}
-
-/**
- * Parse plain text console output from Picocode
- */
-function parsePlainText(
-  line: string,
-  toolMappings: Record<string, string>,
-  context: ParseContext
-): Event | Event[] | null {
-  // Skip thinking indicator
-  if (THINKING_REGEX.test(line)) {
-    return null
-  }
-
-  // Check for tool header (e.g., "── read_file ──────────────────────")
-  const toolMatch = TOOL_HEADER_REGEX.exec(line)
-  if (toolMatch) {
-    const toolName = toolMatch[1]
-    const normalized = normalizeToolName(toolName, toolMappings)
-    return createToolStartEvent(normalized, undefined, toolMappings)
-  }
-
-  // Check for error
-  const errorMatch = ERROR_REGEX.exec(line)
+  // Check for error first (highest priority)
+  const errorMatch = ERROR_REGEX.exec(trimmedLine)
   if (errorMatch) {
     return { type: "end", error: errorMatch[1] }
   }
 
-  // Check for session start markers
-  if (
-    line.includes("Welcome to") ||
-    line.includes("picocode") ||
-    line.includes("Starting session")
-  ) {
+  // Check for API error patterns in any line
+  for (const pattern of API_ERROR_PATTERNS) {
+    if (pattern.test(trimmedLine)) {
+      return { type: "end", error: trimmedLine }
+    }
+  }
+
+  // Skip ASCII art lines
+  if (ASCII_ART_REGEX.test(trimmedLine)) {
+    return null
+  }
+
+  // Check for the banner line (contains "picocode |")
+  if (BANNER_REGEX.test(trimmedLine)) {
+    context.state.seenBanner = true
+    // Emit session event when we see the banner
     if (!context.sessionId) {
       const sessionId = `picocode-${Date.now()}`
       context.sessionId = sessionId
@@ -170,28 +88,42 @@ function parsePlainText(
     return null
   }
 
-  // Check for completion markers
-  if (line === "Done" || line === "Completed" || line.includes("Goodbye")) {
-    return { type: "end" }
-  }
-
-  // Separator lines (used between tool outputs)
-  if (/^[─═]{3,}$/.test(line)) {
-    // Tool output separator - might indicate tool_end
-    const lastState = context.state.lastToolStarted as boolean | undefined
-    if (lastState) {
-      context.state.lastToolStarted = false
-      return { type: "tool_end" }
+  // Check for separator line
+  if (SEPARATOR_REGEX.test(trimmedLine)) {
+    if (context.state.seenBanner && !context.state.seenSeparator) {
+      context.state.seenSeparator = true
+      context.state.inResponse = true
     }
     return null
   }
 
-  // For any other non-empty line, treat as token/text output
-  // This captures the assistant's actual responses
-  if (line.length > 0 && !line.startsWith("─") && !line.startsWith(">")) {
-    // Mark that we may have started outputting
+  // Check for tool header (e.g., "── read_file ──────────────────────")
+  const toolMatch = TOOL_HEADER_REGEX.exec(trimmedLine)
+  if (toolMatch) {
+    const toolName = toolMatch[1]
+    context.state.lastToolStarted = true
+    return createToolStartEvent(
+      normalizeToolName(toolName, toolMappings),
+      undefined,
+      toolMappings
+    )
+  }
+
+  // If we're in the response section, emit tokens
+  if (context.state.inResponse) {
+    // Skip lines that look like UI elements
+    if (trimmedLine.startsWith(">") || trimmedLine.startsWith("─")) {
+      return null
+    }
     context.state.hasOutput = true
-    return { type: "token", text: line + "\n" }
+    return { type: "token", text: trimmedLine + "\n" }
+  }
+
+  // Before the separator, check if this might be an early response
+  // (some simple prompts might not have much header)
+  if (context.state.seenBanner && !context.state.seenSeparator) {
+    // This could be part of the banner info, skip it
+    return null
   }
 
   return null

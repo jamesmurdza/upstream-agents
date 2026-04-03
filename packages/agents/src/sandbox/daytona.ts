@@ -129,12 +129,22 @@ export function adaptDaytonaSandbox(
     },
 
     async ensureProvider(name: ProviderName): Promise<void> {
-      const checkResult = await sandbox.process.executeCommand(`which ${name}`)
+      // For picocode, check in ~/.local/bin as well since that's where it installs
+      const pathPrefix = name === "picocode" ? "PATH=$PATH:$HOME/.local/bin " : ""
+      const checkResult = await sandbox.process.executeCommand(`${pathPrefix}which ${name}`)
       if (checkResult.exitCode === 0) return
 
       console.log(`Installing ${name} CLI in sandbox...`)
+
+      // Get install info - may be npm package or shell command
+      const packageInfo = getPackageName(name)
+
+      // Check if it's a shell command (picocode uses curl install script)
+      const isShellInstall = packageInfo.includes("curl") || packageInfo.includes("|")
+      const installCommand = isShellInstall ? packageInfo : `npm install -g ${packageInfo}`
+
       const installResult = await sandbox.process.executeCommand(
-        `npm install -g ${getPackageName(name)}`, undefined, undefined, 120
+        installCommand, undefined, undefined, 120
       )
       if (installResult.exitCode !== 0) {
         throw new Error(`Failed to install ${name} CLI in sandbox`)
@@ -143,6 +153,15 @@ export function adaptDaytonaSandbox(
 
       if (name === "gemini") {
         await sandbox.process.executeCommand("mkdir -p ~/.gemini", undefined, undefined, 30)
+      }
+
+      // For picocode, add ~/.local/bin to PATH for this session
+      // We use a shell variable that will expand at runtime
+      if (name === "picocode") {
+        // Get HOME from sandbox
+        const homeResult = await sandbox.process.executeCommand("echo $HOME", undefined, undefined, 10)
+        const home = (homeResult.result ?? "").trim() || "/root"
+        sessionEnv.PATH = `${sessionEnv.PATH || process.env.PATH || "/usr/local/bin:/usr/bin:/bin"}:${home}/.local/bin`
       }
     },
   }

@@ -421,11 +421,20 @@ class BackgroundSessionImpl implements BackgroundSession {
     const lines: string[] = []
     const isJson = (s: string) => s.startsWith("{") && s.endsWith("}")
 
+    // Check if agent uses plain text output (non-JSON)
+    const plainTextOutput = this.agent.capabilities?.plainTextOutput ?? false
+
     for (let i = 0; i < rawLines.length; i++) {
       const trimmed = rawLines[i].trim()
       if (!trimmed) continue
-      if (!isJson(trimmed) && i === rawLines.length - 1) continue
-      if (isJson(trimmed)) lines.push(trimmed)
+      // For plain text agents, include all non-empty lines
+      // For JSON agents, only include JSON lines (and skip incomplete last line)
+      if (plainTextOutput) {
+        lines.push(trimmed)
+      } else {
+        if (!isJson(trimmed) && i === rawLines.length - 1) continue
+        if (isJson(trimmed)) lines.push(trimmed)
+      }
     }
 
     if (startIndex >= lines.length) {

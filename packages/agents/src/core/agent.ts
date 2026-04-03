@@ -54,6 +54,8 @@ export interface AgentCapabilities {
   supportsResume?: boolean
   /** Agent requires special setup (e.g., login) */
   setup?: (sandbox: CodeAgentSandbox, env: Record<string, string>) => Promise<void>
+  /** Agent outputs plain text instead of JSON lines (default: false) */
+  plainTextOutput?: boolean
 }
 
 /**
