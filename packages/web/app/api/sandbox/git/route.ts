@@ -133,10 +133,11 @@ export async function POST(req: Request) {
 
       case "log": {
         const sinceCommit = body.sinceCommit
-        // If sinceCommit is provided, only get commits after that point
+        // Always limit to 10 commits. This caps the worst case when sinceCommit
+        // no longer exists in history (e.g., after rebase rewrites commits).
         const logCmd = sinceCommit
-          ? `cd ${repoPath} && git log ${sinceCommit}..HEAD --format='{"hash":"%H","shortHash":"%h","author":"%an","email":"%ae","message":"%s","timestamp":"%aI"}' 2>&1`
-          : `cd ${repoPath} && git log --format='{"hash":"%H","shortHash":"%h","author":"%an","email":"%ae","message":"%s","timestamp":"%aI"}' -30 2>&1`
+          ? `cd ${repoPath} && git log ${sinceCommit}..HEAD --format='{"hash":"%H","shortHash":"%h","author":"%an","email":"%ae","message":"%s","timestamp":"%aI"}' -10 2>&1`
+          : `cd ${repoPath} && git log --format='{"hash":"%H","shortHash":"%h","author":"%an","email":"%ae","message":"%s","timestamp":"%aI"}' -10 2>&1`
         const result = await sandbox.process.executeCommand(logCmd)
         if (result.exitCode) {
           return Response.json({ commits: [] })
@@ -545,19 +546,21 @@ export async function POST(req: Request) {
           return Response.json({ error: "Force push failed: " + ((refData as { message?: string }).message || refRes.status) }, { status: 500 })
         }
 
-        // Update startCommit to the new base after rebase.
-        // After rebase, the old startCommit no longer exists in history.
+        // Update startCommit and lastShownCommitHash after rebase completes.
+        // Rebase rewrites commit history, so old commit references no longer exist.
         if (branchId) {
           const mergeBaseResult = await sandbox.process.executeCommand(
             `cd ${repoPath} && git merge-base HEAD ${targetBranch} 2>/dev/null`
           )
           const newStartCommit = mergeBaseResult.result?.trim()
-          if (newStartCommit && !mergeBaseResult.exitCode) {
-            await prisma.branch.update({
-              where: { id: branchId },
-              data: { startCommit: newStartCommit },
-            })
-          }
+          const shortSha = sha.substring(0, 7)
+          await prisma.branch.update({
+            where: { id: branchId },
+            data: {
+              ...(newStartCommit && !mergeBaseResult.exitCode && { startCommit: newStartCommit }),
+              lastShownCommitHash: shortSha,
+            },
+          })
         }
 
         return Response.json({ success: true })
