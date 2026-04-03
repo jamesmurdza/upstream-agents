@@ -304,68 +304,67 @@ export function BranchList({
               const isCreating = branch.status === BRANCH_STATUS.CREATING
               const branchDiffStats = diffStatsMap.get(branch.id)
 
-              // Branch name element - wrapped with tooltip if has diff stats
-              const branchNameElement = (
-                <span className={cn(
-                  "truncate text-sm",
-                  isBold ? "font-semibold text-foreground" : "font-medium"
-                )}>
-                  {branch.name}
-                </span>
+              const branchButton = (
+                <button
+                  type="button"
+                  onClick={() => onSelectBranch(branch.id)}
+                  disabled={isDeleting}
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 text-left transition-colors",
+                    // Larger touch targets on mobile
+                    isMobile ? "py-3.5 min-h-[56px]" : "py-2.5",
+                    isActive
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                    isDeleting && "cursor-not-allowed"
+                  )}
+                >
+                  {isDeleting ? (
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground opacity-40" />
+                    </span>
+                  ) : (
+                    <StatusDot status={branch.status} unread={branch.unread} isActive={isActive} />
+                  )}
+                  <div className={cn(
+                    "flex min-w-0 flex-1 flex-col gap-0.5 transition-opacity",
+                    isDeleting && "opacity-40"
+                  )}>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "truncate text-sm",
+                        isBold ? "font-semibold text-foreground" : "font-medium"
+                      )}>
+                        {branch.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <AgentIcon agent={branch.agent || "claude-code"} className="h-2.5 w-2.5" />
+                        {branch.status === BRANCH_STATUS.CREATING ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
+                      </span>
+                    </div>
+                  </div>
+                </button>
               )
 
               return (
                 <div key={branch.id} className="group relative">
-                  <button
-                    type="button"
-                    onClick={() => onSelectBranch(branch.id)}
-                    disabled={isDeleting}
-                    className={cn(
-                      "flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 text-left transition-colors",
-                      // Larger touch targets on mobile
-                      isMobile ? "py-3.5 min-h-[56px]" : "py-2.5",
-                      isActive
-                        ? "bg-accent text-foreground"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                      isDeleting && "cursor-not-allowed"
-                    )}
-                  >
-                    {isDeleting ? (
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground opacity-40" />
-                      </span>
-                    ) : (
-                      <StatusDot status={branch.status} unread={branch.unread} isActive={isActive} />
-                    )}
-                    <div className={cn(
-                      "flex min-w-0 flex-1 flex-col gap-0.5 transition-opacity",
-                      isDeleting && "opacity-40"
-                    )}>
-                      <div className="flex items-center gap-2">
-                        {branchDiffStats ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              {branchNameElement}
-                            </TooltipTrigger>
-                            <TooltipContent side="right" className="text-xs">
-                              <span className="flex items-center gap-1.5">
-                                <span className="text-green-400">+{branchDiffStats.additions}</span>
-                                <span className="text-red-400">−{branchDiffStats.deletions}</span>
-                              </span>
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          branchNameElement
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <AgentIcon agent={branch.agent || "claude-code"} className="h-2.5 w-2.5" />
-                          {branch.status === BRANCH_STATUS.CREATING ? "Setting up..." : agentLabels[branch.agent || "claude-code"]}
+                  {branchDiffStats ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {branchButton}
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs bg-white text-gray-900 dark:bg-white dark:text-gray-900">
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-green-600">+{branchDiffStats.additions}</span>
+                          <span className="text-red-600">−{branchDiffStats.deletions}</span>
                         </span>
-                      </div>
-                    </div>
-                  </button>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    branchButton
+                  )}
                   {!isDeleting && (
                     <button
                       type="button"

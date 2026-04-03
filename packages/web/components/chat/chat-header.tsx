@@ -261,14 +261,17 @@ export function ChatHeader({
 
           // Build tooltip content for diff action
           let tooltipContent: ReactNode = hasPR ? "Open PR" : action.label
+          let tooltipClassName = "text-xs"
           if (isDiff && gitActions.diffStats) {
             const { additions, deletions } = gitActions.diffStats
+            // Use white background for better contrast with colored text
+            tooltipClassName = "text-xs bg-white text-gray-900 dark:bg-white dark:text-gray-900"
             tooltipContent = (
               <span className="flex items-center gap-2">
                 <span>Diff</span>
                 <span className="flex items-center gap-1.5">
-                  <span className="text-green-400">+{additions}</span>
-                  <span className="text-red-400">−{deletions}</span>
+                  <span className="text-green-600">+{additions}</span>
+                  <span className="text-red-600">−{deletions}</span>
                 </span>
               </span>
             )
@@ -297,7 +300,7 @@ export function ChatHeader({
                     )}
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">
+                <TooltipContent side="bottom" className={tooltipClassName}>
                   {tooltipContent}
                 </TooltipContent>
               </Tooltip>
