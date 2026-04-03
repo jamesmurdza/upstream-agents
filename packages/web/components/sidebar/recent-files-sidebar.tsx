@@ -13,7 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Loader2, Terminal, Globe, ExternalLink, Copy, Check } from "lucide-react"
+import { Loader2, Terminal, Globe, Copy, Check } from "lucide-react"
 
 interface ModifiedFile {
   path: string
@@ -255,12 +255,12 @@ function ServerIcon({ server, onOpenUrl }: {
             onClick={() => onOpenUrl(server.url)}
             className={cn(
               "relative flex h-9 w-9 items-center justify-center rounded-md transition-all",
-              "bg-green-500/20 hover:bg-green-500/30 border border-green-500/30"
+              "bg-secondary hover:bg-accent"
             )}
           >
             <div className="flex flex-col items-center justify-center leading-none gap-0.5">
-              <Globe className="h-3.5 w-3.5 text-green-500" />
-              <span className="text-[8px] font-semibold text-green-600 dark:text-green-400 font-mono">
+              <Globe className="h-3.5 w-3.5 text-foreground" />
+              <span className="text-[8px] font-semibold text-foreground font-mono">
                 {server.port}
               </span>
             </div>
@@ -268,12 +268,8 @@ function ServerIcon({ server, onOpenUrl }: {
             <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="left" className="max-w-[300px]">
-          <div className="space-y-1">
-            <p className="font-semibold text-xs">Dev Server on port {server.port}</p>
-            <p className="text-[10px] text-muted-foreground font-mono break-all">{server.url}</p>
-            <p className="text-[10px] text-muted-foreground">Click to open in new tab</p>
-          </div>
+        <TooltipContent side="left">
+          <p className="text-xs font-mono">{server.port}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -330,10 +326,10 @@ function TerminalButton({ sandboxId, onSshCommand }: {
           }}
           className={cn(
             "relative flex h-9 w-9 items-center justify-center rounded-md transition-all",
-            "bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30"
+            "bg-secondary hover:bg-accent"
           )}
         >
-          <Terminal className="h-4 w-4 text-purple-500" />
+          <Terminal className="h-4 w-4 text-foreground" />
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-md">
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -341,10 +337,10 @@ function TerminalButton({ sandboxId, onSshCommand }: {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent side="left" align="start" sideOffset={8} className="w-[400px] p-0">
+      <PopoverContent side="left" align="end" sideOffset={8} className="w-[400px] p-0">
         <div className="border-b border-border px-3 py-2 bg-muted/30">
           <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-purple-500" />
+            <Terminal className="h-4 w-4 text-foreground" />
             <span className="font-semibold text-sm">SSH into Sandbox</span>
           </div>
         </div>
@@ -355,9 +351,6 @@ function TerminalButton({ sandboxId, onSshCommand }: {
             </div>
           ) : sshCommand ? (
             <>
-              <p className="text-xs text-muted-foreground">
-                Run this command in your local terminal to SSH into the sandbox:
-              </p>
               <div className="relative">
                 <pre className="p-3 bg-muted rounded-md text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all pr-10">
                   {sshCommand}
@@ -375,7 +368,7 @@ function TerminalButton({ sandboxId, onSshCommand }: {
                 </button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                This SSH session will remain active for 60 minutes.
+                Valid for 60 minutes.
               </p>
             </>
           ) : (
@@ -387,15 +380,6 @@ function TerminalButton({ sandboxId, onSshCommand }: {
   )
 }
 
-function SectionDivider({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center py-1">
-      <span className="text-[8px] uppercase tracking-wider text-muted-foreground font-medium">
-        {label}
-      </span>
-    </div>
-  )
-}
 
 export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPattern: propPreviewUrlPattern }: RecentFilesSidebarProps) {
   const [files, setFiles] = useState<ModifiedFile[]>([])
@@ -684,70 +668,60 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPa
   }
 
   return (
-    <aside className="flex h-full w-[52px] shrink-0 flex-col items-center gap-1 border-l border-border bg-sidebar py-2 overflow-y-auto">
-      {/* Terminal/SSH Section */}
-      {sandboxId && (
-        <>
-          <SectionDivider label="SSH" />
-          <TerminalButton
-            sandboxId={sandboxId}
-            onSshCommand={handleSshCommand}
-          />
-        </>
-      )}
+    <aside className="flex h-full w-[52px] shrink-0 flex-col items-center gap-1.5 border-l border-border bg-sidebar py-2 overflow-y-auto">
+      {/* Modified Files - Top */}
+      {files.map((file, index) => {
+        const isPinned = pinnedFileIndex === index
+        const isHovered = hoveredFileIndex === index
+        const isOpen = isPinned || isHovered
+        const content = fileContents.get(file.path) || null
+        const isLoadingThis = loadingContent === file.path
 
-      {/* Running Servers Section */}
-      {servers.length > 0 && (
-        <>
-          <SectionDivider label="Servers" />
-          {servers.map((server) => (
-            <ServerIcon
-              key={server.port}
-              server={server}
-              onOpenUrl={handleOpenUrl}
-            />
-          ))}
-        </>
-      )}
-
-      {/* Modified Files Section */}
-      {files.length > 0 && (
-        <>
-          <SectionDivider label="Files" />
-          {files.map((file, index) => {
-            const isPinned = pinnedFileIndex === index
-            const isHovered = hoveredFileIndex === index
-            const isOpen = isPinned || isHovered
-            const content = fileContents.get(file.path) || null
-            const isLoadingThis = loadingContent === file.path
-
-            return (
-              <FilePreviewPopover
-                key={file.path}
+        return (
+          <FilePreviewPopover
+            key={file.path}
+            file={file}
+            content={content}
+            isLoading={isLoadingThis}
+            error={isOpen && !isLoadingThis && !content ? contentError : null}
+            open={isOpen}
+            onOpenChange={(open) => handleOpenChange(index, open)}
+            onMouseEnter={handlePopoverMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div
+              onMouseEnter={() => handleMouseEnter(index, file)}
+              onMouseLeave={handleMouseLeave}
+            >
+              <FileIcon
                 file={file}
-                content={content}
                 isLoading={isLoadingThis}
-                error={isOpen && !isLoadingThis && !content ? contentError : null}
-                open={isOpen}
-                onOpenChange={(open) => handleOpenChange(index, open)}
-                onMouseEnter={handlePopoverMouseEnter}
-                onMouseLeave={handleMouseLeave}
-              >
-                <div
-                  onMouseEnter={() => handleMouseEnter(index, file)}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <FileIcon
-                    file={file}
-                    isLoading={isLoadingThis}
-                    onClick={() => handleFileClick(index)}
-                    isPinned={isPinned}
-                  />
-                </div>
-              </FilePreviewPopover>
-            )
-          })}
-        </>
+                onClick={() => handleFileClick(index)}
+                isPinned={isPinned}
+              />
+            </div>
+          </FilePreviewPopover>
+        )
+      })}
+
+      {/* Spacer to push servers and terminal to bottom */}
+      <div className="flex-1" />
+
+      {/* Running Servers - Above Terminal */}
+      {servers.map((server) => (
+        <ServerIcon
+          key={server.port}
+          server={server}
+          onOpenUrl={handleOpenUrl}
+        />
+      ))}
+
+      {/* Terminal/SSH - Bottom */}
+      {sandboxId && (
+        <TerminalButton
+          sandboxId={sandboxId}
+          onSshCommand={handleSshCommand}
+        />
       )}
     </aside>
   )
