@@ -74,11 +74,12 @@ async function pollUntilEnd(
   pollIntervalMs = 2000
 ): Promise<Event[]> {
   const deadline = Date.now() + timeoutMs
-  let allEvents: Event[] = []
+  const allEvents: Event[] = []
 
   while (Date.now() < deadline) {
     const { events, running } = await session.getEvents()
-    allEvents = events
+    // Accumulate events (getEvents returns only new events since last poll)
+    allEvents.push(...events)
     if (!running || events.some((e) => e.type === "end")) break
     await new Promise((r) => setTimeout(r, pollIntervalMs))
   }
