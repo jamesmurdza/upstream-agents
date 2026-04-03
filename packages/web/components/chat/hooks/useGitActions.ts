@@ -57,6 +57,7 @@ export function useGitActions({
   const [rsyncCopied, setRsyncCopied] = useState(false)
   const [sandboxToggleLoading, setSandboxToggleLoading] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
+  const [diffStats, setDiffStats] = useState<{ additions: number; deletions: number } | null>(null)
 
   const addSystemMessage = useCallback((content: string) => {
     // System messages go to the current branch (user-initiated git actions)
@@ -73,6 +74,7 @@ export function useGitActions({
   const checkForChanges = useCallback(async () => {
     if (!branch.sandboxId) {
       setHasChanges(false)
+      setDiffStats(null)
       return
     }
     const [owner, repo] = repoFullName.split("/")
@@ -90,14 +92,34 @@ export function useGitActions({
       // Handle non-200 responses gracefully (e.g., branch not found, no commits)
       if (!res.ok) {
         setHasChanges(false)
+        setDiffStats(null)
         return
       }
       const data = await res.json()
       // Check if there's any actual diff content
       const hasDiff = data.diff && data.diff.trim() !== "" && data.diff !== "No differences found."
       setHasChanges(hasDiff)
+
+      // Parse diff to extract line stats
+      if (hasDiff && data.diff) {
+        const lines = data.diff.split("\n")
+        let additions = 0
+        let deletions = 0
+        for (const line of lines) {
+          // Count lines starting with + or - but not diff headers (+++, ---)
+          if (line.startsWith("+") && !line.startsWith("+++")) {
+            additions++
+          } else if (line.startsWith("-") && !line.startsWith("---")) {
+            deletions++
+          }
+        }
+        setDiffStats({ additions, deletions })
+      } else {
+        setDiffStats(null)
+      }
     } catch {
       setHasChanges(false)
+      setDiffStats(null)
     }
   }, [branch.sandboxId, branch.baseBranch, branch.name, repoFullName])
 
@@ -238,6 +260,7 @@ export function useGitActions({
 
     // Changes detection
     hasChanges,
+    diffStats,
 
     // Actions
     handleSandboxToggle,
