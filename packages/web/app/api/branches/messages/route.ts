@@ -86,8 +86,8 @@ export async function GET(req: Request) {
           {
             ...lastMessage,
             content: snapshot.content ?? lastMessage.content,
-            toolCalls: snapshot.toolCalls ?? lastMessage.toolCalls,
-            contentBlocks: snapshot.contentBlocks ?? lastMessage.contentBlocks,
+            toolCalls: (snapshot.toolCalls ?? lastMessage.toolCalls) as typeof lastMessage.toolCalls,
+            contentBlocks: (snapshot.contentBlocks ?? lastMessage.contentBlocks) as typeof lastMessage.contentBlocks,
           },
         ]
       }
