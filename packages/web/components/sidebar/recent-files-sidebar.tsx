@@ -151,8 +151,8 @@ function FileIcon({ file, isLoading, onClick, isPinned }: {
         onClick()
       }}
       className={cn(
-        "relative flex h-9 w-9 items-center justify-center rounded-md transition-all cursor-pointer",
-        "bg-secondary hover:bg-accent",
+        "relative flex h-10 w-10 items-center justify-center rounded-lg transition-all cursor-pointer",
+        "bg-accent/50 hover:bg-accent",
         isPinned && "ring-2 ring-primary",
         isOld && "opacity-40 hover:opacity-100"
       )}
@@ -254,8 +254,8 @@ function ServerIcon({ onClick, isPinned, port }: {
         onClick()
       }}
       className={cn(
-        "relative flex h-9 w-9 items-center justify-center rounded-md transition-all cursor-pointer",
-        "bg-secondary hover:bg-accent",
+        "relative flex h-10 w-10 items-center justify-center rounded-lg transition-all cursor-pointer",
+        "bg-accent/50 hover:bg-accent",
         isPinned && "ring-2 ring-primary"
       )}
     >
@@ -373,8 +373,8 @@ function TerminalIcon({ onClick, isPinned }: {
         onClick()
       }}
       className={cn(
-        "relative flex h-9 w-9 items-center justify-center rounded-md transition-all cursor-pointer",
-        "bg-secondary hover:bg-accent",
+        "relative flex h-10 w-10 items-center justify-center rounded-lg transition-all cursor-pointer",
+        "bg-accent/50 hover:bg-accent",
         isPinned && "ring-2 ring-primary"
       )}
     >
@@ -953,7 +953,7 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPa
   const terminalOpen = terminalPinned || terminalHovered
 
   return (
-    <aside className="flex h-full w-[52px] shrink-0 flex-col items-center gap-1.5 border-l border-border bg-sidebar py-2 overflow-y-auto">
+    <aside className="flex h-full w-[60px] shrink-0 flex-col items-center gap-2 border-l border-border bg-sidebar py-3 overflow-y-auto">
       {/* Modified Files - Top */}
       {files.map((file, index) => {
         const isPinned = pinnedFileIndex === index
