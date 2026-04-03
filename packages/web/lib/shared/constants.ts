@@ -197,6 +197,8 @@ export const PATHS = {
   SANDBOX_HOME: "/home/daytona",
   /** Directory for agent log files */
   LOGS_DIR: "/tmp/logs",
+  /** Marker file created after clone completes, used as baseline for modified file detection */
+  CLONE_MARKER_FILE: "/tmp/.clone_complete",
   /** Claude credentials directory */
   CLAUDE_CREDENTIALS_DIR: "/home/daytona/.claude",
   /** Claude credentials file */

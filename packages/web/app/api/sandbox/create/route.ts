@@ -228,6 +228,9 @@ export async function POST(req: Request) {
           `cd ${repoPath} && git config user.email "${gitEmail}" && git config user.name "${gitName}"`
         )
 
+        // Create marker file after clone completes - used as baseline for modified file detection
+        await sandbox.process.executeCommand(`touch ${PATHS.CLONE_MARKER_FILE}`)
+
         // For recreation: try to fetch and checkout the existing branch from remote
         // For new branch: create it from base
         const authedUrl = cloneUrl.replace(

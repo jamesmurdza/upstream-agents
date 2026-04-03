@@ -22,18 +22,29 @@ function escapeShell(str: string): string {
 /** File extensions to look for in logs directory */
 const LOG_EXTENSIONS = [".log", ".txt", ".json"]
 
-/**
- * Build a git command to find modified/untracked files in the repo.
- * This is more reliable than timestamp-based detection because it uses
- * git's own tracking of what has changed since the last commit.
- */
-function buildGitModifiedFilesCommand(repoPath: string): string {
-  const safePath = escapeShell(repoPath)
+/** Directories to ignore when searching for modified files */
+const IGNORE_DIRS = ["node_modules", ".git", "dist", "build", ".next", "__pycache__", ".venv", "vendor"]
 
-  // Get modified tracked files and untracked files (excluding ignored)
-  // -z uses NUL separators, --porcelain=v1 gives stable output format
-  // Then we stat each file to get mtime and size
-  const command = `cd '${safePath}' && git status --porcelain=v1 -z 2>/dev/null | tr '\\0' '\\n' | awk '{print substr($0, 4)}' | head -20 | while read -r f; do [ -f "$f" ] && stat --format='${safePath}/%n|%Y|%s' "$f" 2>/dev/null; done || true`
+/**
+ * Build find command to locate files modified after a marker file.
+ * Uses -newer to compare against the marker file timestamp.
+ */
+function buildFindCommandNewerThan(
+  repoPath: string,
+  markerFile: string,
+  ignoreDirs: string[]
+): string {
+  const safePath = escapeShell(repoPath)
+  const safeMarker = escapeShell(markerFile)
+
+  // Build ignore patterns for find -prune
+  const ignoreArgs = ignoreDirs
+    .map((dir) => `-name '${escapeShell(dir)}' -prune`)
+    .join(" -o ")
+
+  // Find files newer than marker, excluding ignored directories
+  // The -newer flag compares mtime against the marker file
+  const command = `find '${safePath}' \\( ${ignoreArgs} \\) -o -type f -newer '${safeMarker}' -print0 2>/dev/null | xargs -0 -r stat --format='%n|%Y|%s' 2>/dev/null | head -20 || true`
 
   return command
 }
@@ -117,11 +128,11 @@ export async function POST(req: Request) {
 
     switch (action) {
       case "list-modified": {
-        // Use git status to find modified/untracked files in the repo
-        // This is more reliable than timestamp-based detection
-        const gitCommand = buildGitModifiedFilesCommand(repoPath)
-        const gitResult = await sandbox.process.executeCommand(gitCommand, undefined, undefined, 30)
-        const repoFiles = parseStatOutput(gitResult.result || "")
+        // Find files modified after the clone marker file
+        // This marker is created right after git clone completes
+        const repoCommand = buildFindCommandNewerThan(repoPath, PATHS.CLONE_MARKER_FILE, IGNORE_DIRS)
+        const repoResult = await sandbox.process.executeCommand(repoCommand, undefined, undefined, 30)
+        const repoFiles = parseStatOutput(repoResult.result || "")
 
         // Also check the logs directory for any log files
         const logsCommand = buildFindCommandForLogs(PATHS.LOGS_DIR, LOG_EXTENSIONS)
