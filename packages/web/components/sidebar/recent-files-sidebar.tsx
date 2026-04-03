@@ -311,18 +311,14 @@ function ServerPreviewPopover({
         onMouseLeave={onMouseLeave}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-muted/30">
-          <div className="flex items-center gap-2 min-w-0">
-            <Globe className="h-3.5 w-3.5 text-foreground shrink-0" />
-            <span className="font-mono text-xs truncate">{server.url}</span>
-          </div>
-          <button
-            onClick={handleOpenExternal}
-            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0 ml-2"
-          >
-            <ExternalLink className="h-3 w-3" />
-          </button>
-        </div>
+        <button
+          onClick={handleOpenExternal}
+          className="flex items-center gap-2 w-full border-b border-border px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+        >
+          <Globe className="h-3.5 w-3.5 text-foreground shrink-0" />
+          <span className="font-mono text-xs truncate flex-1 text-left">{server.url}</span>
+          <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+        </button>
 
         {/* Iframe Container */}
         <div className="relative w-full h-[calc(100%-36px)] bg-white">
@@ -404,15 +400,12 @@ function TerminalPopover({
   onMouseLeave?: () => void
   children: React.ReactNode
 }) {
-  const [lines, setLines] = useState<TerminalLine[]>([
-    { type: "output", content: `Connected to sandbox` },
-    { type: "output", content: `Working directory: ${repoPath}` },
-    { type: "output", content: "" },
-  ])
+  const [lines, setLines] = useState<TerminalLine[]>([])
   const [currentInput, setCurrentInput] = useState("")
   const [isExecuting, setIsExecuting] = useState(false)
   const [commandHistory, setCommandHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
+  const [currentDir, setCurrentDir] = useState(repoPath)
   const inputRef = useRef<HTMLInputElement>(null)
   const outputRef = useRef<HTMLDivElement>(null)
 
@@ -430,6 +423,30 @@ function TerminalPopover({
     }
   }, [lines])
 
+  // Fetch current pwd after command execution
+  const fetchPwd = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sandbox/files", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sandboxId,
+          repoPath: currentDir,
+          action: "execute-command",
+          command: "pwd",
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.exitCode === 0 && data.output) {
+          setCurrentDir(data.output.trim())
+        }
+      }
+    } catch {
+      // Ignore pwd fetch errors
+    }
+  }, [sandboxId, currentDir])
+
   const executeCommand = useCallback(async (command: string) => {
     if (!command.trim()) return
 
@@ -446,7 +463,7 @@ function TerminalPopover({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sandboxId,
-          repoPath,
+          repoPath: currentDir,
           action: "execute-command",
           command,
         }),
@@ -472,6 +489,9 @@ function TerminalPopover({
         if (exitCode !== 0) {
           setLines(prev => [...prev, { type: "error", content: `Exit code: ${exitCode}` }])
         }
+
+        // Update pwd after command execution
+        await fetchPwd()
       } else {
         setLines(prev => [...prev, { type: "error", content: "Failed to execute command" }])
       }
@@ -481,7 +501,7 @@ function TerminalPopover({
       setIsExecuting(false)
       inputRef.current?.focus()
     }
-  }, [sandboxId, repoPath])
+  }, [sandboxId, currentDir, fetchPwd])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !isExecuting) {
@@ -528,7 +548,7 @@ function TerminalPopover({
         <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-muted/30">
           <div className="flex items-center gap-2 min-w-0">
             <Terminal className="h-3.5 w-3.5 text-foreground shrink-0" />
-            <span className="font-mono text-xs truncate">{repoPath}</span>
+            <span className="font-mono text-xs truncate">{currentDir}</span>
           </div>
         </div>
 
