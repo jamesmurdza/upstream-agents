@@ -16,7 +16,7 @@ import {
 import { BRANCH_STATUS } from "@/lib/shared/constants"
 import { queryKeys } from "@/lib/api/query-keys"
 import { apiFetch } from "@/lib/api/fetcher"
-import { isBranchPolling } from "@/hooks/use-execution-poller"
+import { isBranchPolling, hasActiveExecutions } from "@/hooks/use-execution-poller"
 
 /**
  * Response shape from /api/user/me
@@ -155,7 +155,9 @@ export function useRepoData({ isAuthenticated }: UseRepoDataOptions) {
   }, [isSuccess, userData?.repos, loaded])
 
   // Refresh user data from server - refetches and resets local state
+  // Skip refresh while streaming to prevent wiping in-memory content that hasn't been persisted to DB yet
   const refresh = useCallback(() => {
+    if (hasActiveExecutions()) return
     setLoaded(false) // Allow re-initialization from query
     queryClient.invalidateQueries({ queryKey: queryKeys.user.me() })
   }, [queryClient])
