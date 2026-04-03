@@ -7,7 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Loader2, Terminal, Globe, ExternalLink } from "lucide-react"
+import { Loader2, Terminal, Globe, ExternalLink, FileCode } from "lucide-react"
 
 interface ModifiedFile {
   path: string
@@ -191,7 +191,7 @@ function FilePreviewPopover({
   onMouseLeave?: () => void
   children: React.ReactNode
 }) {
-  const { filename, ext } = getFileDisplayInfo(file.path)
+  const { filename } = getFileDisplayInfo(file.path)
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -200,14 +200,14 @@ function FilePreviewPopover({
         side="left"
         align="start"
         sideOffset={8}
-        className="w-[500px] max-w-[90vw] max-h-[80vh] p-0 overflow-hidden"
+        className="w-[500px] max-w-[90vw] max-h-[80vh] p-0 flex flex-col overflow-hidden"
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-muted/30">
+        <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-muted/30 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className={cn("text-xs font-medium", getExtColor(ext))}>{ext}</span>
+            <FileCode className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="font-mono text-xs truncate">{filename}</span>
           </div>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground shrink-0">
@@ -217,7 +217,7 @@ function FilePreviewPopover({
         </div>
 
         {/* Content */}
-        <div className="overflow-auto max-h-[calc(80vh-40px)]">
+        <div className="overflow-auto min-h-0 flex-1">
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -234,7 +234,7 @@ function FilePreviewPopover({
         </div>
 
         {/* Footer with full path */}
-        <div className="border-t border-border px-3 py-1.5 bg-muted/30">
+        <div className="border-t border-border px-3 py-1.5 bg-muted/30 shrink-0">
           <p className="font-mono text-[10px] text-muted-foreground truncate">{file.path}</p>
         </div>
       </PopoverContent>
