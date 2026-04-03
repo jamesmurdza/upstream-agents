@@ -105,7 +105,7 @@ function mergeBranchesWithLocalOnly(
   syncBranches: SyncBranch[]
 ): Branch[] {
   const syncIds = new Set(syncBranches.map((b) => b.id))
-  const localOnly = existingBranches.filter((b) => !syncIds.has(b.id) && !pendingDeletes.has(b.id))
+  const localOnly = existingBranches.filter((b) => !syncIds.has(b.id) && b.status === "creating")
   const fromSync = syncBranches
     .filter((b) => !pendingDeletes.has(b.id))
     .map((syncBranch) => {
