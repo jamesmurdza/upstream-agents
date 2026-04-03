@@ -220,6 +220,27 @@ export async function POST(req: Request) {
         })
       }
 
+      case "execute-command": {
+        const { command } = body
+        if (!command) {
+          return badRequest("Missing command")
+        }
+
+        // Execute the command in the repo directory
+        const safePath = escapeShell(repoPath)
+        const result = await sandbox.process.executeCommand(
+          `cd '${safePath}' && ${command}`,
+          undefined,
+          undefined,
+          30 // 30 second timeout
+        )
+
+        return Response.json({
+          output: result.result || "",
+          exitCode: result.exitCode,
+        })
+      }
+
       default:
         return badRequest(`Unknown action: ${action}`)
     }

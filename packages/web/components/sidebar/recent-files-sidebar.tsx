@@ -1,19 +1,13 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, KeyboardEvent } from "react"
 import { cn } from "@/lib/shared/utils"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Loader2, Terminal, Globe, Copy, Check } from "lucide-react"
+import { Loader2, Terminal, Globe, ExternalLink } from "lucide-react"
 
 interface ModifiedFile {
   path: string
@@ -31,6 +25,11 @@ interface FileContent {
 interface DevServer {
   port: number
   url: string
+}
+
+interface TerminalLine {
+  type: "input" | "output" | "error"
+  content: string
 }
 
 interface RecentFilesSidebarProps {
@@ -243,136 +242,126 @@ function FilePreviewPopover({
   )
 }
 
-function ServerIcon({ server, onOpenUrl }: {
-  server: DevServer
-  onOpenUrl: (url: string) => void
+function ServerIcon({ onClick, isPinned, port }: {
+  onClick: () => void
+  isPinned: boolean
+  port: number
 }) {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            onClick={() => onOpenUrl(server.url)}
-            className={cn(
-              "relative flex h-9 w-9 items-center justify-center rounded-md transition-all",
-              "bg-secondary hover:bg-accent"
-            )}
-          >
-            <div className="flex flex-col items-center justify-center leading-none gap-0.5">
-              <Globe className="h-3.5 w-3.5 text-foreground" />
-              <span className="text-[8px] font-semibold text-foreground font-mono">
-                {server.port}
-              </span>
-            </div>
-            {/* Pulsing indicator for active server */}
-            <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="left">
-          <p className="text-xs font-mono">{server.port}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className={cn(
+        "relative flex h-9 w-9 items-center justify-center rounded-md transition-all",
+        "bg-secondary hover:bg-accent",
+        isPinned && "ring-2 ring-primary"
+      )}
+    >
+      <div className="flex flex-col items-center justify-center leading-none gap-0.5">
+        <Globe className="h-3.5 w-3.5 text-foreground" />
+        <span className="text-[8px] font-semibold text-foreground font-mono">
+          {port}
+        </span>
+      </div>
+      {/* Pulsing indicator for active server */}
+      <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+    </button>
   )
 }
 
-function TerminalButton({ sandboxId, onSshCommand }: {
-  sandboxId: string
-  onSshCommand: (command: string) => void
+function ServerPreviewPopover({
+  server,
+  open,
+  onOpenChange,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: {
+  server: DevServer
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
+  children: React.ReactNode
 }) {
-  const [loading, setLoading] = useState(false)
-  const [sshCommand, setSshCommand] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [iframeLoading, setIframeLoading] = useState(true)
+  const [iframeError, setIframeError] = useState(false)
 
-  const fetchSshCommand = useCallback(async () => {
-    if (sshCommand) return // Already fetched
-
-    setLoading(true)
-    try {
-      const res = await fetch("/api/sandbox/ssh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sandboxId }),
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setSshCommand(data.sshCommand)
-        onSshCommand(data.sshCommand)
-      }
-    } catch (err) {
-      console.error("Failed to get SSH command:", err)
-    } finally {
-      setLoading(false)
+  // Reset loading state when popover opens
+  useEffect(() => {
+    if (open) {
+      setIframeLoading(true)
+      setIframeError(false)
     }
-  }, [sandboxId, sshCommand, onSshCommand])
+  }, [open])
 
-  const handleCopy = useCallback(async () => {
-    if (sshCommand) {
-      await navigator.clipboard.writeText(sshCommand)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }, [sshCommand])
+  const handleOpenExternal = () => {
+    window.open(server.url, "_blank", "noopener,noreferrer")
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          onClick={() => {
-            setOpen(true)
-            fetchSshCommand()
-          }}
-          className={cn(
-            "relative flex h-9 w-9 items-center justify-center rounded-md transition-all",
-            "bg-secondary hover:bg-accent"
-          )}
-        >
-          <Terminal className="h-4 w-4 text-foreground" />
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-md">
-              <Loader2 className="h-3 w-3 animate-spin" />
-            </div>
-          )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent side="left" align="end" sideOffset={8} className="w-[400px] p-0">
-        <div className="border-b border-border px-3 py-2 bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-foreground" />
-            <span className="font-semibold text-sm">SSH into Sandbox</span>
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent
+        side="left"
+        align="end"
+        sideOffset={8}
+        className="w-[420px] h-[320px] p-0 overflow-hidden"
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-muted/30">
+          <div className="flex items-center gap-2 min-w-0">
+            <Globe className="h-3.5 w-3.5 text-foreground shrink-0" />
+            <span className="font-mono text-xs truncate">:{server.port}</span>
           </div>
+          <button
+            onClick={handleOpenExternal}
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <span>Open</span>
+            <ExternalLink className="h-3 w-3" />
+          </button>
         </div>
-        <div className="p-3 space-y-3">
-          {loading ? (
-            <div className="flex items-center justify-center h-16">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+
+        {/* Iframe Container */}
+        <div className="relative w-full h-[calc(100%-36px)] bg-white">
+          {iframeLoading && !iframeError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-muted">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : sshCommand ? (
-            <>
-              <div className="relative">
-                <pre className="p-3 bg-muted rounded-md text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all pr-10">
-                  {sshCommand}
-                </pre>
-                <button
-                  onClick={handleCopy}
-                  className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 hover:bg-background transition-colors"
-                  title="Copy to clipboard"
-                >
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5 text-green-500" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
-                </button>
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Valid for 60 minutes.
-              </p>
-            </>
+          )}
+          {iframeError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted gap-2">
+              <p className="text-sm text-muted-foreground">Unable to load preview</p>
+              <button
+                onClick={handleOpenExternal}
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                Open in new tab <ExternalLink className="h-3 w-3" />
+              </button>
+            </div>
           ) : (
-            <p className="text-sm text-destructive">Failed to generate SSH command</p>
+            <iframe
+              src={server.url}
+              className="w-full h-full border-0"
+              style={{
+                transform: "scale(0.5)",
+                transformOrigin: "top left",
+                width: "200%",
+                height: "200%"
+              }}
+              onLoad={() => setIframeLoading(false)}
+              onError={() => {
+                setIframeLoading(false)
+                setIframeError(true)
+              }}
+              sandbox="allow-scripts allow-same-origin allow-forms"
+              title={`Preview of port ${server.port}`}
+            />
           )}
         </div>
       </PopoverContent>
@@ -380,6 +369,218 @@ function TerminalButton({ sandboxId, onSshCommand }: {
   )
 }
 
+function TerminalIcon({ onClick, isPinned }: {
+  onClick: () => void
+  isPinned: boolean
+}) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className={cn(
+        "relative flex h-9 w-9 items-center justify-center rounded-md transition-all",
+        "bg-secondary hover:bg-accent",
+        isPinned && "ring-2 ring-primary"
+      )}
+    >
+      <Terminal className="h-4 w-4 text-foreground" />
+    </button>
+  )
+}
+
+function TerminalPopover({
+  sandboxId,
+  repoPath,
+  open,
+  onOpenChange,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: {
+  sandboxId: string
+  repoPath: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onMouseEnter?: () => void
+  onMouseLeave?: () => void
+  children: React.ReactNode
+}) {
+  const [lines, setLines] = useState<TerminalLine[]>([
+    { type: "output", content: `Connected to sandbox` },
+    { type: "output", content: `Working directory: ${repoPath}` },
+    { type: "output", content: "" },
+  ])
+  const [currentInput, setCurrentInput] = useState("")
+  const [isExecuting, setIsExecuting] = useState(false)
+  const [commandHistory, setCommandHistory] = useState<string[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const outputRef = useRef<HTMLDivElement>(null)
+
+  // Focus input when popover opens
+  useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [open])
+
+  // Scroll to bottom when new lines are added
+  useEffect(() => {
+    if (outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight
+    }
+  }, [lines])
+
+  const executeCommand = useCallback(async (command: string) => {
+    if (!command.trim()) return
+
+    // Add input line
+    setLines(prev => [...prev, { type: "input", content: `$ ${command}` }])
+    setCommandHistory(prev => [...prev, command])
+    setHistoryIndex(-1)
+    setCurrentInput("")
+    setIsExecuting(true)
+
+    try {
+      const res = await fetch("/api/sandbox/files", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sandboxId,
+          repoPath,
+          action: "execute-command",
+          command,
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        const output = data.output || ""
+        const exitCode = data.exitCode
+
+        if (output.trim()) {
+          // Split output into lines
+          const outputLines = output.split("\n")
+          setLines(prev => [
+            ...prev,
+            ...outputLines.map((line: string) => ({
+              type: exitCode === 0 ? "output" : "error" as const,
+              content: line
+            }))
+          ])
+        }
+
+        if (exitCode !== 0) {
+          setLines(prev => [...prev, { type: "error", content: `Exit code: ${exitCode}` }])
+        }
+      } else {
+        setLines(prev => [...prev, { type: "error", content: "Failed to execute command" }])
+      }
+    } catch (err) {
+      setLines(prev => [...prev, { type: "error", content: "Connection error" }])
+    } finally {
+      setIsExecuting(false)
+      inputRef.current?.focus()
+    }
+  }, [sandboxId, repoPath])
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !isExecuting) {
+      executeCommand(currentInput)
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault()
+      if (commandHistory.length > 0) {
+        const newIndex = historyIndex < commandHistory.length - 1 ? historyIndex + 1 : historyIndex
+        setHistoryIndex(newIndex)
+        setCurrentInput(commandHistory[commandHistory.length - 1 - newIndex] || "")
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault()
+      if (historyIndex > 0) {
+        const newIndex = historyIndex - 1
+        setHistoryIndex(newIndex)
+        setCurrentInput(commandHistory[commandHistory.length - 1 - newIndex] || "")
+      } else if (historyIndex === 0) {
+        setHistoryIndex(-1)
+        setCurrentInput("")
+      }
+    } else if (e.key === "c" && e.ctrlKey) {
+      setCurrentInput("")
+      setLines(prev => [...prev, { type: "input", content: `$ ${currentInput}^C` }])
+    }
+  }
+
+  const handleContainerClick = () => {
+    inputRef.current?.focus()
+  }
+
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent
+        side="left"
+        align="end"
+        sideOffset={8}
+        className="w-[500px] h-[350px] p-0 overflow-hidden"
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Terminal className="h-3.5 w-3.5 text-foreground" />
+            <span className="font-mono text-xs">Terminal</span>
+          </div>
+          <span className="text-[10px] text-muted-foreground font-mono">
+            {repoPath.split("/").pop()}
+          </span>
+        </div>
+
+        {/* Terminal Output */}
+        <div
+          ref={outputRef}
+          onClick={handleContainerClick}
+          className="h-[calc(100%-36px)] bg-[#1a1a1a] text-[#e0e0e0] font-mono text-xs p-2 overflow-auto cursor-text"
+        >
+          {lines.map((line, index) => (
+            <div
+              key={index}
+              className={cn(
+                "whitespace-pre-wrap break-all leading-relaxed",
+                line.type === "input" && "text-[#7cb7ff]",
+                line.type === "error" && "text-[#ff6b6b]",
+                line.type === "output" && "text-[#e0e0e0]"
+              )}
+            >
+              {line.content || "\u00A0"}
+            </div>
+          ))}
+
+          {/* Input Line */}
+          <div className="flex items-center text-[#7cb7ff]">
+            <span className="mr-1">$</span>
+            <input
+              ref={inputRef}
+              type="text"
+              value={currentInput}
+              onChange={(e) => setCurrentInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isExecuting}
+              className="flex-1 bg-transparent outline-none text-[#e0e0e0] caret-[#7cb7ff]"
+              spellCheck={false}
+              autoComplete="off"
+            />
+            {isExecuting && (
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground ml-2" />
+            )}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
 
 export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPattern: propPreviewUrlPattern }: RecentFilesSidebarProps) {
   const [files, setFiles] = useState<ModifiedFile[]>([])
@@ -390,9 +591,20 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPa
   const [contentError, setContentError] = useState<string | null>(null)
   const [servers, setServers] = useState<DevServer[]>([])
   const [previewUrlPattern, setPreviewUrlPattern] = useState<string | null>(propPreviewUrlPattern || null)
+
+  // Server popover state
+  const [pinnedServerPort, setPinnedServerPort] = useState<number | null>(null)
+  const [hoveredServerPort, setHoveredServerPort] = useState<number | null>(null)
+
+  // Terminal popover state
+  const [terminalPinned, setTerminalPinned] = useState(false)
+  const [terminalHovered, setTerminalHovered] = useState(false)
+
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const serverPollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const serverHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const terminalHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch modified files
   const fetchModifiedFiles = useCallback(async () => {
@@ -534,9 +746,13 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPa
     } else {
       setFiles([])
     }
-    // Clear open popover on branch switch
+    // Clear open popovers on branch switch
     setPinnedFileIndex(null)
     setHoveredFileIndex(null)
+    setPinnedServerPort(null)
+    setHoveredServerPort(null)
+    setTerminalPinned(false)
+    setTerminalHovered(false)
   }, [cacheKey])
 
   // Poll for modified files
@@ -579,57 +795,42 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPa
     }
   }, [sandboxId, repoPath, fetchServers])
 
-  // Handle file icon click - pins the popover open
+  // ===== File Handlers =====
   const handleFileClick = useCallback((index: number) => {
     if (pinnedFileIndex === index) {
-      // Unpin if already pinned
       setPinnedFileIndex(null)
     } else {
-      // Pin this file
       setPinnedFileIndex(index)
     }
   }, [pinnedFileIndex])
 
-  // Handle mouse enter - show popover on hover
-  const handleMouseEnter = useCallback((index: number, file: ModifiedFile) => {
-    // Clear any pending timeout
+  const handleFileMouseEnter = useCallback((index: number, file: ModifiedFile) => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current)
       hoverTimeoutRef.current = null
     }
-
-    // Don't override pinned state
     if (pinnedFileIndex !== null) return
-
     setHoveredFileIndex(index)
-
-    // Fetch content if needed
     if (!fileContents.has(file.path)) {
       fetchFileContent(file.path)
     }
   }, [pinnedFileIndex, fileContents, fetchFileContent])
 
-  // Handle mouse leave - hide popover after a short delay (unless pinned)
-  const handleMouseLeave = useCallback(() => {
-    // Don't close if pinned
+  const handleFileMouseLeave = useCallback(() => {
     if (pinnedFileIndex !== null) return
-
-    // Small delay to allow moving to the popover
     hoverTimeoutRef.current = setTimeout(() => {
       setHoveredFileIndex(null)
     }, 200)
   }, [pinnedFileIndex])
 
-  // Handle popover content mouse enter - cancel the close timeout
-  const handlePopoverMouseEnter = useCallback(() => {
+  const handleFilePopoverMouseEnter = useCallback(() => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current)
       hoverTimeoutRef.current = null
     }
   }, [])
 
-  // Handle popover open change (for clicking outside when pinned)
-  const handleOpenChange = useCallback((index: number, open: boolean) => {
+  const handleFileOpenChange = useCallback((index: number, open: boolean) => {
     if (!open) {
       if (pinnedFileIndex === index) {
         setPinnedFileIndex(null)
@@ -640,22 +841,90 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPa
     }
   }, [pinnedFileIndex, hoveredFileIndex])
 
-  // Open server URL
-  const handleOpenUrl = useCallback((url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer")
+  // ===== Server Handlers =====
+  const handleServerClick = useCallback((port: number) => {
+    if (pinnedServerPort === port) {
+      setPinnedServerPort(null)
+    } else {
+      setPinnedServerPort(port)
+    }
+  }, [pinnedServerPort])
+
+  const handleServerMouseEnter = useCallback((port: number) => {
+    if (serverHoverTimeoutRef.current) {
+      clearTimeout(serverHoverTimeoutRef.current)
+      serverHoverTimeoutRef.current = null
+    }
+    if (pinnedServerPort !== null) return
+    setHoveredServerPort(port)
+  }, [pinnedServerPort])
+
+  const handleServerMouseLeave = useCallback(() => {
+    if (pinnedServerPort !== null) return
+    serverHoverTimeoutRef.current = setTimeout(() => {
+      setHoveredServerPort(null)
+    }, 200)
+  }, [pinnedServerPort])
+
+  const handleServerPopoverMouseEnter = useCallback(() => {
+    if (serverHoverTimeoutRef.current) {
+      clearTimeout(serverHoverTimeoutRef.current)
+      serverHoverTimeoutRef.current = null
+    }
   }, [])
 
-  // Handle SSH command (could show toast notification, etc.)
-  const handleSshCommand = useCallback((command: string) => {
-    console.log("SSH command generated:", command)
+  const handleServerOpenChange = useCallback((port: number, open: boolean) => {
+    if (!open) {
+      if (pinnedServerPort === port) {
+        setPinnedServerPort(null)
+      }
+      if (hoveredServerPort === port) {
+        setHoveredServerPort(null)
+      }
+    }
+  }, [pinnedServerPort, hoveredServerPort])
+
+  // ===== Terminal Handlers =====
+  const handleTerminalClick = useCallback(() => {
+    setTerminalPinned(prev => !prev)
   }, [])
 
-  // Cleanup hover timeout on unmount
+  const handleTerminalMouseEnter = useCallback(() => {
+    if (terminalHoverTimeoutRef.current) {
+      clearTimeout(terminalHoverTimeoutRef.current)
+      terminalHoverTimeoutRef.current = null
+    }
+    if (terminalPinned) return
+    setTerminalHovered(true)
+  }, [terminalPinned])
+
+  const handleTerminalMouseLeave = useCallback(() => {
+    if (terminalPinned) return
+    terminalHoverTimeoutRef.current = setTimeout(() => {
+      setTerminalHovered(false)
+    }, 200)
+  }, [terminalPinned])
+
+  const handleTerminalPopoverMouseEnter = useCallback(() => {
+    if (terminalHoverTimeoutRef.current) {
+      clearTimeout(terminalHoverTimeoutRef.current)
+      terminalHoverTimeoutRef.current = null
+    }
+  }, [])
+
+  const handleTerminalOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      setTerminalPinned(false)
+      setTerminalHovered(false)
+    }
+  }, [])
+
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current)
-      }
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+      if (serverHoverTimeoutRef.current) clearTimeout(serverHoverTimeoutRef.current)
+      if (terminalHoverTimeoutRef.current) clearTimeout(terminalHoverTimeoutRef.current)
     }
   }, [])
 
@@ -666,6 +935,8 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPa
   if (!hasContent) {
     return null
   }
+
+  const terminalOpen = terminalPinned || terminalHovered
 
   return (
     <aside className="flex h-full w-[52px] shrink-0 flex-col items-center gap-1.5 border-l border-border bg-sidebar py-2 overflow-y-auto">
@@ -685,13 +956,13 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPa
             isLoading={isLoadingThis}
             error={isOpen && !isLoadingThis && !content ? contentError : null}
             open={isOpen}
-            onOpenChange={(open) => handleOpenChange(index, open)}
-            onMouseEnter={handlePopoverMouseEnter}
-            onMouseLeave={handleMouseLeave}
+            onOpenChange={(open) => handleFileOpenChange(index, open)}
+            onMouseEnter={handleFilePopoverMouseEnter}
+            onMouseLeave={handleFileMouseLeave}
           >
             <div
-              onMouseEnter={() => handleMouseEnter(index, file)}
-              onMouseLeave={handleMouseLeave}
+              onMouseEnter={() => handleFileMouseEnter(index, file)}
+              onMouseLeave={handleFileMouseLeave}
             >
               <FileIcon
                 file={file}
@@ -708,20 +979,54 @@ export function RecentFilesSidebar({ sandboxId, repoPath, cacheKey, previewUrlPa
       <div className="flex-1" />
 
       {/* Running Servers - Above Terminal */}
-      {servers.map((server) => (
-        <ServerIcon
-          key={server.port}
-          server={server}
-          onOpenUrl={handleOpenUrl}
-        />
-      ))}
+      {servers.map((server) => {
+        const isPinned = pinnedServerPort === server.port
+        const isHovered = hoveredServerPort === server.port
+        const isOpen = isPinned || isHovered
+
+        return (
+          <ServerPreviewPopover
+            key={server.port}
+            server={server}
+            open={isOpen}
+            onOpenChange={(open) => handleServerOpenChange(server.port, open)}
+            onMouseEnter={handleServerPopoverMouseEnter}
+            onMouseLeave={handleServerMouseLeave}
+          >
+            <div
+              onMouseEnter={() => handleServerMouseEnter(server.port)}
+              onMouseLeave={handleServerMouseLeave}
+            >
+              <ServerIcon
+                port={server.port}
+                onClick={() => handleServerClick(server.port)}
+                isPinned={isPinned}
+              />
+            </div>
+          </ServerPreviewPopover>
+        )
+      })}
 
       {/* Terminal/SSH - Bottom */}
       {sandboxId && (
-        <TerminalButton
+        <TerminalPopover
           sandboxId={sandboxId}
-          onSshCommand={handleSshCommand}
-        />
+          repoPath={repoPath}
+          open={terminalOpen}
+          onOpenChange={handleTerminalOpenChange}
+          onMouseEnter={handleTerminalPopoverMouseEnter}
+          onMouseLeave={handleTerminalMouseLeave}
+        >
+          <div
+            onMouseEnter={handleTerminalMouseEnter}
+            onMouseLeave={handleTerminalMouseLeave}
+          >
+            <TerminalIcon
+              onClick={handleTerminalClick}
+              isPinned={terminalPinned}
+            />
+          </div>
+        </TerminalPopover>
       )}
     </aside>
   )
