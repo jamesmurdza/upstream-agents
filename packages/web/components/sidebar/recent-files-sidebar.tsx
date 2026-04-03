@@ -265,8 +265,6 @@ function ServerIcon({ onClick, isPinned, port }: {
           {port}
         </span>
       </div>
-      {/* Pulsing indicator for active server */}
-      <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
     </button>
   )
 }
@@ -529,13 +527,10 @@ function TerminalPopover({
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Terminal className="h-3.5 w-3.5 text-foreground" />
-            <span className="font-mono text-xs">Terminal</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <Terminal className="h-3.5 w-3.5 text-foreground shrink-0" />
+            <span className="font-mono text-xs truncate">{repoPath}</span>
           </div>
-          <span className="text-[10px] text-muted-foreground font-mono">
-            {repoPath.split("/").pop()}
-          </span>
         </div>
 
         {/* Terminal Output */}
