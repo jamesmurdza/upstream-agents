@@ -43,24 +43,28 @@ const SIMPLE_PROMPT = "What is 2 + 2? Reply with just the number."
 const agents = [
   {
     name: "claude" as const,
+    displayName: "claude",
     apiKeyEnvVar: "ANTHROPIC_API_KEY",
     apiKey: ANTHROPIC_API_KEY,
     hasKey: !!ANTHROPIC_API_KEY,
   },
   {
     name: "codex" as const,
+    displayName: "codex",
     apiKeyEnvVar: "OPENAI_API_KEY",
     apiKey: OPENAI_API_KEY,
     hasKey: !!OPENAI_API_KEY,
   },
   {
     name: "gemini" as const,
+    displayName: "gemini",
     apiKeyEnvVar: "GEMINI_API_KEY",
     apiKey: GEMINI_API_KEY,
     hasKey: !!GEMINI_API_KEY,
   },
   {
     name: "opencode" as const,
+    displayName: "opencode",
     apiKeyEnvVar: "ANTHROPIC_API_KEY", // opencode can use multiple, we use anthropic
     apiKey: ANTHROPIC_API_KEY,
     hasKey: !!ANTHROPIC_API_KEY,
@@ -68,9 +72,27 @@ const agents = [
   },
   {
     name: "pi" as const,
+    displayName: "pi",
     apiKeyEnvVar: "ANTHROPIC_API_KEY", // Pi uses Anthropic by default
     apiKey: ANTHROPIC_API_KEY,
     hasKey: !!ANTHROPIC_API_KEY,
+    model: "claude-sonnet-4-5",
+  },
+  {
+    name: "pi" as const,
+    displayName: "pi-openai",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+    apiKey: OPENAI_API_KEY,
+    hasKey: !!OPENAI_API_KEY,
+    model: "openai/gpt-4o-mini",
+  },
+  {
+    name: "pi" as const,
+    displayName: "pi-gemini",
+    apiKeyEnvVar: "GEMINI_API_KEY",
+    apiKey: GEMINI_API_KEY,
+    hasKey: !!GEMINI_API_KEY,
+    model: "google/gemini-2.5-flash",
   },
 ]
 
@@ -97,8 +119,9 @@ describe.skipIf(!DAYTONA_API_KEY)("agent integration tests", () => {
   // Test each agent
   for (const agent of agents) {
     const hasRequiredKeys = DAYTONA_API_KEY && agent.hasKey
+    const testName = agent.displayName || agent.name
 
-    describe.skipIf(!hasRequiredKeys)(`${agent.name}`, () => {
+    describe.skipIf(!hasRequiredKeys)(`${testName}`, () => {
       let daytona: Daytona
       let sandbox: Sandbox
 
