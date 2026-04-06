@@ -9,6 +9,7 @@
  *   - codex: DAYTONA_API_KEY, OPENAI_API_KEY
  *   - gemini: DAYTONA_API_KEY, GEMINI_API_KEY (or GOOGLE_API_KEY)
  *   - opencode: DAYTONA_API_KEY, ANTHROPIC_API_KEY (or OPENAI_API_KEY)
+ *   - openhands: DAYTONA_API_KEY, LLM_API_KEY (requires pre-configured settings)
  *
  * You can use TEST_ prefixed keys (e.g., TEST_OPENAI_API_KEY) to avoid conflicts
  * with running agents.
@@ -34,6 +35,8 @@ const GEMINI_API_KEY =
   process.env.TEST_GOOGLE_API_KEY ||
   process.env.GEMINI_API_KEY ||
   process.env.GOOGLE_API_KEY
+const LLM_API_KEY =
+  process.env.TEST_LLM_API_KEY || process.env.LLM_API_KEY
 
 // Simple prompt that should complete quickly
 const SIMPLE_PROMPT = "What is 2 + 2? Reply with just the number."
@@ -64,6 +67,12 @@ const agents = [
     apiKey: ANTHROPIC_API_KEY,
     hasKey: !!ANTHROPIC_API_KEY,
     model: "anthropic/claude-sonnet-4-6",
+  },
+  {
+    name: "openhands" as const,
+    apiKeyEnvVar: "LLM_API_KEY", // openhands uses LLM_API_KEY for the configured LLM provider
+    apiKey: LLM_API_KEY,
+    hasKey: !!LLM_API_KEY,
   },
 ]
 

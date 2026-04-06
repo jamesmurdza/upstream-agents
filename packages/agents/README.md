@@ -1,6 +1,6 @@
 # Background Agents SDK
 
-A TypeScript SDK for running AI coding agents (Claude, Codex, Gemini, OpenCode) in secure [Daytona](https://daytona.io) sandboxes. Designed for background execution with polling-based event streaming.
+A TypeScript SDK for running AI coding agents (Claude, Codex, Gemini, OpenCode, OpenHands) in secure [Daytona](https://daytona.io) sandboxes. Designed for background execution with polling-based event streaming.
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
@@ -34,7 +34,7 @@ await sandbox.delete()
 
 - **Secure sandboxed execution** — Agents run in isolated Daytona sandboxes
 - **Background execution** — Start agents, poll for events, survive restarts
-- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://geminicli.com/docs/), and [OpenCode](https://opencode.ai/docs/)
+- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://geminicli.com/docs/), [OpenCode](https://opencode.ai/docs/), and [OpenHands](https://docs.openhands.dev/openhands/usage/cli/headless)
 - **Zero-friction setup** — Provider CLI auto-installed in sandbox
 - **Session persistence** — Resume conversations across runs and restarts
 
@@ -48,6 +48,7 @@ await sandbox.delete()
 | [Codex](https://developers.openai.com/codex/cli) | ✅ | `OPENAI_API_KEY` |
 | [OpenCode](https://opencode.ai/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
 | [Gemini](https://geminicli.com/docs/) | ✅ | `GEMINI_API_KEY` |
+| [OpenHands](https://docs.openhands.dev/openhands/usage/cli/headless) | ✅ | `LLM_API_KEY` (requires pre-configured settings) |
 
 ### CLI reference commands
 

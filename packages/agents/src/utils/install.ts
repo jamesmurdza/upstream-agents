@@ -9,6 +9,7 @@ const PROVIDER_PACKAGES: Record<ProviderName, string> = {
   codex: "@openai/codex",
   opencode: "opencode",
   gemini: "@google/gemini-cli",
+  openhands: "openhands",
 }
 
 /**
@@ -93,7 +94,7 @@ export function ensureCliInstalled(
  * Check installation status of all providers
  */
 export function getInstallationStatus(): Record<ProviderName, boolean> {
-  const providers: ProviderName[] = ["claude", "codex", "opencode", "gemini"]
+  const providers: ProviderName[] = ["claude", "codex", "opencode", "gemini", "openhands"]
   const status: Record<string, boolean> = {}
 
   for (const provider of providers) {
