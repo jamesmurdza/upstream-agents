@@ -42,7 +42,8 @@ export const openhandsAgent: AgentDefinition = {
 
   buildCommand(options: RunOptions): CommandSpec {
     // Build the openhands command
-    const parts: string[] = ["openhands", "--headless", "--json"]
+    // --always-approve auto-approves tool calls in headless mode
+    const parts: string[] = ["openhands", "--headless", "--json", "--always-approve"]
 
     // Add model if specified
     // OpenHands uses LLM_MODEL env var, but we can use --override-with-envs flag
