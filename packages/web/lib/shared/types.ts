@@ -1,9 +1,9 @@
 import { type BranchStatus, type AnthropicAuthType as ConstantsAnthropicAuthType } from "./constants"
 
-export type Agent = "claude-code" | "opencode" | "codex" | "gemini"
+export type Agent = "claude-code" | "opencode" | "codex" | "gemini" | "pi"
 
 // SDK provider names (must match ProviderName from SDK)
-export type ProviderName = "claude" | "codex" | "opencode" | "gemini"
+export type ProviderName = "claude" | "codex" | "opencode" | "gemini" | "pi"
 
 // SDK provider mapping
 export const agentToProvider: Record<Agent, ProviderName> = {
@@ -11,6 +11,7 @@ export const agentToProvider: Record<Agent, ProviderName> = {
   "opencode": "opencode",
   "codex": "codex",
   "gemini": "gemini",
+  "pi": "pi",
 }
 
 // Helper to get provider from agent string (handles legacy "claude" value)
@@ -29,6 +30,9 @@ export function getProviderForAgent(agent: string | undefined): ProviderName {
   if (agent === "gemini") {
     return "gemini"
   }
+  if (agent === "pi") {
+    return "pi"
+  }
   // Fallback for any other value
   return "claude"
 }
@@ -37,7 +41,7 @@ export function getProviderForAgent(agent: string | undefined): ProviderName {
 export interface ModelOption {
   value: string
   label: string
-  requiresKey?: "anthropic" | "openai" | "opencode" | "gemini" | "none" // Which API key is required
+  requiresKey?: "anthropic" | "openai" | "opencode" | "gemini" | "pi" | "none" // Which API key is required
 }
 
 export const agentModels: Record<Agent, ModelOption[]> = {
@@ -129,6 +133,20 @@ export const agentModels: Record<Agent, ModelOption[]> = {
     { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", requiresKey: "gemini" },
     { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", requiresKey: "gemini" },
   ],
+  "pi": [
+    // Anthropic models (default provider)
+    { value: "sonnet", label: "Claude Sonnet (Recommended)", requiresKey: "anthropic" },
+    { value: "opus", label: "Claude Opus", requiresKey: "anthropic" },
+    { value: "haiku", label: "Claude Haiku", requiresKey: "anthropic" },
+    // OpenAI models
+    { value: "openai/gpt-4o", label: "GPT-4o", requiresKey: "openai" },
+    { value: "openai/gpt-4o-mini", label: "GPT-4o Mini", requiresKey: "openai" },
+    { value: "openai/o3", label: "o3", requiresKey: "openai" },
+    { value: "openai/o3-mini", label: "o3 Mini", requiresKey: "openai" },
+    // Google models
+    { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash", requiresKey: "gemini" },
+    { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro", requiresKey: "gemini" },
+  ],
 }
 
 // Default model per agent
@@ -138,6 +156,7 @@ export const defaultAgentModel: Record<Agent, string> = {
   "opencode": "opencode/big-pickle",
   "codex": "gpt-5.4",
   "gemini": "gemini-2.5-flash",
+  "pi": "sonnet",
 }
 
 // User credentials for filtering
@@ -147,6 +166,7 @@ export interface UserCredentialFlags {
   hasOpenaiApiKey?: boolean
   hasOpencodeApiKey?: boolean
   hasGeminiApiKey?: boolean
+  hasPiApiKey?: boolean
   /** Server has OpenRouter (or similar) so AI branch naming works without user API keys */
   hasServerLlmFallback?: boolean
   squashOnMerge?: boolean
@@ -187,6 +207,15 @@ export function hasGeminiCredentials(credentials: UserCredentialFlags | null | u
 }
 
 /**
+ * Check if user has credentials for Pi agent.
+ * Pi can use Anthropic (default), OpenAI, or Google API keys depending on model.
+ * Returns true if user has any compatible API key.
+ */
+export function hasPiCredentials(credentials: UserCredentialFlags | null | undefined): boolean {
+  return !!(credentials?.hasAnthropicApiKey || credentials?.hasOpenaiApiKey || credentials?.hasGeminiApiKey || credentials?.hasPiApiKey)
+}
+
+/**
  * Get all models for an agent (no filtering by credentials).
  * All models are shown in the UI regardless of API key availability.
  */
@@ -213,8 +242,8 @@ export function hasCredentialsForModel(
     case "none":
       return true
     case "anthropic":
-      // OpenCode agent requires API key only - Claude subscription doesn't work with it
-      if (agent === "opencode") {
+      // OpenCode and Pi agents require API key only - Claude subscription doesn't work with them
+      if (agent === "opencode" || agent === "pi") {
         return !!credentials?.hasAnthropicApiKey
       }
       // Claude Code agent can use either API key or subscription
@@ -225,6 +254,8 @@ export function hasCredentialsForModel(
       return !!credentials?.hasOpencodeApiKey
     case "gemini":
       return !!credentials?.hasGeminiApiKey
+    case "pi":
+      return !!credentials?.hasPiApiKey
     default:
       return true
   }
@@ -352,6 +383,7 @@ export const agentLabels: Record<Agent, string> = {
   "opencode": "OpenCode",
   "codex": "Codex",
   "gemini": "Gemini",
+  "pi": "Pi",
 }
 
 // Get model label from model value

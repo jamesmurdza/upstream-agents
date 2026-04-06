@@ -67,6 +67,7 @@ function getEnvForModel(
     openaiApiKey?: string
     opencodeApiKey?: string
     geminiApiKey?: string
+    piApiKey?: string
   }
 ): Record<string, string> {
   const env: Record<string, string> = {}
@@ -91,6 +92,30 @@ function getEnvForModel(
   if (agent === "gemini") {
     if (credentials.geminiApiKey) {
       env.GEMINI_API_KEY = credentials.geminiApiKey
+    }
+    return env
+  }
+
+  // For Pi agent: determine API key based on model prefix
+  // Pi supports multiple providers (Anthropic, OpenAI, Google) via model prefix
+  if (agent === "pi") {
+    const modelPrefix = model?.split("/")[0]
+
+    if (modelPrefix === "openai") {
+      // openai/* models use OpenAI API key
+      if (credentials.openaiApiKey) {
+        env.OPENAI_API_KEY = credentials.openaiApiKey
+      }
+    } else if (modelPrefix === "google") {
+      // google/* models use Gemini API key
+      if (credentials.geminiApiKey) {
+        env.GEMINI_API_KEY = credentials.geminiApiKey
+      }
+    } else {
+      // Default: Anthropic models (sonnet, opus, haiku)
+      if (credentials.anthropicApiKey) {
+        env.ANTHROPIC_API_KEY = credentials.anthropicApiKey
+      }
     }
     return env
   }
@@ -149,7 +174,9 @@ export async function ensureSandboxReady(
   // Repository ID for fetching MCP server configs
   repoId?: string,
   // Gemini API key for Gemini agent
-  geminiApiKey?: string
+  geminiApiKey?: string,
+  // Pi API key for Pi agent (optional, uses Anthropic by default)
+  piApiKey?: string
 ): Promise<{
   sandbox: Awaited<ReturnType<InstanceType<typeof Daytona>["get"]>>
   wasResumed: boolean
@@ -254,6 +281,7 @@ export async function ensureSandboxReady(
     openaiApiKey,
     opencodeApiKey,
     geminiApiKey,
+    piApiKey,
   })
 
   // Get user-provided repo-level env vars (decrypted)

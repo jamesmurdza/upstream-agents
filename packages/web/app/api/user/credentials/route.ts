@@ -20,6 +20,7 @@ export async function POST(req: Request) {
     openaiApiKey,
     opencodeApiKey,
     geminiApiKey,
+    piApiKey,
     daytonaApiKey,
     sandboxAutoStopInterval,
     squashOnMerge,
@@ -69,6 +70,12 @@ export async function POST(req: Request) {
     updateData.geminiApiKey = null
   } else if (geminiApiKey) {
     updateData.geminiApiKey = encrypt(geminiApiKey)
+  }
+
+  if (piApiKey === null) {
+    updateData.piApiKey = null
+  } else if (piApiKey) {
+    updateData.piApiKey = encrypt(piApiKey)
   }
 
   if (sandboxAutoStopInterval !== undefined) {

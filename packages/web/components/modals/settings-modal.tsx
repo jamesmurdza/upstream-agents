@@ -18,6 +18,7 @@ interface SettingsModalProps {
     hasOpenaiApiKey: boolean
     hasOpencodeApiKey: boolean
     hasGeminiApiKey: boolean
+    hasPiApiKey: boolean
     hasDaytonaApiKey: boolean
     sandboxAutoStopInterval?: number
     squashOnMerge?: boolean
@@ -31,7 +32,7 @@ interface SettingsModalProps {
 }
 
 // Track which keys should be cleared on save
-type ClearableKey = "anthropicApiKey" | "anthropicAuthToken" | "openaiApiKey" | "opencodeApiKey" | "geminiApiKey" | "daytonaApiKey"
+type ClearableKey = "anthropicApiKey" | "anthropicAuthToken" | "openaiApiKey" | "opencodeApiKey" | "geminiApiKey" | "piApiKey" | "daytonaApiKey"
 
 export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate, highlightField, onClearHighlight }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("agents")
@@ -50,6 +51,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
   const [openaiApiKey, setOpenaiApiKey] = useState("")
   const [opencodeApiKey, setOpencodeApiKey] = useState("")
   const [geminiApiKey, setGeminiApiKey] = useState("")
+  const [piApiKey, setPiApiKey] = useState("")
 
   // Git preferences
   const [squashOnMerge, setSquashOnMerge] = useState(false)
@@ -76,6 +78,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
     openaiApiKey.trim() ||
     opencodeApiKey.trim() ||
     geminiApiKey.trim() ||
+    piApiKey.trim() ||
     daytonaApiKey.trim() ||
     keysToClear.size > 0 ||
     sandboxAutoStopInterval !== initialAutoStopInterval ||
@@ -94,6 +97,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       setOpenaiApiKey("")
       setOpencodeApiKey("")
       setGeminiApiKey("")
+      setPiApiKey("")
       setDaytonaApiKey("")
       setKeysToClear(new Set())
       const interval = credentials?.sandboxAutoStopInterval ?? 5
@@ -115,7 +119,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
   useEffect(() => {
     if (highlightField && open) {
       // Switch to agents tab if highlighting an agent-related field
-      if (["anthropicApiKey", "anthropicAuthToken", "openaiApiKey", "opencodeApiKey", "geminiApiKey"].includes(highlightField)) {
+      if (["anthropicApiKey", "anthropicAuthToken", "openaiApiKey", "opencodeApiKey", "geminiApiKey", "piApiKey"].includes(highlightField)) {
         setActiveTab("agents")
       }
       // Scroll field into view after a short delay to allow tab switch
@@ -147,6 +151,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
     const newOpenaiKey = openaiApiKey.trim()
     const newOpencodeKey = opencodeApiKey.trim()
     const newGeminiKey = geminiApiKey.trim()
+    const newPiKey = piApiKey.trim()
     const newDaytonaKey = daytonaApiKey.trim()
     const autoStopChanged = sandboxAutoStopInterval !== initialAutoStopInterval
 
@@ -164,6 +169,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       newOpenaiKey ||
       newOpencodeKey ||
       newGeminiKey ||
+      newPiKey ||
       newDaytonaKey ||
       autoStopChanged ||
       keysToClear.size > 0 ||
@@ -196,6 +202,9 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       }
       if (newGeminiKey) {
         payload.geminiApiKey = newGeminiKey
+      }
+      if (newPiKey) {
+        payload.piApiKey = newPiKey
       }
       if (newDaytonaKey) {
         payload.daytonaApiKey = newDaytonaKey
@@ -619,6 +628,50 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
                 />
                 <p className="text-[11px] text-muted-foreground">
                   Used by Gemini agent for Google AI models
+                </p>
+              </div>
+
+              {/* Pi API Key */}
+              <div className="flex flex-col gap-1.5 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Key className="h-3.5 w-3.5 text-muted-foreground" />
+                    <label className="text-xs font-medium text-foreground">Pi API Key</label>
+                    <span className="text-[10px] text-muted-foreground/70">(Optional)</span>
+                    {renderStatus(credentials?.hasPiApiKey ?? false, "piApiKey")}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {renderClearButton(credentials?.hasPiApiKey ?? false, "piApiKey")}
+                    {renderUndoClearButton("piApiKey")}
+                    <a
+                      href="https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Docs <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
+                </div>
+                <Input
+                  id="field-piApiKey"
+                  type="password"
+                  placeholder="Enter Pi API key (optional)..."
+                  value={piApiKey}
+                  onChange={(e) => {
+                    setPiApiKey(e.target.value)
+                    if (highlightField === "piApiKey") onClearHighlight?.()
+                  }}
+                  disabled={keysToClear.has("piApiKey")}
+                  aria-invalid={highlightField === "piApiKey"}
+                  className={cn(
+                    "h-9 bg-secondary border-border text-xs font-mono placeholder:text-muted-foreground/40",
+                    keysToClear.has("piApiKey") && "opacity-50",
+                    highlightField === "piApiKey" && "border-destructive ring-1 ring-destructive"
+                  )}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Optional. Pi agent uses Anthropic API key by default for Claude models
                 </p>
               </div>
 

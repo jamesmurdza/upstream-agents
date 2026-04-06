@@ -88,6 +88,7 @@ model UserCredentials {
   daytonaApiKey             String?
   opencodeApiKey            String?
   geminiApiKey              String?
+  piApiKey                  String?
   squashOnMerge             Boolean  @default(false)
   prDescriptionMode         String   @default("ai") // "ai" or "commits"
   user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -162,7 +163,7 @@ model Branch {
   draftPrompt String? @db.Text // Persisted draft input for chat continuity
 
   // Agent configuration
-  agent String @default("claude-code") // "claude-code" | "opencode" | "codex"
+  agent String @default("claude-code") // "claude-code" | "opencode" | "codex" | "gemini" | "pi"
   model String? // Model selection for the agent (e.g., "sonnet", "gpt-4o")
 
   // Commit tracking - HEAD at start of last execution, used for detecting new commits
