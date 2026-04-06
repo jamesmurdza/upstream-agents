@@ -157,6 +157,11 @@ class BackgroundSessionImpl implements BackgroundSession {
     // Build and execute command
     const commandSpec = this.agent.buildCommand(opts)
 
+    // Set cwd from options if not already set by agent
+    if (opts.cwd && !commandSpec.cwd) {
+      commandSpec.cwd = opts.cwd
+    }
+
     // Set env vars
     if (commandSpec.env) {
       this.sandbox.setEnvVars(commandSpec.env)
@@ -578,9 +583,15 @@ class BackgroundSessionImpl implements BackgroundSession {
     }
   }
 
-  private buildFullCommand(spec: { cmd: string; args: string[] }): string {
+  private buildFullCommand(spec: { cmd: string; args: string[]; cwd?: string }): string {
     const quotedArgs = spec.args.map((arg) => this.quoteArg(arg))
-    return [spec.cmd, ...quotedArgs].join(" ")
+    const command = [spec.cmd, ...quotedArgs].join(" ")
+    // If cwd is specified, prepend a cd command
+    if (spec.cwd) {
+      const safeCwd = spec.cwd.replace(/'/g, "'\\''")
+      return `cd '${safeCwd}' && ${command}`
+    }
+    return command
   }
 
   private quoteArg(arg: string): string {

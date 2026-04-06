@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/shared/utils"
 import type { Agent, Branch, UserCredentialFlags, ModelOption } from "@/lib/shared/types"
-import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials, hasCodexCredentials, hasGeminiCredentials, hasCredentialsForModel, agentModels } from "@/lib/shared/types"
+import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials, hasCodexCredentials, hasGeminiCredentials, hasPiCredentials, hasCredentialsForModel, agentModels } from "@/lib/shared/types"
 import { BRANCH_STATUS } from "@/lib/shared/constants"
 import { Send, ChevronDown, Sparkles, Check, Mic } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
@@ -94,10 +94,11 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
     const canSend = input.trim() && branch.status !== BRANCH_STATUS.RUNNING && branch.status !== BRANCH_STATUS.CREATING && branch.sandboxId
     const isReady = branch.sandboxId && (branch.status !== BRANCH_STATUS.CREATING)
 
-    // Check if user can use Claude Code, Codex, or Gemini
+    // Check if user can use Claude Code, Codex, Gemini, or Pi
     const canUseClaudeCode = hasClaudeCodeCredentials(credentials)
     const canUseCodex = hasCodexCredentials(credentials)
     const canUseGemini = hasGeminiCredentials(credentials)
+    const canUsePi = hasPiCredentials(credentials)
 
     // Auto-resize textarea
     useEffect(() => {
@@ -132,7 +133,11 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
       else if (newAgent === "gemini" && !canUseGemini) {
         onOpenSettingsWithHighlight?.("geminiApiKey")
       }
-    }, [onAgentChange, onOpenSettingsWithHighlight, canUseClaudeCode, canUseCodex, canUseGemini])
+      // If switching to Pi without any compatible API key, open settings with highlight on Anthropic API key field
+      else if (newAgent === "pi" && !canUsePi) {
+        onOpenSettingsWithHighlight?.("anthropicApiKey")
+      }
+    }, [onAgentChange, onOpenSettingsWithHighlight, canUseClaudeCode, canUseCodex, canUseGemini, canUsePi])
 
     // Handle model change - allow selection but open settings with highlight if missing credentials
     const handleModelChange = useCallback((model: ModelOption) => {

@@ -11,6 +11,7 @@ const PROVIDER_PACKAGES: Record<ProviderName, string> = {
   goose: "", // goose uses shell script installer, not npm
   opencode: "opencode",
   gemini: "@google/gemini-cli",
+  pi: "@mariozechner/pi-coding-agent",
 }
 
 /**
@@ -117,7 +118,7 @@ export function ensureCliInstalled(
  * Check installation status of all providers
  */
 export function getInstallationStatus(): Record<ProviderName, boolean> {
-  const providers: ProviderName[] = ["claude", "codex", "goose", "opencode", "gemini"]
+  const providers: ProviderName[] = ["claude", "codex", "goose", "opencode", "gemini", "pi"]
   const status: Record<string, boolean> = {}
 
   for (const provider of providers) {

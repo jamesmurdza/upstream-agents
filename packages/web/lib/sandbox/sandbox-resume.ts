@@ -111,6 +111,30 @@ function getEnvForModel(
     return env
   }
 
+  // For Pi agent: determine API key based on model prefix
+  // Pi supports multiple providers (Anthropic, OpenAI, Google) via model prefix
+  if (agent === "pi") {
+    const modelPrefix = model?.split("/")[0]
+
+    if (modelPrefix === "openai") {
+      // openai/* models use OpenAI API key
+      if (credentials.openaiApiKey) {
+        env.OPENAI_API_KEY = credentials.openaiApiKey
+      }
+    } else if (modelPrefix === "google") {
+      // google/* models use Gemini API key
+      if (credentials.geminiApiKey) {
+        env.GEMINI_API_KEY = credentials.geminiApiKey
+      }
+    } else {
+      // Default: Anthropic models (sonnet, opus, haiku)
+      if (credentials.anthropicApiKey) {
+        env.ANTHROPIC_API_KEY = credentials.anthropicApiKey
+      }
+    }
+    return env
+  }
+
   // For OpenCode agent, determine API key based on model prefix
   if (agent === "opencode") {
     const modelPrefix = model?.split("/")[0]

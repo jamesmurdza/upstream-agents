@@ -216,6 +216,7 @@ export const PATHS = {
     "codex": "/home/daytona/.codex/config.toml",
     "gemini": "/home/daytona/.gemini/settings.json",
     "goose": "/home/daytona/.config/goose/config.yaml",
+    "pi": "/home/daytona/.pi/config.json",
   },
 } as const
 

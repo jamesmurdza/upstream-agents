@@ -20,6 +20,8 @@ export interface CommandSpec {
   env?: Record<string, string>
   /** If true, wrap in bash for stderr handling */
   wrapInBash?: boolean
+  /** Working directory for the command */
+  cwd?: string
 }
 
 /**
@@ -42,6 +44,8 @@ export interface RunOptions {
   timeout?: number
   systemPrompt?: string
   env?: Record<string, string>
+  /** Working directory for the agent process */
+  cwd?: string
 }
 
 /**

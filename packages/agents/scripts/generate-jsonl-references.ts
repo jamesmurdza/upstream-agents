@@ -23,7 +23,8 @@
  *     ├── claude.jsonl          - Claude Code CLI raw output
  *     ├── codex.jsonl           - OpenAI Codex CLI raw output
  *     ├── gemini.jsonl          - Google Gemini CLI raw output
- *     └── opencode.jsonl        - OpenCode CLI raw output
+ *     ├── opencode.jsonl        - OpenCode CLI raw output
+ *     └── pi.jsonl              - Pi Coding Agent CLI raw output
  */
 
 import "dotenv/config"
@@ -92,6 +93,11 @@ const providers: ProviderConfig[] = [
     apiKeyEnvVar: "ANTHROPIC_API_KEY",
     apiKey: ANTHROPIC_API_KEY,
     model: "anthropic/claude-sonnet-4-6",
+  },
+  {
+    name: "pi",
+    apiKeyEnvVar: "ANTHROPIC_API_KEY",
+    apiKey: ANTHROPIC_API_KEY,
   },
 ]
 

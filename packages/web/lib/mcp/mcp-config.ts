@@ -54,6 +54,9 @@ export function buildMcpConfig(
     case "codex":
       configContent = buildCodexConfig(connectedServers)
       break
+    case "pi":
+      configContent = buildPiConfig(connectedServers)
+      break
     default:
       configContent = buildClaudeCodeConfig(connectedServers)
   }
@@ -134,6 +137,28 @@ function buildCodexConfig(servers: McpServerData[]): string {
   }
 
   return lines.join("\n")
+}
+
+/**
+ * Pi MCP config format (JSON)
+ * Path: ~/.pi/config.json
+ *
+ * Pi uses a similar MCP config format to Claude Code
+ */
+function buildPiConfig(servers: McpServerData[]): string {
+  const mcpServers: Record<string, unknown> = {}
+
+  for (const server of servers) {
+    mcpServers[server.slug] = {
+      type: "http",
+      url: server.url,
+      headers: {
+        Authorization: `Bearer ${server.accessToken}`,
+      },
+    }
+  }
+
+  return JSON.stringify({ mcpServers }, null, 2)
 }
 
 /**

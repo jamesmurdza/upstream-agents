@@ -42,6 +42,8 @@ export interface SessionOptions {
   systemPrompt?: string
   /** Environment variables */
   env?: Record<string, string>
+  /** Working directory for the agent process */
+  cwd?: string
 }
 
 /**
@@ -174,6 +176,7 @@ async function createSessionWithId(
     timeout: options.timeout,
     systemPrompt: options.systemPrompt,
     env: options.env,
+    cwd: options.cwd,
   })
 
   // Write initial meta for reattachment

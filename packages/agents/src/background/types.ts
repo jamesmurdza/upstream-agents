@@ -55,4 +55,6 @@ export interface StartOptions {
   timeout?: number
   systemPrompt?: string
   env?: Record<string, string>
+  /** Working directory for the agent process */
+  cwd?: string
 }
