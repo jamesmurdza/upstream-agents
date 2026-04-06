@@ -8,7 +8,7 @@ import { getPackageName } from "../utils/install.js"
 
 /** Escape a string for use in single-quoted shell strings */
 function escapeShell(str: string): string {
-  return str.replace(/'/g, "'\\''")
+  return str.replace(/'/g, "'\\''").replace(/\$/g, "\\$")
 }
 
 /** Build environment variable prefix for shell commands */
