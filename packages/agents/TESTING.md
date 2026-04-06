@@ -4,6 +4,18 @@ This document describes how to run unit tests and integration tests for the Agen
 
 ---
 
+## JSONL reference files
+
+Raw JSONL output from each provider CLI is captured in `packages/agents/tests/fixtures/jsonl-reference/`. To regenerate:
+
+```bash
+npm run generate:jsonl-refs -w @upstream/agents
+```
+
+These fixtures are used as samples to verify that the agents are working and to analyze their output formats.
+
+---
+
 ## Unit tests
 
 Unit tests need no database and no env files.
@@ -42,12 +54,4 @@ Example:
 ```bash
 TEST_DAYTONA_API_KEY=... TEST_ANTHROPIC_API_KEY=... \
   npm test -w @upstream/agents -- tests/integration
-```
-
-### JSONL reference files
-
-Raw JSONL output from each provider CLI is captured in `packages/agents/tests/fixtures/jsonl-reference/`. To regenerate:
-
-```bash
-npm run generate:jsonl-refs -w @upstream/agents
 ```
