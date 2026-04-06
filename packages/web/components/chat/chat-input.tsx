@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/shared/utils"
 import type { Agent, Branch, UserCredentialFlags, ModelOption } from "@/lib/shared/types"
-import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials, hasCodexCredentials, hasGeminiCredentials, hasCredentialsForModel, agentModels } from "@/lib/shared/types"
+import { agentLabels, getModelLabel, defaultAgentModel, getAvailableModels, hasClaudeCodeCredentials, hasClaurstCredentials, hasCodexCredentials, hasGeminiCredentials, hasCredentialsForModel, agentModels } from "@/lib/shared/types"
 import { BRANCH_STATUS } from "@/lib/shared/constants"
 import { Send, ChevronDown, Sparkles, Check, Mic } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
@@ -94,8 +94,9 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
     const canSend = input.trim() && branch.status !== BRANCH_STATUS.RUNNING && branch.status !== BRANCH_STATUS.CREATING && branch.sandboxId
     const isReady = branch.sandboxId && (branch.status !== BRANCH_STATUS.CREATING)
 
-    // Check if user can use Claude Code, Codex, or Gemini
+    // Check if user can use Claude Code, ClauRST, Codex, or Gemini
     const canUseClaudeCode = hasClaudeCodeCredentials(credentials)
+    const canUseClaurst = hasClaurstCredentials(credentials)
     const canUseCodex = hasCodexCredentials(credentials)
     const canUseGemini = hasGeminiCredentials(credentials)
 
@@ -124,6 +125,10 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
       if (newAgent === "claude-code" && !canUseClaudeCode) {
         onOpenSettingsWithHighlight?.("anthropicAuthToken")
       }
+      // If switching to ClauRST without Anthropic API key, open settings with highlight on API key field
+      else if (newAgent === "claurst" && !canUseClaurst) {
+        onOpenSettingsWithHighlight?.("anthropicApiKey")
+      }
       // If switching to Codex without OpenAI API key, open settings with highlight on API key field
       else if (newAgent === "codex" && !canUseCodex) {
         onOpenSettingsWithHighlight?.("openaiApiKey")
@@ -132,7 +137,7 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
       else if (newAgent === "gemini" && !canUseGemini) {
         onOpenSettingsWithHighlight?.("geminiApiKey")
       }
-    }, [onAgentChange, onOpenSettingsWithHighlight, canUseClaudeCode, canUseCodex, canUseGemini])
+    }, [onAgentChange, onOpenSettingsWithHighlight, canUseClaudeCode, canUseClaurst, canUseCodex, canUseGemini])
 
     // Handle model change - allow selection but open settings with highlight if missing credentials
     const handleModelChange = useCallback((model: ModelOption) => {

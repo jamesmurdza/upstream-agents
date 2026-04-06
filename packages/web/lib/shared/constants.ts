@@ -212,6 +212,7 @@ export const PATHS = {
   /** MCP config paths per agent */
   MCP_CONFIG: {
     "claude-code": "/home/daytona/.claude.json",
+    "claurst": "/home/daytona/.claurst/config.json",
     "opencode": "/home/daytona/.config/opencode/opencode.jsonc",
     "codex": "/home/daytona/.codex/config.toml",
     "gemini": "/home/daytona/.gemini/settings.json",

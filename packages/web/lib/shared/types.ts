@@ -1,13 +1,14 @@
 import { type BranchStatus, type AnthropicAuthType as ConstantsAnthropicAuthType } from "./constants"
 
-export type Agent = "claude-code" | "opencode" | "codex" | "gemini"
+export type Agent = "claude-code" | "claurst" | "opencode" | "codex" | "gemini"
 
 // SDK provider names (must match ProviderName from SDK)
-export type ProviderName = "claude" | "codex" | "opencode" | "gemini"
+export type ProviderName = "claude" | "claurst" | "codex" | "opencode" | "gemini"
 
 // SDK provider mapping
 export const agentToProvider: Record<Agent, ProviderName> = {
   "claude-code": "claude",
+  "claurst": "claurst",
   "opencode": "opencode",
   "codex": "codex",
   "gemini": "gemini",
@@ -19,6 +20,9 @@ export const agentToProvider: Record<Agent, ProviderName> = {
 export function getProviderForAgent(agent: string | undefined): ProviderName {
   if (!agent || agent === "claude" || agent === "claude-code") {
     return "claude"
+  }
+  if (agent === "claurst") {
+    return "claurst"
   }
   if (agent === "opencode") {
     return "opencode"
@@ -42,6 +46,13 @@ export interface ModelOption {
 
 export const agentModels: Record<Agent, ModelOption[]> = {
   "claude-code": [
+    { value: "default", label: "Default", requiresKey: "anthropic" },
+    { value: "sonnet", label: "Sonnet", requiresKey: "anthropic" },
+    { value: "opus", label: "Opus", requiresKey: "anthropic" },
+    { value: "haiku", label: "Haiku", requiresKey: "anthropic" },
+  ],
+  "claurst": [
+    // ClauRST is a Rust reimplementation of Claude Code with similar model support
     { value: "default", label: "Default", requiresKey: "anthropic" },
     { value: "sonnet", label: "Sonnet", requiresKey: "anthropic" },
     { value: "opus", label: "Opus", requiresKey: "anthropic" },
@@ -134,6 +145,7 @@ export const agentModels: Record<Agent, ModelOption[]> = {
 // Default model per agent
 export const defaultAgentModel: Record<Agent, string> = {
   "claude-code": "default",
+  "claurst": "default",
   // Use a free OpenCode-hosted model that doesn't require any API key
   "opencode": "opencode/big-pickle",
   "codex": "gpt-5.4",
@@ -170,6 +182,14 @@ export function getDefaultAgent(credentials: UserCredentialFlags | null | undefi
  */
 export function hasClaudeCodeCredentials(credentials: UserCredentialFlags | null | undefined): boolean {
   return !!(credentials?.hasAnthropicApiKey || credentials?.hasAnthropicAuthToken)
+}
+
+/**
+ * Check if user has credentials for ClauRST agent (requires Anthropic API key).
+ * ClauRST is a Rust reimplementation of Claude Code.
+ */
+export function hasClaurstCredentials(credentials: UserCredentialFlags | null | undefined): boolean {
+  return !!credentials?.hasAnthropicApiKey
 }
 
 /**
@@ -349,6 +369,7 @@ export interface Repo {
 
 export const agentLabels: Record<Agent, string> = {
   "claude-code": "Claude Code",
+  "claurst": "ClauRST",
   "opencode": "OpenCode",
   "codex": "Codex",
   "gemini": "Gemini",

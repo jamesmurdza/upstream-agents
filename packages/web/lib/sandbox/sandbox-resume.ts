@@ -79,6 +79,14 @@ function getEnvForModel(
     return env
   }
 
+  // For ClauRST agent: always use Anthropic API key (doesn't support auth token)
+  if (agent === "claurst") {
+    if (credentials.anthropicApiKey) {
+      env.ANTHROPIC_API_KEY = credentials.anthropicApiKey
+    }
+    return env
+  }
+
   // For Codex agent: use OpenAI API key
   if (agent === "codex") {
     if (credentials.openaiApiKey) {
