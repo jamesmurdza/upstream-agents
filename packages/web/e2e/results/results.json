@@ -1,68 +1,68 @@
 {
-  "timestamp": "2026-04-02T20:26:43.482Z",
-  "duration": 410176.858,
-  "status": "passed",
-  "passed": 21,
-  "failed": 0,
+  "timestamp": "2026-04-06T22:45:32.588Z",
+  "duration": 378859.216,
+  "status": "failed",
+  "passed": 20,
+  "failed": 1,
   "skipped": 0,
   "tests": [
     {
       "title": "each branch shows its own content",
       "file": "e2e/app/multi-agent-isolation.spec.ts",
       "status": "passed",
-      "duration": 40532,
+      "duration": 28582,
       "steps": []
     },
     {
       "title": "branch switching shows correct content",
       "file": "e2e/app/multi-agent-isolation.spec.ts",
       "status": "passed",
-      "duration": 30121,
+      "duration": 34412,
       "steps": []
     },
     {
       "title": "one branch erroring does not affect others",
       "file": "e2e/app/multi-agent-isolation.spec.ts",
       "status": "passed",
-      "duration": 20183,
+      "duration": 17424,
       "steps": []
     },
     {
       "title": "concurrent completions render correctly",
       "file": "e2e/app/multi-agent-isolation.spec.ts",
       "status": "passed",
-      "duration": 31678,
+      "duration": 23878,
       "steps": []
     },
     {
       "title": "3 concurrent agents: send, stream, complete, refresh",
       "file": "e2e/app/multi-agent.spec.ts",
       "status": "passed",
-      "duration": 29911,
+      "duration": 31154,
       "steps": [
         {
           "title": "navigate to repo",
-          "duration": 1361,
+          "duration": 1656,
           "status": "passed"
         },
         {
           "title": "send message on each branch",
-          "duration": 2204,
+          "duration": 2980,
           "status": "passed"
         },
         {
           "title": "all agents complete (via API)",
-          "duration": 15172,
+          "duration": 15303,
           "status": "passed"
         },
         {
           "title": "each branch has content and is idle",
-          "duration": 3595,
+          "duration": 4118,
           "status": "passed"
         },
         {
           "title": "refresh preserves all branches",
-          "duration": 6535,
+          "duration": 6497,
           "status": "passed"
         }
       ]
@@ -70,71 +70,72 @@
     {
       "title": "content preserved after visiting admin page",
       "file": "e2e/app/navigation-resilience.spec.ts",
-      "status": "passed",
-      "duration": 16251,
-      "steps": []
+      "status": "failed",
+      "duration": 6599,
+      "steps": [],
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mfalse\u001b[39m\nReceived: \u001b[31mtrue\u001b[39m"
     },
     {
       "title": "content preserved after opening and closing settings modal",
       "file": "e2e/app/navigation-resilience.spec.ts",
       "status": "passed",
-      "duration": 2819,
+      "duration": 15836,
       "steps": []
     },
     {
       "title": "content preserved after switching branches",
       "file": "e2e/app/navigation-resilience.spec.ts",
       "status": "passed",
-      "duration": 13649,
+      "duration": 7516,
       "steps": []
     },
     {
       "title": "agent continues while navigated away",
       "file": "e2e/app/navigation-resilience.spec.ts",
       "status": "passed",
-      "duration": 19183,
+      "duration": 23444,
       "steps": []
     },
     {
       "title": "rapid branch switching preserves state",
       "file": "e2e/app/navigation-resilience.spec.ts",
       "status": "passed",
-      "duration": 15913,
+      "duration": 14814,
       "steps": []
     },
     {
       "title": "recovers after reload mid-stream",
       "file": "e2e/app/recovery.spec.ts",
       "status": "passed",
-      "duration": 15267,
+      "duration": 18008,
       "steps": []
     },
     {
       "title": "recovers after multiple reloads",
       "file": "e2e/app/recovery.spec.ts",
       "status": "passed",
-      "duration": 18302,
+      "duration": 10489,
       "steps": []
     },
     {
       "title": "send → stream → complete → refresh",
       "file": "e2e/app/single-agent.spec.ts",
       "status": "passed",
-      "duration": 21987,
+      "duration": 18606,
       "steps": [
         {
           "title": "navigate and select branch",
-          "duration": 1434,
+          "duration": 1975,
           "status": "passed"
         },
         {
           "title": "send message",
-          "duration": 76,
+          "duration": 104,
           "status": "passed"
         },
         {
           "title": "agent starts working",
-          "duration": 5,
+          "duration": 4,
           "status": "passed"
         },
         {
@@ -144,17 +145,17 @@
         },
         {
           "title": "streaming content appears",
-          "duration": 362,
+          "duration": 365,
           "status": "passed"
         },
         {
           "title": "tool calls appear",
-          "duration": 9930,
+          "duration": 11974,
           "status": "passed"
         },
         {
           "title": "agent completes",
-          "duration": 6889,
+          "duration": 866,
           "status": "passed"
         },
         {
@@ -164,7 +165,7 @@
         },
         {
           "title": "refresh preserves content",
-          "duration": 2749,
+          "duration": 2869,
           "status": "passed"
         }
       ]
@@ -173,68 +174,68 @@
       "title": "UI updates when agent completes",
       "file": "e2e/app/state-sync.spec.ts",
       "status": "passed",
-      "duration": 13139,
+      "duration": 19478,
       "steps": []
     },
     {
       "title": "idle state correct after completion",
       "file": "e2e/app/state-sync.spec.ts",
       "status": "passed",
-      "duration": 12125,
+      "duration": 20046,
       "steps": []
     },
     {
       "title": "no empty prose blocks after completion",
       "file": "e2e/app/stream-integrity.spec.ts",
       "status": "passed",
-      "duration": 18155,
+      "duration": 15772,
       "steps": []
     },
     {
       "title": "no empty tool call blocks after completion",
       "file": "e2e/app/stream-integrity.spec.ts",
       "status": "passed",
-      "duration": 49631,
+      "duration": 19080,
       "steps": []
     },
     {
       "title": "user message renders completely",
       "file": "e2e/app/stream-integrity.spec.ts",
       "status": "passed",
-      "duration": 2498,
+      "duration": 2607,
       "steps": []
     },
     {
       "title": "content blocks have non-zero height",
       "file": "e2e/app/stream-integrity.spec.ts",
       "status": "passed",
-      "duration": 11099,
+      "duration": 10156,
       "steps": []
     },
     {
       "title": "baseline: send → stream → complete (instrumented)",
       "file": "e2e/diagnostics/stream-bug-repro.spec.ts",
       "status": "passed",
-      "duration": 10501,
+      "duration": 21181,
       "steps": [
         {
           "title": "navigate",
-          "duration": 1726,
+          "duration": 2107,
           "status": "passed"
         },
         {
           "title": "send",
-          "duration": 49,
+          "duration": 159,
           "status": "passed"
         },
         {
           "title": "working + content",
-          "duration": 381,
+          "duration": 426,
           "status": "passed"
         },
         {
           "title": "complete",
-          "duration": 7887,
+          "duration": 18182,
           "status": "passed"
         }
       ]
@@ -243,16 +244,16 @@
       "title": "stress: reload mid-run then expect eventual idle",
       "file": "e2e/diagnostics/stream-bug-repro.spec.ts",
       "status": "passed",
-      "duration": 14658,
+      "duration": 15773,
       "steps": [
         {
           "title": "reload while agent working",
-          "duration": 724,
+          "duration": 984,
           "status": "passed"
         },
         {
           "title": "server run completes then UI shows prose",
-          "duration": 9098,
+          "duration": 9184,
           "status": "passed"
         }
       ]
