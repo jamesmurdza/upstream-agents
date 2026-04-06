@@ -116,6 +116,24 @@ function getEnvForModel(
         env.OPENCODE_API_KEY = credentials.opencodeApiKey
       }
     }
+    return env
+  }
+
+  // For Picocode agent, determine API key based on model prefix (similar to OpenCode)
+  // Picocode model format: "provider/model-name" (e.g., "anthropic/claude-3-5-sonnet-20241022")
+  if (agent === "picocode") {
+    const modelPrefix = model?.split("/")[0]
+
+    if (modelPrefix === "anthropic") {
+      if (credentials.anthropicApiKey) {
+        env.ANTHROPIC_API_KEY = credentials.anthropicApiKey
+      }
+    } else if (modelPrefix === "openai") {
+      if (credentials.openaiApiKey) {
+        env.OPENAI_API_KEY = credentials.openaiApiKey
+      }
+    }
+    return env
   }
 
   return env
