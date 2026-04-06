@@ -1,6 +1,6 @@
 # Background Agents SDK
 
-A TypeScript SDK for running AI coding agents (Claude, Codex, Gemini, OpenCode) in secure [Daytona](https://daytona.io) sandboxes. Designed for background execution with polling-based event streaming.
+A TypeScript SDK for running AI coding agents (Claude, ClauRST, Codex, Gemini, OpenCode) in secure [Daytona](https://daytona.io) sandboxes. Designed for background execution with polling-based event streaming.
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
@@ -34,7 +34,7 @@ await sandbox.delete()
 
 - **Secure sandboxed execution** — Agents run in isolated Daytona sandboxes
 - **Background execution** — Start agents, poll for events, survive restarts
-- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://geminicli.com/docs/), and [OpenCode](https://opencode.ai/docs/)
+- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [ClauRST](https://github.com/Kuberwastaken/claurst), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://geminicli.com/docs/), and [OpenCode](https://opencode.ai/docs/)
 - **Zero-friction setup** — Provider CLI auto-installed in sandbox
 - **Session persistence** — Resume conversations across runs and restarts
 
@@ -45,6 +45,7 @@ await sandbox.delete()
 | Provider | Status | Auth |
 |----------|--------|------|
 | [Claude](https://docs.anthropic.com/en/docs/claude-code) | ✅ | `ANTHROPIC_API_KEY` |
+| [ClauRST](https://github.com/Kuberwastaken/claurst) | ✅ | `ANTHROPIC_API_KEY` |
 | [Codex](https://developers.openai.com/codex/cli) | ✅ | `OPENAI_API_KEY` |
 | [OpenCode](https://opencode.ai/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
 | [Gemini](https://geminicli.com/docs/) | ✅ | `GEMINI_API_KEY` |
@@ -54,6 +55,7 @@ await sandbox.delete()
 | Provider | CLI Command |
 |----------|-------------|
 | Claude | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions "prompt"` |
+| ClauRST | `claurst -p --output-format stream-json --verbose --dangerously-skip-permissions "prompt"` |
 | Codex | `codex exec --json --skip-git-repo-check --yolo "prompt"` |
 | OpenCode | `opencode run --format json --variant medium "prompt"` |
 | Gemini | `gemini --output-format stream-json --yolo -p "prompt"` |
@@ -241,6 +243,7 @@ type Event =
 | Provider | Example | Docs |
 |----------|---------|------|
 | **Claude** | `model: "sonnet"` | [Claude Code models](https://code.claude.com/docs/en/model-config) |
+| **ClauRST** | `model: "sonnet"` | [ClauRST](https://github.com/Kuberwastaken/claurst) |
 | **Codex** | `model: "gpt-4o"` | [Codex CLI models](https://developers.openai.com/codex/models) |
 | **OpenCode** | `model: "openai/gpt-4o"` | [OpenCode models](https://opencode.ai/docs/models/) |
 | **Gemini** | `model: "gemini-2.0-flash"` | [Gemini CLI model](https://geminicli.com/docs/cli/model) |
@@ -300,7 +303,7 @@ DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl-polling.ts
 
 **Sandbox** — [Daytona Docs](https://www.daytona.io/docs/) · [Daytona GitHub](https://github.com/daytonaio/daytona)
 
-**Agents** — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [Codex CLI](https://developers.openai.com/codex/cli) · [Gemini CLI](https://geminicli.com/docs/) · [OpenCode](https://opencode.ai/docs/)
+**Agents** — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [ClauRST](https://github.com/Kuberwastaken/claurst) · [Codex CLI](https://developers.openai.com/codex/cli) · [Gemini CLI](https://geminicli.com/docs/) · [OpenCode](https://opencode.ai/docs/)
 
 ---
 

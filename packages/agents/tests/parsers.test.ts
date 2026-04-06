@@ -5,10 +5,12 @@
 import { describe, it, expect } from "vitest"
 import {
   parseClaudeLine,
+  parseClaurstLine,
   parseCodexLine,
   parseGeminiLine,
   parseOpencodeLine,
   CLAUDE_TOOL_MAPPINGS,
+  CLAURST_TOOL_MAPPINGS,
   CODEX_TOOL_MAPPINGS,
   GEMINI_TOOL_MAPPINGS,
   OPENCODE_TOOL_MAPPINGS,
@@ -102,6 +104,297 @@ describe("parseClaudeLine", () => {
 
   it("returns null for unknown event types", () => {
     expect(parseClaudeLine('{"type": "unknown_event"}', mappings)).toBeNull()
+  })
+})
+
+describe("parseClaurstLine", () => {
+  const mappings = CLAURST_TOOL_MAPPINGS
+
+  it("returns null for invalid JSON", () => {
+    expect(parseClaurstLine("not json", mappings)).toBeNull()
+    expect(parseClaurstLine("", mappings)).toBeNull()
+    expect(parseClaurstLine("{not valid json}", mappings)).toBeNull()
+  })
+
+  it("parses system init event (Claude Code style)", () => {
+    const event = parseClaurstLine(
+      '{"type": "system", "subtype": "init", "session_id": "claurst-abc-123"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "session", id: "claurst-abc-123" })
+  })
+
+  it("parses init event (ClauRST style)", () => {
+    const event = parseClaurstLine(
+      '{"type": "init", "session_id": "claurst-xyz-789"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "session", id: "claurst-xyz-789" })
+  })
+
+  it("parses assistant message with text", () => {
+    const event = parseClaurstLine(
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          id: "msg_123",
+          content: [{ type: "text", text: "Hello from ClauRST!" }],
+        },
+        session_id: "abc-123",
+      }),
+      mappings
+    )
+    expect(event).toEqual({ type: "token", text: "Hello from ClauRST!" })
+  })
+
+  it("parses assistant message with tool_use", () => {
+    const event = parseClaurstLine(
+      JSON.stringify({
+        type: "assistant",
+        message: {
+          id: "msg_123",
+          content: [{ type: "tool_use", name: "FileRead" }],
+        },
+        session_id: "abc-123",
+      }),
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_start", name: "read", input: {} })
+  })
+
+  it("returns null for assistant message with empty content", () => {
+    const event = parseClaurstLine(
+      JSON.stringify({
+        type: "assistant",
+        message: { id: "msg_123", content: [] },
+        session_id: "abc-123",
+      }),
+      mappings
+    )
+    expect(event).toBeNull()
+  })
+
+  it("parses message.delta event", () => {
+    const event = parseClaurstLine(
+      '{"type": "message.delta", "text": "Streaming text..."}',
+      mappings
+    )
+    expect(event).toEqual({ type: "token", text: "Streaming text..." })
+  })
+
+  it("parses assistant.delta event", () => {
+    const event = parseClaurstLine(
+      '{"type": "assistant.delta", "text": "More streaming text"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "token", text: "More streaming text" })
+  })
+
+  it("parses assistant.delta event with content field", () => {
+    const event = parseClaurstLine(
+      '{"type": "assistant.delta", "content": "Content field text"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "token", text: "Content field text" })
+  })
+
+  it("returns null for delta event without text or content", () => {
+    const event = parseClaurstLine(
+      '{"type": "message.delta"}',
+      mappings
+    )
+    expect(event).toBeNull()
+  })
+
+  it("parses tool_use event", () => {
+    const event = parseClaurstLine(
+      '{"type": "tool_use", "name": "Bash", "input": {"command": "ls -la"}}',
+      mappings
+    )
+    expect(event).toMatchObject({ type: "tool_start", name: "shell" })
+  })
+
+  it("parses tool.start event", () => {
+    const event = parseClaurstLine(
+      '{"type": "tool.start", "name": "Write", "input": {"file_path": "/test.txt"}}',
+      mappings
+    )
+    expect(event).toMatchObject({ type: "tool_start", name: "write" })
+  })
+
+  it("parses tool_start event (underscore variant)", () => {
+    const event = parseClaurstLine(
+      '{"type": "tool_start", "name": "Grep"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_start", name: "grep", input: {} })
+  })
+
+  it("parses tool.delta event", () => {
+    const event = parseClaurstLine(
+      '{"type": "tool.delta", "text": "executing..."}',
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_delta", text: "executing..." })
+  })
+
+  it("parses tool_delta event (underscore variant)", () => {
+    const event = parseClaurstLine(
+      '{"type": "tool_delta", "text": "running command..."}',
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_delta", text: "running command..." })
+  })
+
+  it("parses tool.end event", () => {
+    const event = parseClaurstLine(
+      '{"type": "tool.end", "output": "file created"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_end", output: "file created" })
+  })
+
+  it("parses tool_end event with result field", () => {
+    const event = parseClaurstLine(
+      '{"type": "tool_end", "result": "command output"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_end", output: "command output" })
+  })
+
+  it("parses tool_result event", () => {
+    const event = parseClaurstLine(
+      '{"type": "tool_result", "tool_use_id": "tool_123", "result": "output text"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_end", output: "output text" })
+  })
+
+  it("parses tool_result event with content array", () => {
+    const event = parseClaurstLine(
+      '{"type": "tool_result", "tool_use_id": "tool_123", "content": [{"type": "text", "text": "array content"}]}',
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_end", output: "array content" })
+  })
+
+  it("parses tool result inside user message", () => {
+    const event = parseClaurstLine(
+      JSON.stringify({
+        type: "user",
+        message: {
+          content: [{ type: "tool_result", content: "user message tool result" }],
+        },
+      }),
+      mappings
+    )
+    expect(event).toEqual({ type: "tool_end", output: "user message tool result" })
+  })
+
+  it("parses complete event", () => {
+    const event = parseClaurstLine(
+      '{"type": "complete", "status": "success"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses assistant.complete event", () => {
+    const event = parseClaurstLine(
+      '{"type": "assistant.complete"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses message.complete event", () => {
+    const event = parseClaurstLine(
+      '{"type": "message.complete"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses complete event with error status", () => {
+    const event = parseClaurstLine(
+      '{"type": "complete", "status": "error", "error": "Something went wrong"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end", error: "Something went wrong" })
+  })
+
+  it("parses error event with message", () => {
+    const event = parseClaurstLine(
+      '{"type": "error", "message": "API error occurred"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end", error: "API error occurred" })
+  })
+
+  it("parses error event with error field", () => {
+    const event = parseClaurstLine(
+      '{"type": "error", "error": "Connection failed"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end", error: "Connection failed" })
+  })
+
+  it("parses result event (success)", () => {
+    const event = parseClaurstLine(
+      '{"type": "result", "subtype": "success", "result": "Done", "session_id": "abc-123"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses result event (error)", () => {
+    const event = parseClaurstLine(
+      '{"type": "result", "subtype": "error", "error": "Task failed", "session_id": "abc-123"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end", error: "Task failed" })
+  })
+
+  it("parses result event (error_during_execution)", () => {
+    const event = parseClaurstLine(
+      '{"type": "result", "subtype": "error_during_execution", "error": "Execution error", "session_id": "abc-123"}',
+      mappings
+    )
+    expect(event).toEqual({ type: "end", error: "Execution error" })
+  })
+
+  it("returns null for unknown event types", () => {
+    expect(parseClaurstLine('{"type": "unknown_event"}', mappings)).toBeNull()
+  })
+
+  it("normalizes tool names using mappings", () => {
+    // Test FileWrite -> write
+    const writeEvent = parseClaurstLine(
+      '{"type": "tool_use", "name": "FileWrite"}',
+      mappings
+    )
+    expect(writeEvent).toMatchObject({ type: "tool_start", name: "write" })
+
+    // Test PtyBashTool -> shell
+    const shellEvent = parseClaurstLine(
+      '{"type": "tool_use", "name": "PtyBashTool"}',
+      mappings
+    )
+    expect(shellEvent).toMatchObject({ type: "tool_start", name: "shell" })
+
+    // Test GlobTool -> glob
+    const globEvent = parseClaurstLine(
+      '{"type": "tool_use", "name": "GlobTool"}',
+      mappings
+    )
+    expect(globEvent).toMatchObject({ type: "tool_start", name: "glob" })
+
+    // Test WebSearchTool -> web_search
+    const webEvent = parseClaurstLine(
+      '{"type": "tool_use", "name": "WebSearchTool"}',
+      mappings
+    )
+    expect(webEvent).toMatchObject({ type: "tool_start", name: "web_search" })
   })
 })
 
