@@ -49,7 +49,7 @@ await sandbox.delete()
 | [Goose](https://block.github.io/goose/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) |
 | [OpenCode](https://opencode.ai/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
 | [Gemini](https://geminicli.com/docs/) | ✅ | `GEMINI_API_KEY` |
-| [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) | ✅ | `ANTHROPIC_API_KEY` (default) or provider-specific |
+| [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) | ✅ | Provider-specific (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) |
 
 ### CLI reference commands
 
