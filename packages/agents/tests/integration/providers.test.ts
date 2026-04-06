@@ -9,6 +9,7 @@
  *   - codex: DAYTONA_API_KEY, OPENAI_API_KEY
  *   - gemini: DAYTONA_API_KEY, GEMINI_API_KEY (or GOOGLE_API_KEY)
  *   - opencode: DAYTONA_API_KEY, ANTHROPIC_API_KEY (or OPENAI_API_KEY)
+ *   - pi: DAYTONA_API_KEY, ANTHROPIC_API_KEY (Pi uses Anthropic by default)
  *
  * You can use TEST_ prefixed keys (e.g., TEST_OPENAI_API_KEY) to avoid conflicts
  * with running agents.
@@ -64,6 +65,12 @@ const agents = [
     apiKey: ANTHROPIC_API_KEY,
     hasKey: !!ANTHROPIC_API_KEY,
     model: "anthropic/claude-sonnet-4-6",
+  },
+  {
+    name: "pi" as const,
+    apiKeyEnvVar: "ANTHROPIC_API_KEY", // Pi uses Anthropic by default
+    apiKey: ANTHROPIC_API_KEY,
+    hasKey: !!ANTHROPIC_API_KEY,
   },
 ]
 
