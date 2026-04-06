@@ -47,10 +47,11 @@ export const piAgent: AgentDefinition = {
       args.push("--model", options.model)
     }
 
-    // Resume session if provided
-    // Pi supports --session <path|id> to resume a specific session
+    // Resume the most recent session in the current directory
+    // Pi's --resume flag (without session ID) resumes the last session in cwd
+    // This works well with cwd being set to the repo directory
     if (options.sessionId) {
-      args.push("--session", options.sessionId)
+      args.push("--resume")
     }
 
     // Add the prompt if provided
