@@ -59,7 +59,7 @@ export type ContentBlock = {
   text: string
 } | {
   type: "tool_calls"
-  toolCalls: Array<{ tool: string; summary: string; fullSummary?: string; filePath?: string }>
+  toolCalls: Array<{ tool: string; summary: string; fullSummary?: string; filePath?: string; output?: string }>
 }
 
 export interface AgentCrashedPayload {
@@ -70,7 +70,7 @@ export interface AgentCrashedPayload {
 export interface BackgroundPollResult {
   status: "running" | "completed" | "error"
   content: string
-  toolCalls: Array<{ tool: string; summary: string; fullSummary?: string }>
+  toolCalls: Array<{ tool: string; summary: string; fullSummary?: string; output?: string }>
   contentBlocks: ContentBlock[]
   error?: string
   agentCrashed?: AgentCrashedPayload
@@ -191,13 +191,16 @@ function getToolDetail(toolName: string, input: unknown): ToolDetailResult {
 // ContentBlocks Builder (for background execution results)
 // =============================================================================
 
+/** Maximum characters to store/display for a single multi-line tool output. */
+const TOOL_OUTPUT_MAX_CHARS = 4000
+
 export function buildContentBlocks(
   events: Event[]
-): { content: string; toolCalls: Array<{ tool: string; summary: string; fullSummary?: string; filePath?: string }>; contentBlocks: ContentBlock[] } {
+): { content: string; toolCalls: Array<{ tool: string; summary: string; fullSummary?: string; filePath?: string; output?: string }>; contentBlocks: ContentBlock[] } {
   const blocks: ContentBlock[] = []
   let pendingText = ""
-  let pendingToolCalls: Array<{ tool: string; summary: string; fullSummary?: string; filePath?: string }> = []
-  const allToolCalls: Array<{ tool: string; summary: string; fullSummary?: string; filePath?: string }> = []
+  let pendingToolCalls: Array<{ tool: string; summary: string; fullSummary?: string; filePath?: string; output?: string }> = []
+  const allToolCalls: Array<{ tool: string; summary: string; fullSummary?: string; filePath?: string; output?: string }> = []
   let allContent = ""
 
   for (const event of events) {
@@ -224,6 +227,20 @@ export function buildContentBlocks(
       const toolCall = { tool, summary, fullSummary, filePath }
       pendingToolCalls.push(toolCall)
       allToolCalls.push(toolCall)
+    } else if (event.type === "tool_end") {
+      const toolEndEvent = event as ToolEndEvent
+      const rawOutput = toolEndEvent.output
+      // Attach output to the last tool call if one exists and output is non-empty.
+      // Both pendingToolCalls and allToolCalls hold references to the same objects, so
+      // mutating via allToolCalls propagates to pendingToolCalls and any already-flushed
+      // blocks (which hold shallow-copied arrays of the same object references).
+      if (rawOutput && rawOutput.trim() && allToolCalls.length > 0) {
+        let output = rawOutput.trim()
+        if (output.length > TOOL_OUTPUT_MAX_CHARS) {
+          output = output.slice(0, TOOL_OUTPUT_MAX_CHARS) + "\n… (output truncated)"
+        }
+        allToolCalls[allToolCalls.length - 1].output = output
+      }
     }
   }
 

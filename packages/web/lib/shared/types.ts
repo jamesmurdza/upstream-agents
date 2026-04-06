@@ -278,6 +278,8 @@ export interface ToolCall {
   summary: string
   fullSummary?: string // Full summary when truncated (for hover tooltip)
   filePath?: string // Full file path for file-related tools (Read, Edit, Write)
+  /** stdout/stderr captured from the command; only present when the agent emits it */
+  output?: string
   timestamp: string
 }
 

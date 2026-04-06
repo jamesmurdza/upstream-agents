@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
   FileCode,
+  ChevronRight,
 } from "lucide-react"
 import { AgentIcon } from "@/components/icons/agent-icons"
 import { NoticeIcon, type NoticeIconType } from "@/components/icons/notice-icons"
@@ -64,6 +65,51 @@ function ToolCallIcon({ tool }: { tool: string }) {
 }
 
 // ============================================================================
+// Shell Output Collapsible
+// ============================================================================
+
+/**
+ * Renders the captured stdout/stderr of a shell command.
+ * - Single-line output: always expanded (no toggle needed).
+ * - Multi-line output: collapsed by default, toggled with a chevron.
+ * Only rendered when output is a non-empty string — never produces an
+ * empty element, so old DB records (output === undefined) are safe.
+ */
+function ShellOutput({ output }: { output: string }) {
+  const isMultiLine = output.includes("\n")
+  const [expanded, setExpanded] = useState(!isMultiLine)
+
+  if (!isMultiLine) {
+    // Single line — always visible, no toggle
+    return (
+      <div className="ml-[12px] mt-0.5 rounded bg-muted/50 border border-border/50 px-2 py-1">
+        <pre className="font-mono text-[10px] text-muted-foreground whitespace-pre-wrap break-all leading-4">{output}</pre>
+      </div>
+    )
+  }
+
+  return (
+    <div className="ml-[12px] mt-0.5">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-pointer"
+      >
+        <ChevronRight
+          className={cn("h-3 w-3 transition-transform duration-150", expanded && "rotate-90")}
+        />
+        <span>{expanded ? "Hide output" : "Show output"}</span>
+      </button>
+      {expanded && (
+        <div className="mt-1 rounded bg-muted/50 border border-border/50 px-2 py-1.5 max-h-[300px] overflow-y-auto">
+          <pre className="font-mono text-[10px] text-muted-foreground whitespace-pre-wrap break-all leading-4">{output}</pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
 // File Preview Components for Tool Calls
 // ============================================================================
 
@@ -76,6 +122,9 @@ interface FilePreviewContent {
 }
 
 const PREVIEW_LINES = 50
+
+/** Tool names whose output (stdout/stderr) should be shown in the timeline. */
+const TOOL_OUTPUT_TOOLS = ["Bash", "Shell", "Exec", "Run"] as const
 
 /**
  * Format file size for display
@@ -326,36 +375,42 @@ function ToolCallTimeline({ toolCalls, sandboxId, repoPath }: { toolCalls: ToolC
           // Check if this is a file-related tool with a file path
           const isFileRelatedTool = ["Read", "Edit", "Write"].includes(tc.tool)
           const hasFilePath = isFileRelatedTool && tc.filePath
-
+          // Only show output chevron for shell commands that produce stdout/stderr
+          const hasOutput = TOOL_OUTPUT_TOOLS.includes(tc.tool as typeof TOOL_OUTPUT_TOOLS[number]) &&
+                            typeof tc.output === "string" && tc.output.length > 0
+                            
           return (
-            <div key={tc.id} className="relative flex items-start gap-2.5 py-[5px] min-w-0">
-              <div className="relative z-10 flex h-[12px] w-[12px] shrink-0 items-center justify-center text-muted-foreground mt-0.5">
-                <ToolCallIcon tool={tc.tool} />
+            <div key={tc.id} className="relative py-[5px] min-w-0">
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="relative z-10 flex h-[12px] w-[12px] shrink-0 items-center justify-center text-muted-foreground mt-0.5">
+                  <ToolCallIcon tool={tc.tool} />
+                </div>
+                {hasFilePath ? (
+                  <FilePathLink
+                    filePath={tc.filePath!}
+                    displayText={tc.summary}
+                    fullSummary={tc.fullSummary}
+                    sandboxId={sandboxId}
+                    repoPath={repoPath}
+                  />
+                ) : tc.fullSummary ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-xs text-muted-foreground break-words min-w-0">
+                        {tc.summary}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-md font-mono text-[10px] whitespace-pre-wrap [overflow-wrap:anywhere]">
+                      {tc.fullSummary}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <span className="text-xs text-muted-foreground break-words min-w-0">
+                    {tc.summary}
+                  </span>
+                )}
               </div>
-              {hasFilePath ? (
-                <FilePathLink
-                  filePath={tc.filePath!}
-                  displayText={tc.summary}
-                  fullSummary={tc.fullSummary}
-                  sandboxId={sandboxId}
-                  repoPath={repoPath}
-                />
-              ) : tc.fullSummary ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-xs text-muted-foreground break-words min-w-0">
-                      {tc.summary}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-md font-mono text-[10px] whitespace-pre-wrap [overflow-wrap:anywhere]">
-                    {tc.fullSummary}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <span className="text-xs text-muted-foreground break-words min-w-0">
-                  {tc.summary}
-                </span>
-              )}
+              {hasOutput && <ShellOutput output={tc.output!} />}
             </div>
           )
         })}
