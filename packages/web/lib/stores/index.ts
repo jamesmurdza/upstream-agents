@@ -13,3 +13,6 @@ export { useUIStore } from "./ui-store"
 
 // Selection Store - active repo/branch selection
 export { useSelectionStore } from "./selection-store"
+
+// Repo Store - repos, branches, and messages (persists across navigation)
+export { useRepoStore } from "./repo-store"

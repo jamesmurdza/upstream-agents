@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useEffect, useState } from "react"
+import { useCallback, useRef, useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   DbMessage,
@@ -8,7 +8,6 @@ import {
   DbRepo,
   Quota,
   UserCredentials,
-  TransformedRepo,
   transformRepo,
   transformMessage,
   transformMessageSummary,
@@ -17,6 +16,7 @@ import { BRANCH_STATUS } from "@/lib/shared/constants"
 import { queryKeys } from "@/lib/api/query-keys"
 import { apiFetch } from "@/lib/api/fetcher"
 import { isBranchPolling, hasActiveExecutions } from "@/hooks/use-execution-poller"
+import { useRepoStore } from "@/lib/stores"
 
 /**
  * Response shape from /api/user/me
@@ -71,18 +71,16 @@ interface UseRepoDataOptions {
 /**
  * Manages fetching and state for repos, quota, and credentials.
  * Uses TanStack Query for initial fetch and quota/credentials,
- * but local state for repos to avoid transform/untransform issues during streaming.
+ * and Zustand store for repos to persist across navigation.
  */
 export function useRepoData({ isAuthenticated }: UseRepoDataOptions) {
   const queryClient = useQueryClient()
 
-  // Local state for repos - avoids transform/untransform issues with TanStack Query cache
-  const [repos, setRepos] = useState<TransformedRepo[]>([])
-  const [loaded, setLoaded] = useState(false)
+  // Use Zustand store for repos - persists across navigation (e.g., to /admin and back)
+  const { repos, setRepos, loaded, setLoaded, loadingMessageBranchIds, setLoadingMessageBranchIds } = useRepoStore()
 
   // Per-branch request sequencing to ignore stale/out-of-order responses.
   const messageLoadSeqRef = useRef(new Map<string, number>())
-  const [loadingMessageBranchIds, setLoadingMessageBranchIds] = useState<Set<string>>(new Set())
 
   // Keep a ref to repos for callbacks that need current value without re-creating
   const reposRef = useRef(repos)
