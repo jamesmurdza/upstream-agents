@@ -6,9 +6,11 @@ import type { ProviderName } from "../types/index.js"
  * Note: goose uses a shell script installer, not npm.
  */
 const PROVIDER_PACKAGES: Record<ProviderName, string> = {
+  amp: "@anthropic/amp", // Amp Code CLI
   claude: "@anthropic-ai/claude-code",
   codex: "@openai/codex",
   goose: "", // goose uses shell script installer, not npm
+  letta: "letta", // Letta Code CLI
   opencode: "opencode",
   gemini: "@google/gemini-cli",
   pi: "@mariozechner/pi-coding-agent",
@@ -118,7 +120,7 @@ export function ensureCliInstalled(
  * Check installation status of all providers
  */
 export function getInstallationStatus(): Record<ProviderName, boolean> {
-  const providers: ProviderName[] = ["claude", "codex", "goose", "opencode", "gemini", "pi"]
+  const providers: ProviderName[] = ["amp", "claude", "codex", "goose", "letta", "opencode", "gemini", "pi"]
   const status: Record<string, boolean> = {}
 
   for (const provider of providers) {

@@ -4,16 +4,20 @@
  */
 import { describe, it, expect } from "vitest"
 import {
+  parseAmpLine,
   parseClaudeLine,
   parseCodexLine,
   parseGeminiLine,
   parseGooseLine,
+  parseLettaLine,
   parseOpencodeLine,
   parsePiLine,
+  AMP_TOOL_MAPPINGS,
   CLAUDE_TOOL_MAPPINGS,
   CODEX_TOOL_MAPPINGS,
   GEMINI_TOOL_MAPPINGS,
   GOOSE_TOOL_MAPPINGS,
+  LETTA_TOOL_MAPPINGS,
   OPENCODE_TOOL_MAPPINGS,
   PI_TOOL_MAPPINGS,
 } from "../src/agents/index.js"
@@ -1086,5 +1090,570 @@ describe("parsePiLine", () => {
   it("returns null for unknown event types", () => {
     const ctx = createContext()
     expect(parsePiLine('{"type": "unknown"}', mappings, ctx)).toBeNull()
+  })
+})
+
+describe("parseAmpLine", () => {
+  const mappings = AMP_TOOL_MAPPINGS
+
+  it("returns null for invalid JSON", () => {
+    const ctx = createContext()
+    expect(parseAmpLine("not json", mappings, ctx)).toBeNull()
+    expect(parseAmpLine("", mappings, ctx)).toBeNull()
+    expect(parseAmpLine("{not valid json}", mappings, ctx)).toBeNull()
+  })
+
+  it("parses system init event with session", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      '{"type": "system", "subtype": "init", "session": "amp-session-123"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "session", id: "amp-session-123" })
+    expect(ctx.sessionId).toBe("amp-session-123")
+  })
+
+  it("parses system init event with session_id", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      '{"type": "system", "subtype": "init", "session_id": "amp-session-456"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "session", id: "amp-session-456" })
+  })
+
+  it("parses assistant message with text content", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "assistant",
+        content: [{ type: "text", text: "Hello from Amp!" }],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "token", text: "Hello from Amp!" })
+  })
+
+  it("parses assistant message with tool_use", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "assistant",
+        content: [
+          {
+            type: "tool_use",
+            id: "tool_123",
+            name: "Read",
+            input: { file_path: "/path/to/file.ts" },
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "read",
+      input: { file_path: "/path/to/file.ts" },
+    })
+  })
+
+  it("parses assistant message with multiple content blocks", () => {
+    const ctx = createContext()
+    const events = parseAmpLine(
+      JSON.stringify({
+        type: "assistant",
+        content: [
+          { type: "text", text: "Let me read that file." },
+          {
+            type: "tool_use",
+            id: "tool_456",
+            name: "Bash",
+            input: { command: "ls -la" },
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(events).toEqual([
+      { type: "token", text: "Let me read that file." },
+      { type: "tool_start", name: "shell", input: { command: "ls -la" } },
+    ])
+  })
+
+  it("returns null for assistant message with empty content", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "assistant",
+        content: [],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
+  })
+
+  it("parses user message with tool_result", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "tool_123",
+            content: "file contents here",
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: "file contents here" })
+  })
+
+  it("parses user message with tool_result error", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "tool_123",
+            content: "File not found",
+            is_error: true,
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: "Error: File not found" })
+  })
+
+  it("parses user message with tool_result array content", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "tool_123",
+            content: [{ type: "text", text: "line1" }, { type: "text", text: "line2" }],
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: "line1\nline2" })
+  })
+
+  it("parses result event with success", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "result",
+        subtype: "success",
+        result: "Task completed",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses result event with error", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "result",
+        subtype: "error",
+        error: "API rate limit exceeded",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "API rate limit exceeded" })
+  })
+
+  it("parses result event with error_during_execution", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "result",
+        subtype: "error_during_execution",
+        result: "Command failed",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "Command failed" })
+  })
+
+  it("parses error event with string error", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "error",
+        error: "Connection timeout",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "Connection timeout" })
+  })
+
+  it("parses error event with object error", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "error",
+        error: { message: "Authentication failed", code: "auth_error" },
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "Authentication failed" })
+  })
+
+  it("parses error event with message field", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "error",
+        message: "Network error",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "Network error" })
+  })
+
+  it("returns null for unknown event types", () => {
+    const ctx = createContext()
+    expect(parseAmpLine('{"type": "unknown"}', mappings, ctx)).toBeNull()
+  })
+
+  it("normalizes tool names correctly", () => {
+    const ctx = createContext()
+    const event = parseAmpLine(
+      JSON.stringify({
+        type: "assistant",
+        content: [
+          {
+            type: "tool_use",
+            id: "tool_789",
+            name: "str_replace_editor",
+            input: { file_path: "/test.ts" },
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "edit",
+      input: { file_path: "/test.ts" },
+    })
+  })
+})
+
+describe("parseLettaLine", () => {
+  const mappings = LETTA_TOOL_MAPPINGS
+
+  it("returns null for invalid JSON", () => {
+    const ctx = createContext()
+    expect(parseLettaLine("not json", mappings, ctx)).toBeNull()
+    expect(parseLettaLine("", mappings, ctx)).toBeNull()
+    expect(parseLettaLine("{not valid json}", mappings, ctx)).toBeNull()
+  })
+
+  it("parses system init event", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      '{"type": "system", "subtype": "init"}',
+      mappings,
+      ctx
+    )
+    expect(event).toMatchObject({ type: "session" })
+    expect((event as { id: string }).id).toMatch(/^letta-\d+$/)
+    expect(ctx.state.initialized).toBe(true)
+  })
+
+  it("returns null for system event without init subtype", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      '{"type": "system"}',
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
+  })
+
+  it("parses assistant_message event", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "assistant_message",
+        content: "Hello from Letta!",
+        uuid: "msg-123",
+        seq_id: 1,
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "token", text: "Hello from Letta!" })
+  })
+
+  it("returns null for assistant_message with empty content", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "assistant_message",
+        content: "",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
+  })
+
+  it("returns null for reasoning_message", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "reasoning_message",
+        reasoning: "Let me think about this...",
+        uuid: "msg-456",
+        seq_id: 2,
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
+  })
+
+  it("parses approval_request_message with tool_call", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "approval_request_message",
+        tool_call: {
+          tool_call_id: "tool_123",
+          name: "run_command",
+          arguments: '{"command": "ls -la"}',
+        },
+        uuid: "msg-789",
+        seq_id: 3,
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "shell",
+      input: { command: "ls -la" },
+    })
+  })
+
+  it("parses approval_request_message with read_file tool", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "approval_request_message",
+        tool_call: {
+          tool_call_id: "tool_456",
+          name: "read_file",
+          arguments: '{"file_path": "/path/to/file.ts"}',
+        },
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "read",
+      input: { file_path: "/path/to/file.ts" },
+    })
+  })
+
+  it("handles approval_request_message with invalid arguments JSON", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "approval_request_message",
+        tool_call: {
+          tool_call_id: "tool_789",
+          name: "shell",
+          arguments: "not valid json",
+        },
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "shell",
+      input: {},
+    })
+  })
+
+  it("returns null for approval_request_message without tool name", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "approval_request_message",
+        tool_call: {
+          tool_call_id: "tool_abc",
+        },
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
+  })
+
+  it("parses stop_reason message as tool_end", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "stop_reason",
+        stop_reason: "tool_complete",
+        uuid: "msg-stop",
+        seq_id: 4,
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end" })
+  })
+
+  it("parses result event as end", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "result",
+        result: "Task completed successfully",
+        otid: "result-123",
+        seq_id: 5,
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses error event with string error", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "error",
+        error: "API rate limit exceeded",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "API rate limit exceeded" })
+  })
+
+  it("parses error event with object error", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "error",
+        error: { message: "Connection failed", code: "NETWORK_ERROR" },
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "Connection failed" })
+  })
+
+  it("parses error event with message field", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "error",
+        message: "Timeout error",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "Timeout error" })
+  })
+
+  it("returns null for unknown event types", () => {
+    const ctx = createContext()
+    expect(parseLettaLine('{"type": "unknown"}', mappings, ctx)).toBeNull()
+  })
+
+  it("returns null for unknown message_type", () => {
+    const ctx = createContext()
+    const event = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "unknown_message_type",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
+  })
+
+  it("normalizes various tool names correctly", () => {
+    const ctx = createContext()
+
+    // Test write_file -> write
+    const writeEvent = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "approval_request_message",
+        tool_call: { tool_call_id: "t1", name: "write_file", arguments: "{}" },
+      }),
+      mappings,
+      ctx
+    )
+    expect(writeEvent).toMatchObject({ name: "write" })
+
+    // Test Bash -> shell
+    const bashEvent = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "approval_request_message",
+        tool_call: { tool_call_id: "t2", name: "Bash", arguments: "{}" },
+      }),
+      mappings,
+      ctx
+    )
+    expect(bashEvent).toMatchObject({ name: "shell" })
+
+    // Test search_files -> grep
+    const searchEvent = parseLettaLine(
+      JSON.stringify({
+        type: "message",
+        message_type: "approval_request_message",
+        tool_call: { tool_call_id: "t3", name: "search_files", arguments: "{}" },
+      }),
+      mappings,
+      ctx
+    )
+    expect(searchEvent).toMatchObject({ name: "grep" })
   })
 })
