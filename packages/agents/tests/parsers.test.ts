@@ -8,12 +8,14 @@ import {
   parseCodexLine,
   parseGeminiLine,
   parseGooseLine,
+  parseKimiLine,
   parseOpencodeLine,
   parsePiLine,
   CLAUDE_TOOL_MAPPINGS,
   CODEX_TOOL_MAPPINGS,
   GEMINI_TOOL_MAPPINGS,
   GOOSE_TOOL_MAPPINGS,
+  KIMI_TOOL_MAPPINGS,
   OPENCODE_TOOL_MAPPINGS,
   PI_TOOL_MAPPINGS,
 } from "../src/agents/index.js"
@@ -1086,5 +1088,281 @@ describe("parsePiLine", () => {
   it("returns null for unknown event types", () => {
     const ctx = createContext()
     expect(parsePiLine('{"type": "unknown"}', mappings, ctx)).toBeNull()
+  })
+})
+
+describe("parseKimiLine", () => {
+  const mappings = KIMI_TOOL_MAPPINGS
+
+  it("returns null for invalid JSON", () => {
+    const ctx = createContext()
+    expect(parseKimiLine("not json", mappings, ctx)).toBeNull()
+    expect(parseKimiLine("", mappings, ctx)).toBeNull()
+    expect(parseKimiLine("{not valid json}", mappings, ctx)).toBeNull()
+  })
+
+  it("returns null for user messages", () => {
+    const ctx = createContext()
+    const event = parseKimiLine(
+      JSON.stringify({ role: "user", content: "Hello" }),
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
+  })
+
+  it("parses assistant message with text and emits session", () => {
+    const ctx = createContext()
+    const events = parseKimiLine(
+      JSON.stringify({ role: "assistant", content: "Hello from Kimi!" }),
+      mappings,
+      ctx
+    )
+    // First message emits both session and token events
+    expect(events).toEqual([
+      { type: "session", id: expect.stringMatching(/^kimi-\d+$/) },
+      { type: "token", text: "Hello from Kimi!" },
+    ])
+    expect(ctx.state.sessionEmitted).toBe(true)
+  })
+
+  it("does not emit session event on subsequent messages", () => {
+    const ctx = createContext()
+    // First message
+    parseKimiLine(
+      JSON.stringify({ role: "assistant", content: "First" }),
+      mappings,
+      ctx
+    )
+    // Second message
+    const event = parseKimiLine(
+      JSON.stringify({ role: "assistant", content: "Second" }),
+      mappings,
+      ctx
+    )
+    // Should only emit token, not session
+    expect(event).toEqual({ type: "token", text: "Second" })
+  })
+
+  it("parses assistant message with tool calls", () => {
+    const ctx = createContext()
+    ctx.state.sessionEmitted = true // Skip session emission
+    const event = parseKimiLine(
+      JSON.stringify({
+        role: "assistant",
+        content: "Let me check the current directory.",
+        tool_calls: [
+          {
+            type: "function",
+            id: "tc_1",
+            function: {
+              name: "Shell",
+              arguments: '{"command":"ls"}',
+            },
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual([
+      { type: "token", text: "Let me check the current directory." },
+      { type: "tool_start", name: "shell", input: { command: "ls" } },
+    ])
+  })
+
+  it("parses assistant message with only tool calls (no content)", () => {
+    const ctx = createContext()
+    ctx.state.sessionEmitted = true // Skip session emission
+    const event = parseKimiLine(
+      JSON.stringify({
+        role: "assistant",
+        tool_calls: [
+          {
+            type: "function",
+            id: "tc_1",
+            function: {
+              name: "Read",
+              arguments: '{"file_path":"/path/to/file.txt"}',
+            },
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "read",
+      input: { file_path: "/path/to/file.txt" },
+    })
+  })
+
+  it("parses tool result message", () => {
+    const ctx = createContext()
+    const event = parseKimiLine(
+      JSON.stringify({
+        role: "tool",
+        tool_call_id: "tc_1",
+        content: "file1.py\nfile2.py",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: "file1.py\nfile2.py" })
+  })
+
+  it("parses tool result message with empty content", () => {
+    const ctx = createContext()
+    const event = parseKimiLine(
+      JSON.stringify({
+        role: "tool",
+        tool_call_id: "tc_1",
+        content: "",
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: undefined })
+  })
+
+  it("parses multiple tool calls in one message", () => {
+    const ctx = createContext()
+    ctx.state.sessionEmitted = true // Skip session emission
+    const events = parseKimiLine(
+      JSON.stringify({
+        role: "assistant",
+        content: "Let me do multiple things.",
+        tool_calls: [
+          {
+            type: "function",
+            id: "tc_1",
+            function: {
+              name: "Shell",
+              arguments: '{"command":"ls"}',
+            },
+          },
+          {
+            type: "function",
+            id: "tc_2",
+            function: {
+              name: "Read",
+              arguments: '{"file_path":"test.txt"}',
+            },
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(events).toEqual([
+      { type: "token", text: "Let me do multiple things." },
+      { type: "tool_start", name: "shell", input: { command: "ls" } },
+      { type: "tool_start", name: "read", input: { file_path: "test.txt" } },
+    ])
+  })
+
+  it("handles tool call with invalid arguments JSON", () => {
+    const ctx = createContext()
+    ctx.state.sessionEmitted = true // Skip session emission
+    const event = parseKimiLine(
+      JSON.stringify({
+        role: "assistant",
+        tool_calls: [
+          {
+            type: "function",
+            id: "tc_1",
+            function: {
+              name: "Shell",
+              arguments: "not valid json",
+            },
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    // Should still emit tool_start with empty input
+    expect(event).toEqual({ type: "tool_start", name: "shell", input: {} })
+  })
+
+  it("handles tool call with empty arguments", () => {
+    const ctx = createContext()
+    ctx.state.sessionEmitted = true // Skip session emission
+    const event = parseKimiLine(
+      JSON.stringify({
+        role: "assistant",
+        tool_calls: [
+          {
+            type: "function",
+            id: "tc_1",
+            function: {
+              name: "Glob",
+              arguments: "",
+            },
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_start", name: "glob", input: {} })
+  })
+
+  it("normalizes tool names via mappings", () => {
+    const ctx = createContext()
+    ctx.state.sessionEmitted = true // Skip session emission
+    const event = parseKimiLine(
+      JSON.stringify({
+        role: "assistant",
+        tool_calls: [
+          {
+            type: "function",
+            id: "tc_1",
+            function: {
+              name: "Write",
+              arguments: '{"file_path":"test.txt","content":"Hello"}',
+            },
+          },
+        ],
+      }),
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "write",
+      input: { file_path: "test.txt", content: "Hello" },
+    })
+  })
+
+  it("works without context for backward compatibility", () => {
+    // Without context, no session event is emitted
+    const event = parseKimiLine(
+      JSON.stringify({ role: "assistant", content: "Hello" }),
+      mappings
+    )
+    expect(event).toEqual({ type: "token", text: "Hello" })
+  })
+
+  it("returns null for messages without role", () => {
+    const ctx = createContext()
+    const event = parseKimiLine(
+      JSON.stringify({ content: "No role field" }),
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
+  })
+
+  it("returns null for empty assistant content with no tool calls", () => {
+    const ctx = createContext()
+    ctx.state.sessionEmitted = true // Skip session emission
+    const event = parseKimiLine(
+      JSON.stringify({ role: "assistant", content: "" }),
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
   })
 })
