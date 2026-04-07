@@ -35,23 +35,15 @@ Integration tests run each provider (Claude, Codex, Gemini, OpenCode, Pi) in rea
 Run the command below from the repo root.
 
 ```bash
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... OPENAI_API_KEY=... GEMINI_API_KEY=... \
-  npm test -w @upstream/agents -- tests/integration
+npm test -w @upstream/agents -- tests/integration
 ```
 
 ### Using TEST_ prefixed API keys
 
-You can use `TEST_` prefixed environment variables (e.g., `TEST_OPENAI_API_KEY`) to avoid conflicts with running agents. These take precedence over the non-prefixed versions.
+The tests use `TEST_` prefixed environment variables (e.g., `TEST_OPENAI_API_KEY`) to avoid conflicts with running agents. These take precedence over the non-prefixed versions.
 
 Supported prefixed keys:
 - `TEST_DAYTONA_API_KEY`
 - `TEST_ANTHROPIC_API_KEY`
 - `TEST_OPENAI_API_KEY`
 - `TEST_GEMINI_API_KEY` / `TEST_GOOGLE_API_KEY`
-
-Example:
-
-```bash
-TEST_DAYTONA_API_KEY=... TEST_ANTHROPIC_API_KEY=... \
-  npm test -w @upstream/agents -- tests/integration
-```
