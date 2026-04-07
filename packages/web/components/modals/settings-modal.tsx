@@ -251,7 +251,20 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
         }
       }
 
-      onCredentialsUpdate()
+      // Only trigger full refresh if credentials changed (not just preferences)
+      // This prevents wiping chat messages when only changing theme, git prefs, etc.
+      const credentialsChanged =
+        newAnthropicKey ||
+        newAuthToken ||
+        newOpenaiKey ||
+        newOpencodeKey ||
+        newGeminiKey ||
+        newDaytonaKey ||
+        keysToClear.size > 0
+
+      if (credentialsChanged) {
+        onCredentialsUpdate()
+      }
       onClose()
     } catch {
       setSaveStatus({
