@@ -1,6 +1,6 @@
 # Background Agents SDK
 
-A TypeScript SDK for running AI coding agents (Claude, Codex, Gemini, Goose, OpenCode, Pi) in secure [Daytona](https://daytona.io) sandboxes. Designed for background execution with polling-based event streaming.
+A TypeScript SDK for running AI coding agents (Claude, Cline, Codex, Gemini, Goose, OpenCode, Pi) in secure [Daytona](https://daytona.io) sandboxes. Designed for background execution with polling-based event streaming.
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
@@ -34,7 +34,7 @@ await sandbox.delete()
 
 - **Secure sandboxed execution** — Agents run in isolated Daytona sandboxes
 - **Background execution** — Start agents, poll for events, survive restarts
-- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://geminicli.com/docs/), [Goose](https://block.github.io/goose/docs/), [OpenCode](https://opencode.ai/docs/), and [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
+- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Cline](https://docs.cline.bot/cline-cli/getting-started), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://geminicli.com/docs/), [Goose](https://block.github.io/goose/docs/), [OpenCode](https://opencode.ai/docs/), and [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
 - **Zero-friction setup** — Provider CLI auto-installed in sandbox
 - **Session persistence** — Resume conversations across runs and restarts
 
@@ -45,6 +45,7 @@ await sandbox.delete()
 | Provider | Status | Auth |
 |----------|--------|------|
 | [Claude](https://docs.anthropic.com/en/docs/claude-code) | ✅ | `ANTHROPIC_API_KEY` |
+| [Cline](https://docs.cline.bot/cline-cli/getting-started) | ✅ | Provider-specific (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) |
 | [Codex](https://developers.openai.com/codex/cli) | ✅ | `OPENAI_API_KEY` |
 | [Goose](https://block.github.io/goose/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) |
 | [OpenCode](https://opencode.ai/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
@@ -56,6 +57,7 @@ await sandbox.delete()
 | Provider | CLI Command |
 |----------|-------------|
 | Claude | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions "prompt"` |
+| Cline | `cline -y --json "prompt"` |
 | Codex | `codex exec --json --skip-git-repo-check --yolo "prompt"` |
 | Goose | `goose run --output-format stream-json --text "prompt"` |
 | OpenCode | `opencode run --format json --variant medium "prompt"` |
@@ -245,6 +247,7 @@ type Event =
 | Provider | Example | Docs |
 |----------|---------|------|
 | **Claude** | `model: "sonnet"` | [Claude Code models](https://code.claude.com/docs/en/model-config) |
+| **Cline** | `model: "claude-sonnet-4-20250514"` | [Cline CLI docs](https://docs.cline.bot/cline-cli/getting-started) |
 | **Codex** | `model: "gpt-4o"` | [Codex CLI models](https://developers.openai.com/codex/models) |
 | **Goose** | `model: "gpt-4o"` | [Goose providers](https://block.github.io/goose/docs/getting-started/providers) |
 | **OpenCode** | `model: "openai/gpt-4o"` | [OpenCode models](https://opencode.ai/docs/models/) |
@@ -306,7 +309,7 @@ DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl-polling.ts
 
 **Sandbox** — [Daytona Docs](https://www.daytona.io/docs/) · [Daytona GitHub](https://github.com/daytonaio/daytona)
 
-**Agents** — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [Codex CLI](https://developers.openai.com/codex/cli) · [Gemini CLI](https://geminicli.com/docs/) · [Goose](https://block.github.io/goose/docs/) · [OpenCode](https://opencode.ai/docs/) · [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
+**Agents** — [Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [Cline CLI](https://docs.cline.bot/cline-cli/getting-started) · [Codex CLI](https://developers.openai.com/codex/cli) · [Gemini CLI](https://geminicli.com/docs/) · [Goose](https://block.github.io/goose/docs/) · [OpenCode](https://opencode.ai/docs/) · [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
 
 ---
 

@@ -5,12 +5,14 @@
 import { describe, it, expect } from "vitest"
 import {
   parseClaudeLine,
+  parseClineLine,
   parseCodexLine,
   parseGeminiLine,
   parseGooseLine,
   parseOpencodeLine,
   parsePiLine,
   CLAUDE_TOOL_MAPPINGS,
+  CLINE_TOOL_MAPPINGS,
   CODEX_TOOL_MAPPINGS,
   GEMINI_TOOL_MAPPINGS,
   GOOSE_TOOL_MAPPINGS,
@@ -1086,5 +1088,320 @@ describe("parsePiLine", () => {
   it("returns null for unknown event types", () => {
     const ctx = createContext()
     expect(parsePiLine('{"type": "unknown"}', mappings, ctx)).toBeNull()
+  })
+})
+
+describe("parseClineLine", () => {
+  const mappings = CLINE_TOOL_MAPPINGS
+
+  it("returns null for invalid JSON", () => {
+    const ctx = createContext()
+    expect(parseClineLine("not json", mappings, ctx)).toBeNull()
+    expect(parseClineLine("", mappings, ctx)).toBeNull()
+    expect(parseClineLine("{not valid json}", mappings, ctx)).toBeNull()
+  })
+
+  it("parses init event with session_id", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "init", "session_id": "cline_session_123"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "session", id: "cline_session_123" })
+  })
+
+  it("parses session event with sessionId", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "session", "sessionId": "cline_abc"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "session", id: "cline_abc" })
+  })
+
+  it("parses session event with id", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "session", "id": "session_xyz"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "session", id: "session_xyz" })
+  })
+
+  it("parses message event with text", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "message", "text": "Hello from Cline!"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "token", text: "Hello from Cline!" })
+  })
+
+  it("parses text event with content", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "text", "content": "Processing your request..."}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "token", text: "Processing your request..." })
+  })
+
+  it("parses assistant event with text", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "assistant", "text": "Let me help you."}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "token", text: "Let me help you." })
+  })
+
+  it("parses content_block_delta event with delta.text", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Streaming text..."}}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "token", text: "Streaming text..." })
+  })
+
+  it("ignores user message events", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "message", "role": "user", "text": "Hello"}',
+      mappings,
+      ctx
+    )
+    expect(event).toBeNull()
+  })
+
+  it("parses tool_use event", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_use", "name": "read_file", "input": {"file_path": "/path/to/file"}}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "read",
+      input: { file_path: "/path/to/file" },
+    })
+  })
+
+  it("parses tool_call event with tool name", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_call", "tool": "write_to_file", "arguments": {"file_path": "/test.txt", "content": "hello"}}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "write",
+      input: { file_path: "/test.txt", content: "hello" },
+    })
+  })
+
+  it("parses tool_start event with tool_name", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_start", "tool_name": "execute_command", "parameters": {"command": "ls -la"}}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "shell",
+      input: { command: "ls -la" },
+    })
+  })
+
+  it("handles tool_use with missing name as unknown", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_use", "input": {}}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_start", name: "unknown", input: {} })
+  })
+
+  it("parses tool_result event with output", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_result", "output": "file1.txt\\nfile2.txt"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: "file1.txt\nfile2.txt" })
+  })
+
+  it("parses tool_end event with result string", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_end", "result": "Command completed successfully"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: "Command completed successfully" })
+  })
+
+  it("parses tool_response event with result object", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_response", "result": {"content": "File content here"}}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: "File content here" })
+  })
+
+  it("parses tool_result with content array", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_result", "content": [{"type": "text", "text": "Output text"}]}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: "Output text" })
+  })
+
+  it("parses tool_result with is_error flag", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_result", "output": "Command failed", "is_error": true}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "tool_end", output: "Error: Command failed" })
+  })
+
+  it("parses result event as end", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "result", "status": "success"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses complete event as end", () => {
+    const ctx = createContext()
+    const event = parseClineLine('{"type": "complete"}', mappings, ctx)
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses end event as end", () => {
+    const ctx = createContext()
+    const event = parseClineLine('{"type": "end"}', mappings, ctx)
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses done event as end", () => {
+    const ctx = createContext()
+    const event = parseClineLine('{"type": "done"}', mappings, ctx)
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses turn_complete event as end", () => {
+    const ctx = createContext()
+    const event = parseClineLine('{"type": "turn_complete"}', mappings, ctx)
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("parses error event with message", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "error", "message": "API rate limit exceeded"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "API rate limit exceeded" })
+  })
+
+  it("parses error event with error string", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "error", "error": "Connection failed"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "Connection failed" })
+  })
+
+  it("parses error event with error object", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "error", "error": {"message": "Authentication failed"}}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end", error: "Authentication failed" })
+  })
+
+  it("strips SSE data prefix", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      'data: {"type": "complete"}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({ type: "end" })
+  })
+
+  it("returns null for unknown event types", () => {
+    const ctx = createContext()
+    expect(parseClineLine('{"type": "unknown_event"}', mappings, ctx)).toBeNull()
+  })
+
+  it("normalizes search_files tool to grep", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_use", "name": "search_files", "input": {"pattern": "TODO"}}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "grep",
+      input: { pattern: "TODO" },
+    })
+  })
+
+  it("normalizes list_files tool to glob", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_use", "name": "list_files", "input": {"path": "."}}',
+      mappings,
+      ctx
+    )
+    // createToolStartEvent normalizes path to file_path for glob tools
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "glob",
+      input: { file_path: ".", path: "." },
+    })
+  })
+
+  it("normalizes replace_in_file tool to edit", () => {
+    const ctx = createContext()
+    const event = parseClineLine(
+      '{"type": "tool_use", "name": "replace_in_file", "input": {"file_path": "/test.ts", "old": "foo", "new": "bar"}}',
+      mappings,
+      ctx
+    )
+    expect(event).toEqual({
+      type: "tool_start",
+      name: "edit",
+      input: { file_path: "/test.ts", old: "foo", new: "bar" },
+    })
   })
 })

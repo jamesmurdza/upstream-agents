@@ -21,6 +21,7 @@
  * Output:
  *   tests/fixtures/jsonl-reference/
  *     ├── claude.jsonl          - Claude Code CLI raw output
+ *     ├── cline.jsonl           - Cline CLI raw output
  *     ├── codex.jsonl           - OpenAI Codex CLI raw output
  *     ├── gemini.jsonl          - Google Gemini CLI raw output
  *     ├── opencode.jsonl        - OpenCode CLI raw output
@@ -75,6 +76,11 @@ interface ProviderConfig {
 const providers: ProviderConfig[] = [
   {
     name: "claude",
+    apiKeyEnvVar: "ANTHROPIC_API_KEY",
+    apiKey: ANTHROPIC_API_KEY,
+  },
+  {
+    name: "cline",
     apiKeyEnvVar: "ANTHROPIC_API_KEY",
     apiKey: ANTHROPIC_API_KEY,
   },
