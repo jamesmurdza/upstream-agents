@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useTheme } from "next-themes"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Eye, EyeOff, Key, Sun, Moon, Monitor } from "lucide-react"
-import type { Settings, Theme } from "@/lib/types"
+import { X, Eye, EyeOff, Key, Sun, Moon, Monitor, Bot, ChevronDown } from "lucide-react"
+import type { Settings, Theme, Agent, ModelOption } from "@/lib/types"
+import { agentModels, agentLabels, hasCredentialsForModel } from "@/lib/types"
+import { getCredentialFlags } from "@/lib/storage"
 
 interface SettingsModalProps {
   open: boolean
@@ -19,20 +21,120 @@ const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: "dark", label: "Dark", icon: Moon },
 ]
 
+const agents: Agent[] = ["claude-code", "opencode", "codex", "gemini", "goose", "pi"]
+
+// API key field component
+function ApiKeyField({
+  label,
+  description,
+  value,
+  onChange,
+  placeholder,
+  helpUrl,
+  helpText,
+}: {
+  label: string
+  description: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  helpUrl?: string
+  helpText?: string
+}) {
+  const [showKey, setShowKey] = useState(false)
+
+  return (
+    <div>
+      <label className="flex items-center gap-2 text-sm font-medium mb-1">
+        <Key className="h-3.5 w-3.5" />
+        {label}
+      </label>
+      <p className="text-xs text-muted-foreground mb-2">
+        {description}
+        {helpUrl && helpText && (
+          <>
+            {" "}
+            <a
+              href={helpUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              {helpText}
+            </a>
+          </>
+        )}
+      </p>
+      <div className="relative">
+        <input
+          type={showKey ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full px-3 py-1.5 pr-10 text-sm bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+        />
+        <button
+          type="button"
+          onClick={() => setShowKey(!showKey)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function SettingsModal({ open, onClose, settings, onSave }: SettingsModalProps) {
   const { setTheme } = useTheme()
+
+  // Form state
   const [anthropicApiKey, setAnthropicApiKey] = useState(settings.anthropicApiKey)
+  const [openaiApiKey, setOpenaiApiKey] = useState(settings.openaiApiKey)
+  const [opencodeApiKey, setOpencodeApiKey] = useState(settings.opencodeApiKey)
+  const [geminiApiKey, setGeminiApiKey] = useState(settings.geminiApiKey)
+  const [defaultAgent, setDefaultAgent] = useState<Agent>(settings.defaultAgent as Agent)
+  const [defaultModel, setDefaultModel] = useState(settings.defaultModel)
   const [selectedTheme, setSelectedTheme] = useState<Theme>(settings.theme)
-  const [showKey, setShowKey] = useState(false)
+
+  // Get current credentials based on form values
+  const currentCredentials = useMemo(() => {
+    return getCredentialFlags({
+      ...settings,
+      anthropicApiKey,
+      openaiApiKey,
+      opencodeApiKey,
+      geminiApiKey,
+    })
+  }, [anthropicApiKey, openaiApiKey, opencodeApiKey, geminiApiKey, settings])
+
+  // Get available models for the selected agent
+  const availableModels = useMemo(() => {
+    return agentModels[defaultAgent] ?? []
+  }, [defaultAgent])
 
   // Reset form when modal opens
   useEffect(() => {
     if (open) {
       setAnthropicApiKey(settings.anthropicApiKey)
+      setOpenaiApiKey(settings.openaiApiKey)
+      setOpencodeApiKey(settings.opencodeApiKey)
+      setGeminiApiKey(settings.geminiApiKey)
+      setDefaultAgent(settings.defaultAgent as Agent)
+      setDefaultModel(settings.defaultModel)
       setSelectedTheme(settings.theme)
-      setShowKey(false)
     }
   }, [open, settings])
+
+  // Update model when agent changes
+  useEffect(() => {
+    const models = agentModels[defaultAgent] ?? []
+    // If current model isn't valid for the new agent, select the first available
+    const isValidModel = models.some(m => m.value === defaultModel)
+    if (!isValidModel && models.length > 0) {
+      setDefaultModel(models[0].value)
+    }
+  }, [defaultAgent, defaultModel])
 
   // Apply theme immediately when changed
   const handleThemeChange = (theme: Theme) => {
@@ -41,19 +143,34 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
   }
 
   const handleSave = () => {
-    onSave({ anthropicApiKey, theme: selectedTheme })
+    onSave({
+      anthropicApiKey,
+      openaiApiKey,
+      opencodeApiKey,
+      geminiApiKey,
+      defaultAgent,
+      defaultModel,
+      theme: selectedTheme,
+    })
     onClose()
   }
 
-  const hasChanges = anthropicApiKey !== settings.anthropicApiKey || selectedTheme !== settings.theme
+  const hasChanges =
+    anthropicApiKey !== settings.anthropicApiKey ||
+    openaiApiKey !== settings.openaiApiKey ||
+    opencodeApiKey !== settings.opencodeApiKey ||
+    geminiApiKey !== settings.geminiApiKey ||
+    defaultAgent !== settings.defaultAgent ||
+    defaultModel !== settings.defaultModel ||
+    selectedTheme !== settings.theme
 
   return (
     <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-popover border border-border rounded-lg shadow-lg z-50">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[85vh] overflow-y-auto bg-popover border border-border rounded-lg shadow-lg z-50">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="sticky top-0 flex items-center justify-between px-4 py-3 border-b border-border bg-popover">
             <Dialog.Title className="text-sm font-semibold">Settings</Dialog.Title>
             <Dialog.Close className="p-1 rounded hover:bg-accent transition-colors">
               <X className="h-4 w-4" />
@@ -61,52 +178,114 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
           </div>
 
           {/* Content */}
-          <div className="p-4 space-y-4">
-            {/* Anthropic API Key */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2">
-                <Key className="h-4 w-4" />
-                Anthropic API Key (Optional)
-              </label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Optional - enables Claude models in OpenCode. Without it, free models are used.
-                Get your API key from{" "}
-                <a
-                  href="https://console.anthropic.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  console.anthropic.com
-                </a>
-              </p>
-              <div className="relative">
-                <input
-                  type={showKey ? "text" : "password"}
-                  value={anthropicApiKey}
-                  onChange={(e) => setAnthropicApiKey(e.target.value)}
-                  placeholder="sk-ant-... (optional)"
-                  className="w-full px-3 py-2 pr-10 text-sm bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowKey(!showKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+          <div className="p-4 space-y-6">
+            {/* Default Agent & Model */}
+            <div className="space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Bot className="h-4 w-4" />
+                Default Agent
+              </h3>
+
+              {/* Agent Selection */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Agent</label>
+                <div className="relative">
+                  <select
+                    value={defaultAgent}
+                    onChange={(e) => setDefaultAgent(e.target.value as Agent)}
+                    className="w-full px-3 py-1.5 text-sm bg-input border border-border rounded-md appearance-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {agents.map((agent) => (
+                      <option key={agent} value={agent}>
+                        {agentLabels[agent]}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Model Selection */}
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Model</label>
+                <div className="relative">
+                  <select
+                    value={defaultModel}
+                    onChange={(e) => setDefaultModel(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm bg-input border border-border rounded-md appearance-none focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {availableModels.map((model: ModelOption) => {
+                      const hasCredentials = hasCredentialsForModel(model, currentCredentials, defaultAgent)
+                      return (
+                        <option key={model.value} value={model.value}>
+                          {model.label}
+                          {!hasCredentials && model.requiresKey !== "none" ? " (needs API key)" : ""}
+                        </option>
+                      )
+                    })}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
               </div>
             </div>
 
+            {/* API Keys */}
+            <div className="space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Key className="h-4 w-4" />
+                API Keys
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Add API keys to unlock more models. All keys are stored locally in your browser.
+              </p>
+
+              <ApiKeyField
+                label="Anthropic"
+                description="For Claude Code and Claude models."
+                value={anthropicApiKey}
+                onChange={setAnthropicApiKey}
+                placeholder="sk-ant-..."
+                helpUrl="https://console.anthropic.com/"
+                helpText="Get key"
+              />
+
+              <ApiKeyField
+                label="OpenAI"
+                description="For Codex, GPT models, and Goose."
+                value={openaiApiKey}
+                onChange={setOpenaiApiKey}
+                placeholder="sk-..."
+                helpUrl="https://platform.openai.com/api-keys"
+                helpText="Get key"
+              />
+
+              <ApiKeyField
+                label="OpenCode"
+                description="For paid OpenCode models."
+                value={opencodeApiKey}
+                onChange={setOpencodeApiKey}
+                placeholder="..."
+                helpUrl="https://opencode.ai"
+                helpText="Get key"
+              />
+
+              <ApiKeyField
+                label="Google AI (Gemini)"
+                description="For Gemini models."
+                value={geminiApiKey}
+                onChange={setGeminiApiKey}
+                placeholder="..."
+                helpUrl="https://aistudio.google.com/apikey"
+                helpText="Get key"
+              />
+            </div>
+
             {/* Theme Selector */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2">
+            <div className="space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
                 <Sun className="h-4 w-4" />
                 Theme
-              </label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Choose your preferred color scheme. Auto uses your system setting.
-              </p>
+              </h3>
               <div className="flex gap-2">
                 {themeOptions.map(({ value, label, icon: Icon }) => (
                   <button
@@ -124,18 +303,10 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
                 ))}
               </div>
             </div>
-
-            {/* Info */}
-            <div className="p-3 rounded-md bg-muted/50 text-xs text-muted-foreground">
-              <p>
-                OpenCode uses free models by default. Add an API key to unlock more powerful models.
-                Settings are stored locally in your browser.
-              </p>
-            </div>
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 px-4 py-3 border-t border-border">
+          <div className="sticky bottom-0 flex justify-end gap-2 px-4 py-3 border-t border-border bg-popover">
             <button
               onClick={onClose}
               className="px-3 py-1.5 text-sm rounded-md hover:bg-accent transition-colors"

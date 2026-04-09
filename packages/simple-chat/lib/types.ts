@@ -12,7 +12,16 @@ export type {
 } from "@upstream/common"
 
 // Re-export agent types
-export type { Agent, ModelOption } from "@upstream/common"
+export type { Agent, ModelOption, UserCredentialFlags } from "@upstream/common"
+export {
+  agentModels,
+  agentLabels,
+  defaultAgentModel,
+  getDefaultAgent,
+  getDefaultModelForAgent,
+  getModelLabel,
+  hasCredentialsForModel,
+} from "@upstream/common"
 
 export interface Message {
   id: string
@@ -42,6 +51,10 @@ export interface Chat {
   branch: string | null         // "swift-lunar-abc1" - the NEW branch we created
   sandboxId: string | null      // Daytona sandbox ID
 
+  // Agent config (per-chat, can be changed)
+  agent?: string        // "claude-code" | "opencode" | "codex" | etc.
+  model?: string        // Model ID for the agent
+
   // Chat data
   messages: Message[]
   createdAt: number
@@ -59,7 +72,17 @@ export type ChatStatus = "pending" | "creating" | "ready" | "running" | "error"
 export type Theme = "light" | "dark" | "system"
 
 export interface Settings {
+  // API keys for various providers
   anthropicApiKey: string
+  openaiApiKey: string
+  opencodeApiKey: string
+  geminiApiKey: string
+
+  // Default agent/model selection
+  defaultAgent: string
+  defaultModel: string
+
+  // UI preferences
   theme: Theme
 }
 
@@ -109,6 +132,8 @@ export interface ExecuteAgentRequest {
   sandboxId: string
   prompt: string
   repoName: string
+  agent?: string
+  model?: string
 }
 
 export interface ExecuteAgentResponse {
