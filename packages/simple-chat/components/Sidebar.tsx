@@ -6,9 +6,10 @@ import { Plus, Trash2, Settings, LogOut, PanelLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat } from "@/lib/types"
 
-const MIN_WIDTH = 200
+const MIN_WIDTH = 140
 const MAX_WIDTH = 400
 const COLLAPSED_WIDTH = 64
+const COLLAPSE_THRESHOLD = 100 // Collapse when dragged below this width
 
 interface SidebarProps {
   chats: Chat[]
@@ -57,9 +58,22 @@ export function Sidebar({
 
   const resize = useCallback((e: MouseEvent) => {
     if (!isResizing.current) return
+    // If dragged below threshold, collapse the sidebar
+    if (e.clientX < COLLAPSE_THRESHOLD) {
+      if (!collapsed) {
+        onToggleCollapse()
+      }
+      return
+    }
+    // If collapsed and dragged beyond threshold, expand
+    if (collapsed && e.clientX >= COLLAPSE_THRESHOLD) {
+      onToggleCollapse()
+      onWidthChange(MIN_WIDTH)
+      return
+    }
     const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX))
     onWidthChange(newWidth)
-  }, [onWidthChange])
+  }, [onWidthChange, collapsed, onToggleCollapse])
 
   useEffect(() => {
     window.addEventListener("mousemove", resize)
@@ -292,7 +306,7 @@ interface ChatItemProps {
 }
 
 function ChatItem({ chat, isActive, collapsed, isDeleting, onSelect, onDelete }: ChatItemProps) {
-  const displayName = chat.displayName || chat.branch || getFirstMessagePreview(chat)
+  const displayName = chat.displayName || "Untitled"
   const repoName = chat.repo.split("/")[1]
 
   return (

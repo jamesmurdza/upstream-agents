@@ -162,9 +162,16 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
     )
   }
 
+  const chatTitle = chat.displayName || "Untitled"
+
   // Chat with messages
   return (
     <div className="flex-1 flex flex-col bg-background">
+      {/* Header with title */}
+      <div className="px-4 py-3 border-b border-border">
+        <h1 className="text-sm font-medium text-foreground">{chatTitle}</h1>
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-6 max-w-3xl mx-auto">
