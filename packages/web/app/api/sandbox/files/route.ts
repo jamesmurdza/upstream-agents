@@ -71,6 +71,19 @@ function buildFindCommandForLogs(
 }
 
 /**
+ * Build find command for /tmp/claude directory (Claude Code task output files)
+ * Looks for .output files in task directories like /tmp/claude/-home-daytona/tasks/*.output
+ */
+function buildFindCommandForClaudeLogs(claudePath: string): string {
+  const safePath = escapeShell(claudePath)
+
+  // Find all .output files in the claude directory (task output files)
+  const command = `find '${safePath}' -type f -name '*.output' -print0 2>/dev/null | xargs -0 -r stat --format='%n|%Y|%s' 2>/dev/null | head -20 || true`
+
+  return command
+}
+
+/**
  * Parse the output of find + stat command
  */
 function parseStatOutput(output: string): Array<{ path: string; modifiedAt: number; size: number }> {
@@ -139,8 +152,13 @@ export async function POST(req: Request) {
         const logsResult = await sandbox.process.executeCommand(logsCommand, undefined, undefined, 30)
         const logsFiles = parseStatOutput(logsResult.result || "")
 
+        // Also check /tmp/claude for Claude Code task output files
+        const claudeLogsCommand = buildFindCommandForClaudeLogs("/tmp/claude")
+        const claudeLogsResult = await sandbox.process.executeCommand(claudeLogsCommand, undefined, undefined, 30)
+        const claudeLogsFiles = parseStatOutput(claudeLogsResult.result || "")
+
         // Merge and sort all files by modification time (most recent first)
-        const allFiles = [...repoFiles, ...logsFiles]
+        const allFiles = [...repoFiles, ...logsFiles, ...claudeLogsFiles]
           .sort((a, b) => b.modifiedAt - a.modifiedAt)
           .slice(0, 10)
 

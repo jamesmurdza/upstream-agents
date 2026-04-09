@@ -18,7 +18,10 @@ import {
   Sparkles,
   XCircle,
   X,
+  Terminal,
+  Globe,
 } from "lucide-react"
+import { useUIStore } from "@/lib/stores/ui-store"
 import type { RebaseConflictState } from "@/components/git/hooks/useGitDialogs"
 import {
   Tooltip,
@@ -64,10 +67,54 @@ export function ChatHeader({
   rebaseConflict,
   onAbortConflict,
 }: ChatHeaderProps) {
+  const {
+    openContentPanel,
+    addTerminalTab,
+    contentPanelTabs,
+    contentPanelOpen,
+    contentPanelCollapsed,
+    contentPanelActiveTabId,
+    setActiveTab,
+  } = useUIStore()
+
+  // Check if there's an active server
+  const serverTab = contentPanelTabs.find(t => t.type === "server")
+  const hasActiveServer = !!serverTab
+
+  // Check if there's an existing terminal tab
+  const terminalTab = contentPanelTabs.find(t => t.type === "terminal")
+  const activeTab = contentPanelTabs.find(t => t.id === contentPanelActiveTabId)
+  const isTerminalActive = activeTab?.type === "terminal"
+
   const isReady = branch.sandboxId && (branch.status !== BRANCH_STATUS.CREATING)
   const isBusy = branch.status === BRANCH_STATUS.RUNNING || branch.status === BRANCH_STATUS.CREATING
   const inConflict = !!(rebaseConflict?.inRebase || rebaseConflict?.inMerge)
   const mergeConflict = rebaseConflict?.inMerge ?? false
+
+  const handleOpenTerminal = () => {
+    // If panel is collapsed or closed, just open/uncollapse and show existing terminal (or create one)
+    if (!contentPanelOpen || contentPanelCollapsed) {
+      openContentPanel()
+      if (terminalTab) {
+        setActiveTab(terminalTab.id)
+      } else {
+        addTerminalTab(true)
+      }
+      return
+    }
+
+    // Panel is open and not collapsed
+    // If terminal is already showing, create a new one
+    if (isTerminalActive) {
+      addTerminalTab(true)
+    } else if (terminalTab) {
+      // Switch to existing terminal
+      setActiveTab(terminalTab.id)
+    } else {
+      // No terminal exists, create one
+      addTerminalTab(true)
+    }
+  }
 
   return (
     <header
@@ -302,6 +349,43 @@ export function ChatHeader({
             </span>
           )
         })}
+
+        {/* Browser + Terminal buttons - opens content panel */}
+        {branch.sandboxId && (
+          <>
+            <div className="mx-1.5 h-4 w-px bg-border shrink-0" />
+            {/* Browser icon - shows when there's an active server */}
+            {hasActiveServer && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => {
+                      openContentPanel()
+                      if (serverTab) {
+                        setActiveTab(serverTab.id)
+                      }
+                    }}
+                    className="flex cursor-pointer h-7 w-7 shrink-0 items-center justify-center rounded-md text-green-400"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="text-xs">Preview</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleOpenTerminal}
+                  className="flex cursor-pointer h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <Terminal className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">Terminal</TooltipContent>
+            </Tooltip>
+          </>
+        )}
       </div>
     </header>
   )

@@ -5,7 +5,7 @@ import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { RepoSidebar } from "@/components/sidebar/repo-sidebar"
 import { BranchList } from "@/components/sidebar/branch-list"
-import { RecentFilesSidebar } from "@/components/sidebar/recent-files-sidebar"
+import { ContentPanel } from "@/components/panels/content-panel"
 import { ChatPanel, EmptyChatPanel } from "@/components/panels/chat-panel"
 import { GitHistoryPanel } from "@/components/panels/git-history-panel"
 import { GitHistorySheet } from "@/components/panels/git-history-sheet"
@@ -603,9 +603,9 @@ export default function Home() {
             />
           )}
 
-          {/* Recent Files Sidebar - shows recently modified files, running servers, and SSH access */}
+          {/* Content Panel - shows file tabs, terminals, and server previews */}
           {activeBranch?.sandboxId && activeRepo && (
-            <RecentFilesSidebar
+            <ContentPanel
               sandboxId={activeBranch.sandboxId}
               repoPath={`/home/daytona/${activeRepo.name}`}
               cacheKey={`${activeRepo.id}-${activeBranch.id}`}
