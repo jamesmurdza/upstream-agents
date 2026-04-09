@@ -13,6 +13,7 @@ const COLLAPSED_WIDTH = 64
 interface SidebarProps {
   chats: Chat[]
   currentChatId: string | null
+  deletingChatIds: Set<string>
   onSelectChat: (chatId: string) => void
   onNewChat: () => void
   onDeleteChat: (chatId: string) => void
@@ -26,6 +27,7 @@ interface SidebarProps {
 export function Sidebar({
   chats,
   currentChatId,
+  deletingChatIds,
   onSelectChat,
   onNewChat,
   onDeleteChat,
@@ -119,6 +121,7 @@ export function Sidebar({
                   chat={chat}
                   isActive={chat.id === currentChatId}
                   collapsed={collapsed}
+                  isDeleting={deletingChatIds.has(chat.id)}
                   onSelect={() => onSelectChat(chat.id)}
                   onDelete={() => onDeleteChat(chat.id)}
                 />
@@ -284,22 +287,24 @@ interface ChatItemProps {
   chat: Chat
   isActive: boolean
   collapsed: boolean
+  isDeleting: boolean
   onSelect: () => void
   onDelete: () => void
 }
 
-function ChatItem({ chat, isActive, collapsed, onSelect, onDelete }: ChatItemProps) {
+function ChatItem({ chat, isActive, collapsed, isDeleting, onSelect, onDelete }: ChatItemProps) {
   const displayName = chat.displayName || chat.branch || getFirstMessagePreview(chat)
   const repoName = chat.repo.split("/")[1]
 
   return (
     <div
       className={cn(
-        "group flex items-center gap-2 rounded-md cursor-pointer transition-colors",
+        "group flex items-center gap-2 rounded-md cursor-pointer transition-all duration-300",
         collapsed ? "justify-center p-2" : "px-2 py-1.5",
         isActive
           ? "bg-accent text-accent-foreground"
-          : "hover:bg-accent/50 text-sidebar-foreground"
+          : "hover:bg-accent/50 text-sidebar-foreground",
+        isDeleting && "opacity-0 scale-95 h-0 py-0 overflow-hidden"
       )}
       onClick={onSelect}
     >
@@ -317,7 +322,8 @@ function ChatItem({ chat, isActive, collapsed, onSelect, onDelete }: ChatItemPro
               e.stopPropagation()
               onDelete()
             }}
-            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all cursor-pointer"
+            disabled={isDeleting}
+            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all cursor-pointer disabled:cursor-not-allowed"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>

@@ -18,6 +18,7 @@ export default function HomePage() {
     currentChatId,
     settings,
     isHydrated,
+    deletingChatIds,
     startNewChat,
     selectChat,
     removeChat,
@@ -81,6 +82,7 @@ export default function HomePage() {
       <Sidebar
         chats={displayChats}
         currentChatId={displayCurrentChatId}
+        deletingChatIds={deletingChatIds}
         onSelectChat={selectChat}
         onNewChat={handleNewChat}
         onDeleteChat={removeChat}

@@ -83,7 +83,13 @@ export function useChat() {
     setState(newState)
   }, [])
 
-  const removeChat = useCallback((chatId: string) => {
+  // Track which chats are being deleted (for fade animation)
+  const [deletingChatIds, setDeletingChatIds] = useState<Set<string>>(new Set())
+
+  const removeChat = useCallback(async (chatId: string) => {
+    // Get the chat before deleting to access sandboxId
+    const chat = state.chats.find((c) => c.id === chatId)
+
     // Stop polling if this is the current chat
     if (pollingRef.current && state.currentChatId === chatId) {
       clearInterval(pollingRef.current)
@@ -91,9 +97,34 @@ export function useChat() {
       isPollingRef.current = false
     }
 
-    const newState = deleteStoredChat(chatId)
-    setState(newState)
-  }, [state.currentChatId])
+    // Start fade animation
+    setDeletingChatIds((prev) => new Set([...prev, chatId]))
+
+    // Delete sandbox if it exists
+    if (chat?.sandboxId) {
+      try {
+        await fetch("/api/sandbox/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sandboxId: chat.sandboxId }),
+        })
+      } catch (error) {
+        console.error("Failed to delete sandbox:", error)
+        // Continue with chat deletion even if sandbox deletion fails
+      }
+    }
+
+    // Wait for animation to complete
+    setTimeout(() => {
+      const newState = deleteStoredChat(chatId)
+      setState(newState)
+      setDeletingChatIds((prev) => {
+        const next = new Set(prev)
+        next.delete(chatId)
+        return next
+      })
+    }, 300) // Match the CSS transition duration
+  }, [state.chats, state.currentChatId])
 
   // Update repo for a chat (only allowed before first message)
   const updateChatRepo = useCallback((chatId: string, repo: string, baseBranch: string) => {
@@ -372,6 +403,7 @@ export function useChat() {
     currentChatId: state.currentChatId,
     settings: state.settings,
     isHydrated,
+    deletingChatIds,
 
     // Actions
     startNewChat,
