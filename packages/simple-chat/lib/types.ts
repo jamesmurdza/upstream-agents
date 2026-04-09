@@ -1,6 +1,18 @@
 /**
  * Types for Simple Chat
+ * Re-exports shared types from @upstream/common
  */
+
+// Re-export shared types
+export type {
+  ContentBlock,
+  ToolCall,
+  AgentStatus,
+  AgentStatusResponse,
+} from "@upstream/common"
+
+// Re-export agent types
+export type { Agent, ModelOption } from "@upstream/common"
 
 export interface Message {
   id: string
@@ -101,25 +113,4 @@ export interface ExecuteAgentRequest {
 
 export interface ExecuteAgentResponse {
   success: boolean
-}
-
-export interface AgentStatusResponse {
-  status: "running" | "completed" | "error"
-  content: string
-  toolCalls: Array<{
-    tool: string
-    summary: string
-    fullSummary?: string
-    output?: string
-  }>
-  error?: string
-}
-
-// Content block types (matching SDK)
-export type ContentBlock = {
-  type: "text"
-  text: string
-} | {
-  type: "tool_calls"
-  toolCalls: Array<{ tool: string; summary: string; fullSummary?: string; output?: string }>
 }
