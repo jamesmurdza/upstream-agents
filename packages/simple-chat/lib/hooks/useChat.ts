@@ -25,7 +25,7 @@ export function useChat() {
   // Load initial state from localStorage
   const [state, setState] = useState<AppState>(() => {
     if (typeof window === "undefined") {
-      return { currentChatId: null, chats: [], settings: { anthropicApiKey: "" } }
+      return { currentChatId: null, chats: [], settings: { anthropicApiKey: "", theme: "system" } }
     }
     return loadState()
   })

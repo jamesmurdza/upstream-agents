@@ -12,7 +12,7 @@ export function Providers({ children }: ProvidersProps) {
     <SessionProvider>
       <ThemeProvider
         attribute="class"
-        defaultTheme="dark"
+        defaultTheme="system"
         enableSystem
         disableTransitionOnChange
       >

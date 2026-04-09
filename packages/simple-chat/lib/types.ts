@@ -41,8 +41,11 @@ export interface Chat {
 
 export type ChatStatus = "pending" | "creating" | "ready" | "running" | "error"
 
+export type Theme = "light" | "dark" | "system"
+
 export interface Settings {
   anthropicApiKey: string
+  theme: Theme
 }
 
 export interface AppState {

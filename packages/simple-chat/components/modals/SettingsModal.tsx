@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Eye, EyeOff, Key } from "lucide-react"
-import type { Settings } from "@/lib/types"
+import { X, Eye, EyeOff, Key, Sun, Moon, Monitor } from "lucide-react"
+import type { Settings, Theme } from "@/lib/types"
 
 interface SettingsModalProps {
   open: boolean
@@ -12,24 +13,39 @@ interface SettingsModalProps {
   onSave: (settings: Settings) => void
 }
 
+const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
+  { value: "system", label: "Auto", icon: Monitor },
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+]
+
 export function SettingsModal({ open, onClose, settings, onSave }: SettingsModalProps) {
+  const { setTheme } = useTheme()
   const [anthropicApiKey, setAnthropicApiKey] = useState(settings.anthropicApiKey)
+  const [selectedTheme, setSelectedTheme] = useState<Theme>(settings.theme)
   const [showKey, setShowKey] = useState(false)
 
   // Reset form when modal opens
   useEffect(() => {
     if (open) {
       setAnthropicApiKey(settings.anthropicApiKey)
+      setSelectedTheme(settings.theme)
       setShowKey(false)
     }
   }, [open, settings])
 
+  // Apply theme immediately when changed
+  const handleThemeChange = (theme: Theme) => {
+    setSelectedTheme(theme)
+    setTheme(theme)
+  }
+
   const handleSave = () => {
-    onSave({ anthropicApiKey })
+    onSave({ anthropicApiKey, theme: selectedTheme })
     onClose()
   }
 
-  const hasChanges = anthropicApiKey !== settings.anthropicApiKey
+  const hasChanges = anthropicApiKey !== settings.anthropicApiKey || selectedTheme !== settings.theme
 
   return (
     <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -82,11 +98,38 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
               </div>
             </div>
 
+            {/* Theme Selector */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                <Sun className="h-4 w-4" />
+                Theme
+              </label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Choose your preferred color scheme. Auto uses your system setting.
+              </p>
+              <div className="flex gap-2">
+                {themeOptions.map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => handleThemeChange(value)}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md border transition-colors ${
+                      selectedTheme === value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:bg-accent"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Info */}
             <div className="p-3 rounded-md bg-muted/50 text-xs text-muted-foreground">
               <p>
                 OpenCode uses free models by default. Add an API key to unlock more powerful models.
-                Keys are stored locally in your browser and never logged on our servers.
+                Settings are stored locally in your browser.
               </p>
             </div>
           </div>

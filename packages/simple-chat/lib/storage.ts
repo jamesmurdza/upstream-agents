@@ -12,6 +12,7 @@ const DEFAULT_STATE: AppState = {
   chats: [],
   settings: {
     anthropicApiKey: "",
+    theme: "system",
   },
 }
 
