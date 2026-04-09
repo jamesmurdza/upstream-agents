@@ -146,6 +146,23 @@ export function Sidebar({
         </button>
       </div>
 
+      {/* API Reference Link */}
+      <div className={cn("pb-2", collapsed ? "px-0 flex justify-center" : "px-2")}>
+        <button
+          onClick={() => onNavigate?.(currentPage === "sdk" ? "chat" : "sdk")}
+          className={cn(
+            "flex items-center gap-2 rounded-md transition-colors cursor-pointer",
+            collapsed ? "p-1.5" : "w-full px-2 py-2",
+            currentPage === "sdk"
+              ? "bg-accent text-accent-foreground"
+              : "hover:bg-accent/50"
+          )}
+        >
+          <Code2 className="h-4 w-4 text-muted-foreground" />
+          {!collapsed && <span className="text-sm text-foreground">API Reference</span>}
+        </button>
+      </div>
+
       {/* Chat List - only show when expanded */}
       {!collapsed && (
         <div className="flex-1 overflow-y-auto p-2">
@@ -170,25 +187,8 @@ export function Sidebar({
       {/* Spacer when collapsed */}
       {collapsed && <div className="flex-1" />}
 
-      {/* API Reference Link */}
-      <div className={cn("mt-auto", collapsed ? "px-0 flex justify-center" : "px-2")}>
-        <button
-          onClick={() => onNavigate?.(currentPage === "sdk" ? "chat" : "sdk")}
-          className={cn(
-            "flex items-center gap-2 rounded-md transition-colors",
-            collapsed ? "p-1.5" : "w-full px-2 py-2",
-            currentPage === "sdk"
-              ? "bg-accent text-accent-foreground"
-              : "hover:bg-accent/50"
-          )}
-        >
-          <Code2 className="h-4 w-4 text-muted-foreground" />
-          {!collapsed && <span className="text-sm text-foreground">API Reference</span>}
-        </button>
-      </div>
-
       {/* Footer - User & Settings */}
-      <div className="border-t border-sidebar-border p-2">
+      <div className="mt-auto border-t border-sidebar-border p-2">
         {session?.user ? (
           collapsed ? (
             <CollapsedUserMenu
