@@ -70,7 +70,7 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
 
   // Chat input component (used in two places)
   const chatInput = (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-3xl mx-auto">
       <div
         className={cn(
           "flex flex-col rounded-2xl border shadow-sm",
@@ -99,7 +99,7 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
           {isRunning ? (
             <button
               onClick={onStopAgent}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-red-500/80 text-white hover:bg-red-500 transition-colors"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-red-500/80 text-white hover:bg-red-500 transition-colors cursor-pointer"
             >
               <Square className="h-3 w-3" />
             </button>
@@ -110,7 +110,7 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
               className={cn(
                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
                 canSend
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
                   : "bg-secondary text-muted-foreground"
               )}
             >
@@ -125,7 +125,7 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
           {canChangeRepo && onChangeRepo ? (
             <button
               onClick={onChangeRepo}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               {isNewRepo ? "New Repository" : chat.repo}
               <ChevronDown className="h-3 w-3" />
@@ -172,7 +172,7 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
     <div className="flex-1 flex flex-col bg-background">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-4 max-w-3xl mx-auto">
+        <div className="space-y-6 max-w-3xl mx-auto">
           {chat.messages.map((message) => (
             <MessageBubble key={message.id} message={message} />
           ))}

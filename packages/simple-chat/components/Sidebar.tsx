@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { Plus, MessageSquare, Trash2, Settings, LogOut, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Trash2, Settings, LogOut, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat } from "@/lib/types"
 
@@ -83,7 +83,7 @@ export function Sidebar({
         )}
         <button
           onClick={onToggleCollapse}
-          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4" />
@@ -98,12 +98,14 @@ export function Sidebar({
         <button
           onClick={onNewChat}
           className={cn(
-            "flex items-center gap-2 w-full rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors",
+            "flex items-center gap-2 w-full rounded-md hover:bg-accent/50 transition-colors cursor-pointer",
             collapsed ? "justify-center p-2" : "px-3 py-2"
           )}
         >
-          <Plus className="h-4 w-4" />
-          {!collapsed && <span className="text-sm">New Chat</span>}
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Plus className="h-3 w-3" />
+          </div>
+          {!collapsed && <span className="text-sm text-foreground">New Chat</span>}
         </button>
       </div>
 
@@ -163,14 +165,14 @@ export function Sidebar({
             <div className={cn("flex gap-1", collapsed && "flex-col mt-2")}>
               <button
                 onClick={onOpenSettings}
-                className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 title="Settings"
               >
                 <Settings className="h-4 w-4" />
               </button>
               <button
                 onClick={() => signOut()}
-                className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 title="Sign out"
               >
                 <LogOut className="h-4 w-4" />
@@ -181,7 +183,7 @@ export function Sidebar({
           <button
             onClick={() => signIn("github")}
             className={cn(
-              "flex items-center justify-center gap-2 w-full rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors",
+              "flex items-center justify-center gap-2 w-full rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors cursor-pointer",
               collapsed ? "p-2" : "px-3 py-2"
             )}
           >
@@ -228,8 +230,6 @@ function ChatItem({ chat, isActive, collapsed, onSelect, onDelete }: ChatItemPro
       )}
       onClick={onSelect}
     >
-      <MessageSquare className="h-4 w-4 shrink-0" />
-
       {!collapsed && (
         <>
           <div className="flex-1 min-w-0">
@@ -244,7 +244,7 @@ function ChatItem({ chat, isActive, collapsed, onSelect, onDelete }: ChatItemPro
               e.stopPropagation()
               onDelete()
             }}
-            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all"
+            className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all cursor-pointer"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
