@@ -12,7 +12,14 @@ import {
   FileCode,
   Loader2,
   SquareTerminal,
+  ChevronDown,
 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { highlight } from "sugar-high"
 
 // ============================================================================
@@ -203,6 +210,81 @@ function DeferredHighlightedCode({ code }: { code: string }) {
 // Tab Bar Component
 // ============================================================================
 
+/** Render a single tab item (used in both visible tabs and dropdown) */
+function TabItem({
+  tab,
+  isActive,
+  onSelect,
+  onClose,
+  inDropdown = false,
+}: {
+  tab: ContentPanelTab
+  isActive: boolean
+  onSelect: () => void
+  onClose: () => void
+  inDropdown?: boolean
+}) {
+  const { ext } = tab.type === "file" && tab.filePath
+    ? getFileDisplayInfo(tab.filePath)
+    : { ext: "" }
+
+  if (inDropdown) {
+    return (
+      <DropdownMenuItem
+        onClick={onSelect}
+        className={cn(
+          "flex items-center gap-2 cursor-pointer",
+          isActive && "bg-accent"
+        )}
+      >
+        {tab.type === "file" && (
+          <FileCode className={cn("h-3.5 w-3.5 shrink-0", getExtColor(ext))} />
+        )}
+        {tab.type === "terminal" && (
+          <Terminal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        )}
+        {tab.type === "server" && (
+          <Globe className="h-3.5 w-3.5 shrink-0 text-green-500" />
+        )}
+        <span className="text-xs truncate">{tab.filename}</span>
+      </DropdownMenuItem>
+    )
+  }
+
+  return (
+    <div
+      onClick={onSelect}
+      className={cn(
+        "group flex items-center gap-1.5 px-3 py-2 cursor-pointer border-r border-border/50 shrink-0",
+        "hover:bg-accent/50 transition-colors",
+        isActive && "bg-background border-b-2 border-b-primary"
+      )}
+    >
+      {tab.type === "file" && (
+        <FileCode className={cn("h-3.5 w-3.5 shrink-0", getExtColor(ext))} />
+      )}
+      {tab.type === "terminal" && (
+        <Terminal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      )}
+      {tab.type === "server" && (
+        <Globe className="h-3.5 w-3.5 shrink-0 text-green-500" />
+      )}
+      <span className="text-xs font-medium truncate max-w-[120px]">
+        {tab.filename}
+      </span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          onClose()
+        }}
+        className="h-4 w-4 flex items-center justify-center rounded hover:bg-muted-foreground/20 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  )
+}
+
 function TabBar({
   tabs,
   activeTabId,
@@ -218,56 +300,85 @@ function TabBar({
   onAddTerminal: () => void
   onClose: () => void
 }) {
-  return (
-    <div className="flex items-center border-b border-border bg-muted/30 shrink-0">
-      {/* Tabs */}
-      <div className="flex-1 flex items-center overflow-x-auto min-w-0">
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTabId
-          const { ext } = tab.type === "file" && tab.filePath
-            ? getFileDisplayInfo(tab.filePath)
-            : { ext: "" }
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [visibleCount, setVisibleCount] = useState(tabs.length)
 
-          return (
-            <div
-              key={tab.id}
-              onClick={() => onSelectTab(tab.id)}
+  // Measure how many tabs fit
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const measureTabs = () => {
+      // Approximate tab width: ~120px per tab (icon + label + close + padding)
+      const TAB_WIDTH = 130
+      // Reserve space for overflow dropdown (~40px) and action buttons (~80px)
+      const RESERVED_WIDTH = 120
+      const availableWidth = container.clientWidth - RESERVED_WIDTH
+      const maxVisible = Math.max(1, Math.floor(availableWidth / TAB_WIDTH))
+      setVisibleCount(maxVisible)
+    }
+
+    measureTabs()
+
+    const resizeObserver = new ResizeObserver(measureTabs)
+    resizeObserver.observe(container)
+
+    return () => resizeObserver.disconnect()
+  }, [tabs.length])
+
+  const visibleTabs = tabs.slice(0, visibleCount)
+  const overflowTabs = tabs.slice(visibleCount)
+  const hasOverflow = overflowTabs.length > 0
+
+  // Check if active tab is in overflow
+  const activeInOverflow = overflowTabs.some(t => t.id === activeTabId)
+
+  return (
+    <div ref={containerRef} className="flex items-center border-b border-border bg-muted/30 shrink-0">
+      {/* Visible Tabs */}
+      <div className="flex items-center min-w-0">
+        {visibleTabs.map((tab) => (
+          <TabItem
+            key={tab.id}
+            tab={tab}
+            isActive={tab.id === activeTabId}
+            onSelect={() => onSelectTab(tab.id)}
+            onClose={() => onCloseTab(tab.id)}
+          />
+        ))}
+      </div>
+
+      {/* Overflow Dropdown */}
+      {hasOverflow && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
               className={cn(
-                "group flex items-center gap-1.5 px-3 py-2 cursor-pointer border-r border-border/50 shrink-0",
-                "hover:bg-accent/50 transition-colors",
-                isActive && "bg-background border-b-2 border-b-primary"
+                "flex items-center gap-1 px-2 py-2 hover:bg-accent/50 transition-colors text-xs text-muted-foreground",
+                activeInOverflow && "text-primary font-medium"
               )}
             >
-              {/* Tab Icon */}
-              {tab.type === "file" && (
-                <FileCode className={cn("h-3.5 w-3.5 shrink-0", getExtColor(ext))} />
-              )}
-              {tab.type === "terminal" && (
-                <Terminal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              )}
-              {tab.type === "server" && (
-                <Globe className="h-3.5 w-3.5 shrink-0 text-green-500" />
-              )}
+              <span>+{overflowTabs.length}</span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-[300px] overflow-y-auto">
+            {overflowTabs.map((tab) => (
+              <TabItem
+                key={tab.id}
+                tab={tab}
+                isActive={tab.id === activeTabId}
+                onSelect={() => onSelectTab(tab.id)}
+                onClose={() => onCloseTab(tab.id)}
+                inDropdown
+              />
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
-              {/* Tab Label */}
-              <span className="text-xs font-medium truncate max-w-[120px]">
-                {tab.filename}
-              </span>
-
-              {/* Close Button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onCloseTab(tab.id)
-                }}
-                className="h-4 w-4 flex items-center justify-center rounded hover:bg-muted-foreground/20 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          )
-        })}
-      </div>
+      {/* Spacer to push buttons to the right */}
+      <div className="flex-1" />
 
       {/* Add Terminal Button */}
       <button
