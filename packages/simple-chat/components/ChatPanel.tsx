@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo } from "react"
-import { ArrowUp, Square, ChevronDown, Github, AlertCircle } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, Github, Key } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat, Settings, Agent, ModelOption } from "@/lib/types"
 import { NEW_REPOSITORY, agentModels, agentLabels, getModelLabel, hasCredentialsForModel } from "@/lib/types"
 import { getCredentialFlags } from "@/lib/storage"
 import { MessageBubble } from "./MessageBubble"
+
+import type { HighlightKey } from "./modals/SettingsModal"
 
 interface ChatPanelProps {
   chat: Chat | null
@@ -15,7 +17,7 @@ interface ChatPanelProps {
   onStopAgent: () => void
   onChangeRepo?: () => void
   onUpdateChat?: (updates: Partial<Chat>) => void
-  onOpenSettings?: () => void
+  onOpenSettings?: (highlightKey?: HighlightKey) => void
 }
 
 export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings }: ChatPanelProps) {
@@ -104,6 +106,16 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
       const models = agentModels[agent] ?? []
       const newModel = models[0]?.value || currentModel
       onUpdateChat({ agent, model: newModel })
+
+      // Check if the new model requires credentials we don't have
+      const newModelConfig = models.find(m => m.value === newModel)
+      if (newModelConfig && !hasCredentialsForModel(newModelConfig, credentialFlags, agent)) {
+        // Open settings with the required key highlighted
+        const requiredKey = newModelConfig.requiresKey
+        if (requiredKey && requiredKey !== "none" && onOpenSettings) {
+          onOpenSettings(requiredKey as HighlightKey)
+        }
+      }
     }
   }
 
@@ -111,6 +123,16 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
     setShowModelDropdown(false)
     if (chat && onUpdateChat) {
       onUpdateChat({ model })
+
+      // Check if the new model requires credentials we don't have
+      const newModelConfig = availableModels.find(m => m.value === model)
+      if (newModelConfig && !hasCredentialsForModel(newModelConfig, credentialFlags, currentAgent)) {
+        // Open settings with the required key highlighted
+        const requiredKey = newModelConfig.requiresKey
+        if (requiredKey && requiredKey !== "none" && onOpenSettings) {
+          onOpenSettings(requiredKey as HighlightKey)
+        }
+      }
     }
   }
 
@@ -241,10 +263,10 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
               }}
               className={cn(
                 "flex items-center gap-1 text-xs transition-colors cursor-pointer",
-                !hasRequiredCredentials ? "text-orange-500 hover:text-orange-600" : "text-muted-foreground hover:text-foreground"
+                !hasRequiredCredentials ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {!hasRequiredCredentials && <AlertCircle className="h-3 w-3" />}
+              {!hasRequiredCredentials && <Key className="h-3 w-3" />}
               {getModelLabel(currentAgent, currentModel)}
               <ChevronDown className="h-3 w-3" />
             </button>
@@ -263,7 +285,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
                       )}
                     >
                       <span>{model.label}</span>
-                      {needsKey && <AlertCircle className="h-3 w-3 text-orange-500 shrink-0" />}
+                      {needsKey && <Key className="h-3 w-3 text-red-500 shrink-0" />}
                     </button>
                   )
                 })}
@@ -271,25 +293,6 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
             )}
           </div>
 
-          {/* Missing API key warning */}
-          {!hasRequiredCredentials && selectedModelConfig && (
-            <div className="flex items-center gap-2 px-4 py-2 text-xs text-orange-500 border-t border-border">
-              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-              <span>
-                {selectedModelConfig.label} requires an API key.{" "}
-                {onOpenSettings ? (
-                  <button
-                    onClick={onOpenSettings}
-                    className="underline hover:text-orange-600 transition-colors"
-                  >
-                    Add in Settings
-                  </button>
-                ) : (
-                  "Add it in Settings."
-                )}
-              </span>
-            </div>
-          )}
         </div>
       </div>
     </div>

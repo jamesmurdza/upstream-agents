@@ -5,7 +5,7 @@ import { useSession, signIn } from "next-auth/react"
 import { Sidebar } from "@/components/Sidebar"
 import { ChatPanel } from "@/components/ChatPanel"
 import { RepoPickerModal } from "@/components/modals/RepoPickerModal"
-import { SettingsModal } from "@/components/modals/SettingsModal"
+import { SettingsModal, type HighlightKey } from "@/components/modals/SettingsModal"
 import { useChat } from "@/lib/hooks/useChat"
 import { NEW_REPOSITORY } from "@/lib/types"
 
@@ -32,8 +32,21 @@ export default function HomePage() {
 
   const [repoPickerOpen, setRepoPickerOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsHighlightKey, setSettingsHighlightKey] = useState<HighlightKey>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(260)
+
+  // Handler for opening settings (optionally with a highlighted API key field)
+  const handleOpenSettings = (highlightKey?: HighlightKey) => {
+    setSettingsHighlightKey(highlightKey ?? null)
+    setSettingsOpen(true)
+  }
+
+  // Handler for closing settings
+  const handleCloseSettings = () => {
+    setSettingsOpen(false)
+    setSettingsHighlightKey(null)
+  }
 
   // Auto-create a new chat if none exists after hydration
   useEffect(() => {
@@ -89,7 +102,7 @@ export default function HomePage() {
         onSelectChat={selectChat}
         onNewChat={handleNewChat}
         onDeleteChat={removeChat}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => handleOpenSettings()}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         width={sidebarWidth}
@@ -103,7 +116,7 @@ export default function HomePage() {
         onStopAgent={stopAgent}
         onChangeRepo={handleChangeRepo}
         onUpdateChat={updateCurrentChat}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={handleOpenSettings}
       />
 
       <RepoPickerModal
@@ -114,9 +127,10 @@ export default function HomePage() {
 
       <SettingsModal
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={handleCloseSettings}
         settings={settings}
         onSave={updateSettings}
+        highlightKey={settingsHighlightKey}
       />
     </div>
   )

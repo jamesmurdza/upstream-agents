@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useTheme } from "next-themes"
 import * as Dialog from "@radix-ui/react-dialog"
 import { X, Eye, EyeOff, Key, Sun, Moon, Monitor, Bot, ChevronDown } from "lucide-react"
@@ -8,11 +8,16 @@ import type { Settings, Theme, Agent, ModelOption } from "@/lib/types"
 import { agentModels, agentLabels, hasCredentialsForModel } from "@/lib/types"
 import { getCredentialFlags } from "@/lib/storage"
 
+/** Which API key field to highlight */
+export type HighlightKey = "anthropic" | "openai" | "opencode" | "gemini" | null
+
 interface SettingsModalProps {
   open: boolean
   onClose: () => void
   settings: Settings
   onSave: (settings: Settings) => void
+  /** Which API key field to highlight with a red outline */
+  highlightKey?: HighlightKey
 }
 
 const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
@@ -32,6 +37,8 @@ function ApiKeyField({
   placeholder,
   helpUrl,
   helpText,
+  highlight,
+  inputRef,
 }: {
   label: string
   description: string
@@ -40,14 +47,17 @@ function ApiKeyField({
   placeholder: string
   helpUrl?: string
   helpText?: string
+  highlight?: boolean
+  inputRef?: React.RefObject<HTMLInputElement | null>
 }) {
   const [showKey, setShowKey] = useState(false)
 
   return (
     <div>
-      <label className="flex items-center gap-2 text-sm font-medium mb-1">
+      <label className={`flex items-center gap-2 text-sm font-medium mb-1 ${highlight ? "text-red-500" : ""}`}>
         <Key className="h-3.5 w-3.5" />
         {label}
+        {highlight && <span className="text-xs font-normal">(required)</span>}
       </label>
       <p className="text-xs text-muted-foreground mb-2">
         {description}
@@ -67,11 +77,16 @@ function ApiKeyField({
       </p>
       <div className="relative">
         <input
+          ref={inputRef}
           type={showKey ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full px-3 py-1.5 pr-10 text-sm bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+          className={`w-full px-3 py-1.5 pr-10 text-sm bg-input border rounded-md focus:outline-none focus:ring-2 font-mono ${
+            highlight
+              ? "border-red-500 focus:ring-red-500/50"
+              : "border-border focus:ring-ring"
+          }`}
         />
         <button
           type="button"
@@ -85,8 +100,14 @@ function ApiKeyField({
   )
 }
 
-export function SettingsModal({ open, onClose, settings, onSave }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, settings, onSave, highlightKey }: SettingsModalProps) {
   const { setTheme } = useTheme()
+
+  // Refs for API key inputs
+  const anthropicInputRef = useRef<HTMLInputElement>(null)
+  const openaiInputRef = useRef<HTMLInputElement>(null)
+  const opencodeInputRef = useRef<HTMLInputElement>(null)
+  const geminiInputRef = useRef<HTMLInputElement>(null)
 
   // Form state
   const [anthropicApiKey, setAnthropicApiKey] = useState(settings.anthropicApiKey)
@@ -125,6 +146,27 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
       setSelectedTheme(settings.theme)
     }
   }, [open, settings])
+
+  // Focus the highlighted API key field when modal opens
+  useEffect(() => {
+    if (open && highlightKey) {
+      // Small delay to ensure modal is rendered
+      const timer = setTimeout(() => {
+        const refMap = {
+          anthropic: anthropicInputRef,
+          openai: openaiInputRef,
+          opencode: opencodeInputRef,
+          gemini: geminiInputRef,
+        }
+        const ref = refMap[highlightKey]
+        if (ref?.current) {
+          ref.current.scrollIntoView({ behavior: "smooth", block: "center" })
+          ref.current.focus()
+        }
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [open, highlightKey])
 
   // Update model when agent changes
   useEffect(() => {
@@ -247,6 +289,8 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
                 placeholder="sk-ant-..."
                 helpUrl="https://console.anthropic.com/"
                 helpText="Get key"
+                highlight={highlightKey === "anthropic"}
+                inputRef={anthropicInputRef}
               />
 
               <ApiKeyField
@@ -257,6 +301,8 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
                 placeholder="sk-..."
                 helpUrl="https://platform.openai.com/api-keys"
                 helpText="Get key"
+                highlight={highlightKey === "openai"}
+                inputRef={openaiInputRef}
               />
 
               <ApiKeyField
@@ -265,6 +311,8 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
                 value={opencodeApiKey}
                 onChange={setOpencodeApiKey}
                 placeholder="..."
+                highlight={highlightKey === "opencode"}
+                inputRef={opencodeInputRef}
                 helpUrl="https://opencode.ai"
                 helpText="Get key"
               />
@@ -277,6 +325,8 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
                 placeholder="..."
                 helpUrl="https://aistudio.google.com/apikey"
                 helpText="Get key"
+                highlight={highlightKey === "gemini"}
+                inputRef={geminiInputRef}
               />
             </div>
 
