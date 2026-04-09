@@ -19,9 +19,9 @@ test.describe("New Chat Flow", () => {
     await expect(textarea).toBeVisible()
     await textarea.fill("Create a simple hello world file")
 
-    // Click the send button
-    const sendButton = page.locator('button:has(svg.lucide-send)')
-    await expect(sendButton).toBeEnabled()
+    // Click the send button (arrow up icon appears after text is entered)
+    const sendButton = page.locator('button:has(svg.lucide-arrow-up)')
+    await expect(sendButton).toBeVisible()
     await sendButton.click()
 
     // Should see the user message appear
@@ -58,9 +58,15 @@ test.describe("New Chat Flow", () => {
     // Should see "What would you like to build?" for new chat
     await expect(page.locator("h2")).toContainText("What would you like to build?")
 
+    // Should see the sandbox info text
+    await expect(page.locator("text=Agents work in an isolated sandbox")).toBeVisible()
+
     // Should see agent and model selectors
     await expect(page.locator("text=OpenCode")).toBeVisible()
     await expect(page.locator("text=Claude Sonnet")).toBeVisible()
+
+    // Should see New Chat button in sidebar
+    await expect(page.locator('button:has-text("New Chat")')).toBeVisible()
   })
 
   test("should have New Repository selected by default", async ({ page }) => {

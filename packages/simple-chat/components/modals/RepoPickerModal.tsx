@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Search, GitBranch, Loader2, Lock, Globe } from "lucide-react"
+import { X, Search, GitBranch, Loader2, Lock, Globe, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { fetchRepos, fetchBranches } from "@/lib/github"
 import type { GitHubRepo, GitHubBranch } from "@/lib/types"
@@ -23,9 +23,12 @@ export function RepoPickerModal({ open, onClose, onSelect }: RepoPickerModalProp
   const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [branches, setBranches] = useState<GitHubBranch[]>([])
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null)
+  const [selectedBranch, setSelectedBranch] = useState<string>("")
+  const [showBranchDropdown, setShowBranchDropdown] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
+  const [branchSearch, setBranchSearch] = useState("")
 
   // Fetch repos on open
   useEffect(() => {
@@ -44,8 +47,11 @@ export function RepoPickerModal({ open, onClose, onSelect }: RepoPickerModalProp
     if (!open) {
       setStep("repo")
       setSelectedRepo(null)
+      setSelectedBranch("")
       setBranches([])
       setSearch("")
+      setBranchSearch("")
+      setShowBranchDropdown(false)
       setError(null)
     }
   }, [open])
@@ -55,6 +61,7 @@ export function RepoPickerModal({ open, onClose, onSelect }: RepoPickerModalProp
     if (!session?.accessToken) return
 
     setSelectedRepo(repo)
+    setSelectedBranch(repo.default_branch)
     setStep("branch")
     setLoading(true)
     setError(null)
@@ -74,10 +81,17 @@ export function RepoPickerModal({ open, onClose, onSelect }: RepoPickerModalProp
     }
   }
 
-  // Handle branch selection
-  const handleSelectBranch = (branch: GitHubBranch) => {
-    if (!selectedRepo) return
-    onSelect(selectedRepo.full_name, branch.name)
+  // Handle branch selection from dropdown
+  const handleSelectBranchFromDropdown = (branch: GitHubBranch) => {
+    setSelectedBranch(branch.name)
+    setShowBranchDropdown(false)
+    setBranchSearch("")
+  }
+
+  // Handle OK button click
+  const handleConfirm = () => {
+    if (!selectedRepo || !selectedBranch) return
+    onSelect(selectedRepo.full_name, selectedBranch)
     onClose()
   }
 
@@ -86,7 +100,7 @@ export function RepoPickerModal({ open, onClose, onSelect }: RepoPickerModalProp
     repo.full_name.toLowerCase().includes(search.toLowerCase())
   )
   const filteredBranches = branches.filter((branch) =>
-    branch.name.toLowerCase().includes(search.toLowerCase())
+    branch.name.toLowerCase().includes(branchSearch.toLowerCase())
   )
 
   return (
@@ -178,32 +192,74 @@ export function RepoPickerModal({ open, onClose, onSelect }: RepoPickerModalProp
             )}
 
             {!loading && !error && step === "branch" && (
-              <div className="p-2">
-                {filteredBranches.length === 0 ? (
-                  <div className="p-4 text-sm text-muted-foreground text-center">
-                    No branches found
-                  </div>
-                ) : (
-                  filteredBranches.map((branch) => (
+              <div className="p-4">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">Base Branch</label>
+                  <div className="relative">
                     <button
-                      key={branch.name}
-                      onClick={() => handleSelectBranch(branch)}
-                      className="flex items-center gap-3 w-full px-3 py-2 rounded-md hover:bg-accent transition-colors text-left"
+                      onClick={() => setShowBranchDropdown(!showBranchDropdown)}
+                      className="flex items-center justify-between w-full px-3 py-2 text-sm border border-border rounded-md hover:bg-accent/50 transition-colors cursor-pointer"
                     >
-                      <GitBranch className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {branch.name}
-                        </div>
-                        {branch.protected && (
-                          <div className="text-xs text-muted-foreground">
-                            Protected
-                          </div>
-                        )}
-                      </div>
+                      <span className="flex items-center gap-2">
+                        <GitBranch className="h-4 w-4 text-muted-foreground" />
+                        {selectedBranch}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     </button>
-                  ))
-                )}
+
+                    {showBranchDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-10 max-h-48 overflow-hidden">
+                        <div className="p-2 border-b border-border">
+                          <input
+                            type="text"
+                            value={branchSearch}
+                            onChange={(e) => setBranchSearch(e.target.value)}
+                            placeholder="Search branches..."
+                            className="w-full px-2 py-1 text-sm bg-input border border-border rounded focus:outline-none focus:ring-1 focus:ring-ring"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="max-h-32 overflow-y-auto">
+                          {filteredBranches.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground text-center">
+                              No branches found
+                            </div>
+                          ) : (
+                            filteredBranches.map((branch) => (
+                              <button
+                                key={branch.name}
+                                onClick={() => handleSelectBranchFromDropdown(branch)}
+                                className={cn(
+                                  "flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent transition-colors text-left cursor-pointer",
+                                  branch.name === selectedBranch && "bg-accent"
+                                )}
+                              >
+                                <GitBranch className="h-3 w-3 text-muted-foreground" />
+                                {branch.name}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setStep("repo")}
+                    className="px-4 py-2 text-sm rounded-md hover:bg-accent transition-colors cursor-pointer"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleConfirm}
+                    disabled={!selectedBranch}
+                    className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    OK
+                  </button>
+                </div>
               </div>
             )}
           </div>

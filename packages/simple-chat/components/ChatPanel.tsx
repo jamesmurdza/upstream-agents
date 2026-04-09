@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Square, ChevronDown } from "lucide-react"
+import { ArrowUp, Square, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat } from "@/lib/types"
 import { NEW_REPOSITORY } from "@/lib/types"
@@ -96,24 +96,18 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
           {isRunning ? (
             <button
               onClick={onStopAgent}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-red-500/80 text-white hover:bg-red-500 transition-colors cursor-pointer"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/80 text-white hover:bg-red-500 transition-colors cursor-pointer"
             >
               <Square className="h-3 w-3" />
             </button>
-          ) : (
+          ) : canSend ? (
             <button
               onClick={handleSend}
-              disabled={!canSend}
-              className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors",
-                canSend
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
-                  : "bg-secondary text-muted-foreground"
-              )}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer transition-colors"
             >
-              <Send className="h-3.5 w-3.5" />
+              <ArrowUp className="h-4 w-4" />
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Bottom row with selectors */}
@@ -159,6 +153,9 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
       <div className="flex-1 flex flex-col items-center justify-center bg-background p-4">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-semibold mb-2">What would you like to build?</h2>
+          <p className="text-sm text-muted-foreground">
+            Agents work in an isolated sandbox and create a new git branch for changes.
+          </p>
         </div>
         {chatInput}
       </div>
