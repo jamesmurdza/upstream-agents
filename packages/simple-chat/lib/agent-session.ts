@@ -20,11 +20,27 @@ import type { ContentBlock } from "./types"
 // Types
 // =============================================================================
 
+/** Supported agent types */
+export type Agent = "opencode" | "claude-code" | "codex" | "gemini" | "goose" | "pi"
+
+/** Map agent type to SDK provider name */
+const AGENT_TO_PROVIDER: Record<Agent, string> = {
+  "opencode": "opencode",
+  "claude-code": "claude",
+  "codex": "codex",
+  "gemini": "gemini",
+  "goose": "goose",
+  "pi": "pi",
+}
+
 export interface AgentSessionOptions {
   repoPath: string
   previewUrlPattern?: string
   sessionId?: string
   cachedEvents?: Event[]
+  agent?: Agent
+  model?: string
+  env?: Record<string, string>
 }
 
 // =============================================================================
@@ -219,11 +235,17 @@ export async function createBackgroundAgentSession(
     options.previewUrlPattern
   )
 
-  const bgSession = await createSession("opencode", {
+  // Map agent type to SDK provider name
+  const agent = options.agent || "opencode"
+  const provider = AGENT_TO_PROVIDER[agent] || "opencode"
+
+  const bgSession = await createSession(provider, {
     sandbox: sandbox as any,
     systemPrompt,
     sessionId: options.sessionId,
     cwd: options.repoPath,
+    model: options.model,
+    env: options.env,
   })
 
   return {

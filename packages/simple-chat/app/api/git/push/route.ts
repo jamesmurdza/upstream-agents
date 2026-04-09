@@ -4,20 +4,23 @@ import { authOptions } from "@/lib/auth"
 import { PATHS } from "@/lib/constants"
 
 export async function POST(req: Request) {
-  // 1. Get session and verify auth
-  const session = await getServerSession(authOptions)
-  if (!session?.accessToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  const githubToken = session.accessToken
-
-  // 2. Parse request body
+  // 1. Parse request body
   const body = await req.json()
   const { sandboxId, repoName, branch } = body
 
   if (!sandboxId || !repoName || !branch) {
-    return Response.json({ error: "Missing required fields" }, { status: 400 })
+    return Response.json({ error: "Missing required fields: sandboxId, repoName, branch" }, { status: 400 })
+  }
+
+  // 2. Get GitHub token from request body first (for API access)
+  // Fall back to session token (for browser access)
+  let githubToken = body.githubToken
+  if (!githubToken) {
+    const session = await getServerSession(authOptions)
+    if (!session?.accessToken) {
+      return Response.json({ error: "Unauthorized - provide githubToken in body or sign in" }, { status: 401 })
+    }
+    githubToken = session.accessToken
   }
 
   // 3. Get Daytona API key

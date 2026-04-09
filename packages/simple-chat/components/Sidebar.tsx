@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil } from "lucide-react"
+import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, Code2 } from "lucide-react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import type { Chat } from "@/lib/types"
 
@@ -152,6 +153,20 @@ export function Sidebar({
 
       {/* Spacer when collapsed */}
       {collapsed && <div className="flex-1" />}
+
+      {/* SDK Link */}
+      <div className={cn("border-t border-sidebar-border", collapsed ? "px-0 flex justify-center py-2" : "px-2 py-2")}>
+        <Link
+          href="/sdk"
+          className={cn(
+            "flex items-center gap-2 rounded-md transition-colors hover:bg-accent/50",
+            collapsed ? "p-1.5" : "w-full px-2 py-2"
+          )}
+        >
+          <Code2 className="h-4 w-4 text-muted-foreground" />
+          {!collapsed && <span className="text-sm text-foreground">API Reference</span>}
+        </Link>
+      </div>
 
       {/* Footer - User & Settings */}
       <div className="mt-auto border-t border-sidebar-border p-2">

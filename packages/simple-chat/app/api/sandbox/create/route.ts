@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
   const isNewRepo = repo === NEW_REPOSITORY || repo === "__new__"
 
-  // 2. For GitHub repos, we need auth
+  // 2. For GitHub repos, we need auth - accept token from body OR session
   let githubToken: string | undefined
   let owner: string | undefined
   let repoName: string
@@ -29,12 +29,16 @@ export async function POST(req: Request) {
     // For new repos, use a generated name
     repoName = "project"
   } else {
-    // Verify auth for GitHub repos
-    const session = await getServerSession(authOptions)
-    if (!session?.accessToken) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 })
+    // Try to get GitHub token from request body first (for API access)
+    // Fall back to session token (for browser access)
+    githubToken = body.githubToken
+    if (!githubToken) {
+      const session = await getServerSession(authOptions)
+      if (!session?.accessToken) {
+        return Response.json({ error: "Unauthorized - provide githubToken in body or sign in" }, { status: 401 })
+      }
+      githubToken = session.accessToken
     }
-    githubToken = session.accessToken
 
     const parts = repo.split("/")
     owner = parts[0]
@@ -152,6 +156,8 @@ export async function POST(req: Request) {
 
     return Response.json({
       sandboxId: sandbox.id,
+      repoName,
+      branch: newBranch,
       previewUrlPattern,
     })
   } catch (error) {

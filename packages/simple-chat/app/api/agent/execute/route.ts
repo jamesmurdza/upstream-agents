@@ -8,13 +8,13 @@ export const maxDuration = 60
 export async function POST(req: Request) {
   // 1. Parse request body
   const body = await req.json()
-  const { sandboxId, prompt, repoName, previewUrlPattern } = body
+  const { sandboxId, prompt, repoName, previewUrlPattern, agent, model, anthropicApiKey, openaiApiKey } = body
 
   if (!sandboxId || !prompt || !repoName) {
-    return Response.json({ error: "Missing required fields" }, { status: 400 })
+    return Response.json({ error: "Missing required fields: sandboxId, prompt, repoName" }, { status: 400 })
   }
 
-  // 3. Get Daytona API key
+  // 2. Get Daytona API key
   const daytonaApiKey = process.env.DAYTONA_API_KEY
   if (!daytonaApiKey) {
     return Response.json(
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    // 4. Get sandbox from Daytona
+    // 3. Get sandbox from Daytona
     const daytona = new Daytona({ apiKey: daytonaApiKey })
     let sandbox
 
@@ -38,9 +38,18 @@ export async function POST(req: Request) {
       )
     }
 
-    // 5. Start sandbox if not running
+    // 4. Start sandbox if not running
     if (sandbox.state !== "started") {
       await sandbox.start(120) // 2 minute timeout
+    }
+
+    // 5. Build env vars for the agent (API keys passed at execution time override sandbox env)
+    const env: Record<string, string> = {}
+    if (anthropicApiKey) {
+      env.ANTHROPIC_API_KEY = anthropicApiKey
+    }
+    if (openaiApiKey) {
+      env.OPENAI_API_KEY = openaiApiKey
     }
 
     // 6. Create background agent session
@@ -49,6 +58,9 @@ export async function POST(req: Request) {
     const bgSession = await createBackgroundAgentSession(sandbox, {
       repoPath,
       previewUrlPattern,
+      agent: agent || "opencode",
+      model,
+      env: Object.keys(env).length > 0 ? env : undefined,
     })
 
     // Store the session ID for status polling
@@ -57,7 +69,10 @@ export async function POST(req: Request) {
     // 7. Start the agent
     await bgSession.start(prompt)
 
-    return Response.json({ success: true })
+    return Response.json({
+      backgroundSessionId: bgSession.backgroundSessionId,
+      status: "running",
+    })
   } catch (error) {
     console.error("[agent/execute] Error:", error)
     const message = error instanceof Error ? error.message : "Unknown error"
