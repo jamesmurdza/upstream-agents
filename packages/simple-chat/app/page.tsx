@@ -17,6 +17,7 @@ export default function HomePage() {
     currentChat,
     currentChatId,
     settings,
+    isHydrated,
     startNewChat,
     selectChat,
     removeChat,
@@ -63,11 +64,16 @@ export default function HomePage() {
     sendMessage(message)
   }
 
+  // Don't render chats until hydrated to avoid SSR mismatch
+  const displayChats = isHydrated ? chats : []
+  const displayCurrentChatId = isHydrated ? currentChatId : null
+  const displayCurrentChat = isHydrated ? currentChat : null
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
-        chats={chats}
-        currentChatId={currentChatId}
+        chats={displayChats}
+        currentChatId={displayCurrentChatId}
         onSelectChat={selectChat}
         onNewChat={handleNewChat}
         onDeleteChat={removeChat}
@@ -79,7 +85,7 @@ export default function HomePage() {
       />
 
       <ChatPanel
-        chat={currentChat}
+        chat={displayCurrentChat}
         onSendMessage={handleSendMessage}
         onStopAgent={stopAgent}
         onChangeRepo={handleChangeRepo}

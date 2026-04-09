@@ -20,25 +20,36 @@ import { generateBranchName } from "@/lib/utils"
 
 const POLL_INTERVAL = 1000 // 1 second
 
+// Default empty state for SSR
+const DEFAULT_STATE: AppState = {
+  currentChatId: null,
+  chats: [],
+  settings: { anthropicApiKey: "", theme: "system" },
+}
+
 export function useChat() {
   const { data: session } = useSession()
 
-  // Load initial state from localStorage
-  const [state, setState] = useState<AppState>(() => {
-    if (typeof window === "undefined") {
-      return { currentChatId: null, chats: [], settings: { anthropicApiKey: "", theme: "system" } }
-    }
-    return loadState()
-  })
+  // Start with empty state to avoid hydration mismatch
+  const [state, setState] = useState<AppState>(DEFAULT_STATE)
+  const [isHydrated, setIsHydrated] = useState(false)
+
+  // Load from localStorage after mount (client-side only)
+  useEffect(() => {
+    setState(loadState())
+    setIsHydrated(true)
+  }, [])
 
   // Polling ref
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const isPollingRef = useRef(false)
 
-  // Sync state to localStorage
+  // Sync state to localStorage (only after hydration)
   useEffect(() => {
-    saveState(state)
-  }, [state])
+    if (isHydrated) {
+      saveState(state)
+    }
+  }, [state, isHydrated])
 
   // Get current chat
   const currentChat = state.chats.find((c) => c.id === state.currentChatId) ?? null
@@ -360,6 +371,7 @@ export function useChat() {
     currentChat,
     currentChatId: state.currentChatId,
     settings: state.settings,
+    isHydrated,
 
     // Actions
     startNewChat,
