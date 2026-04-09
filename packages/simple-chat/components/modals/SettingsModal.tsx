@@ -50,10 +50,11 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
             <div>
               <label className="flex items-center gap-2 text-sm font-medium mb-2">
                 <Key className="h-4 w-4" />
-                Anthropic API Key
+                Anthropic API Key (Optional)
               </label>
               <p className="text-xs text-muted-foreground mb-2">
-                Required to use Claude Code. Get your API key from{" "}
+                Optional - enables Claude models in OpenCode. Without it, free models are used.
+                Get your API key from{" "}
                 <a
                   href="https://console.anthropic.com/"
                   target="_blank"
@@ -68,7 +69,7 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
                   type={showKey ? "text" : "password"}
                   value={anthropicApiKey}
                   onChange={(e) => setAnthropicApiKey(e.target.value)}
-                  placeholder="sk-ant-..."
+                  placeholder="sk-ant-... (optional)"
                   className="w-full px-3 py-2 pr-10 text-sm bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono"
                 />
                 <button
@@ -84,8 +85,8 @@ export function SettingsModal({ open, onClose, settings, onSave }: SettingsModal
             {/* Info */}
             <div className="p-3 rounded-md bg-muted/50 text-xs text-muted-foreground">
               <p>
-                Your API key is stored locally in your browser and is only sent to the server
-                when creating sandboxes. It is never logged or stored on our servers.
+                OpenCode uses free models by default. Add an API key to unlock more powerful models.
+                Keys are stored locally in your browser and never logged on our servers.
               </p>
             </div>
           </div>

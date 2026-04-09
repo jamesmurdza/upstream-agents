@@ -45,11 +45,7 @@ export default function HomePage() {
       signIn("github")
       return
     }
-    // Check if API key is configured
-    if (!settings.anthropicApiKey) {
-      setSettingsOpen(true)
-      return
-    }
+    // OpenCode uses free models, no API key required
     setRepoPickerOpen(true)
   }
 
@@ -60,11 +56,7 @@ export default function HomePage() {
 
   // Handler for sending message
   const handleSendMessage = (message: string) => {
-    // Check if API key is configured
-    if (!settings.anthropicApiKey) {
-      setSettingsOpen(true)
-      return
-    }
+    // OpenCode uses free models, no API key check needed
     sendMessage(message)
   }
 

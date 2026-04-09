@@ -218,7 +218,7 @@ export async function createBackgroundAgentSession(
     options.previewUrlPattern
   )
 
-  const bgSession = await createSession("claude-code", {
+  const bgSession = await createSession("opencode", {
     sandbox: sandbox as any,
     systemPrompt,
     sessionId: options.sessionId,

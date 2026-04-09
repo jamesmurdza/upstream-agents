@@ -100,12 +100,8 @@ export function useChat() {
     if (!currentChat || !session?.accessToken) return
 
     const chat = currentChat
+    // OpenCode uses free models by default, so API key is optional
     const anthropicApiKey = state.settings.anthropicApiKey
-
-    if (!anthropicApiKey) {
-      console.error("No Anthropic API key configured")
-      return
-    }
 
     // 1. Add user message
     const userMessage: Message = {
@@ -139,7 +135,8 @@ export function useChat() {
             repo: chat.repo,
             baseBranch: chat.baseBranch,
             newBranch: branch,
-            anthropicApiKey,
+            // Pass API key if configured (optional for OpenCode)
+            ...(anthropicApiKey && { anthropicApiKey }),
           }),
         })
 
