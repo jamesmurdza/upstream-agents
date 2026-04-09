@@ -15,6 +15,7 @@ interface SidebarProps {
   chats: Chat[]
   currentChatId: string | null
   deletingChatIds: Set<string>
+  canCreateChat: boolean
   onSelectChat: (chatId: string) => void
   onNewChat: () => void
   onDeleteChat: (chatId: string) => void
@@ -29,6 +30,7 @@ export function Sidebar({
   chats,
   currentChatId,
   deletingChatIds,
+  canCreateChat,
   onSelectChat,
   onNewChat,
   onDeleteChat,
@@ -112,9 +114,14 @@ export function Sidebar({
       <div className={cn("pb-2", collapsed ? "px-0 flex justify-center" : "px-2")}>
         <button
           onClick={onNewChat}
+          disabled={!canCreateChat}
+          title={!canCreateChat ? "Sign in with GitHub to create more chats" : undefined}
           className={cn(
-            "flex items-center gap-2 rounded-md hover:bg-accent/50 transition-colors cursor-pointer",
-            collapsed ? "p-1.5" : "w-full px-2 py-2"
+            "flex items-center gap-2 rounded-md transition-colors",
+            collapsed ? "p-1.5" : "w-full px-2 py-2",
+            canCreateChat
+              ? "hover:bg-accent/50 cursor-pointer"
+              : "opacity-50 cursor-not-allowed"
           )}
         >
           <Plus className="h-4 w-4 text-muted-foreground" />
