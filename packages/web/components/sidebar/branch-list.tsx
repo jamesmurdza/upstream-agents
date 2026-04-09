@@ -290,10 +290,7 @@ export function BranchList({
         </div>
       </div>
 
-      <div className={cn(
-        "flex-1 overflow-y-auto px-2",
-        isMobile ? "pb-2" : "pb-2"
-      )}>
+      <div className="flex-1 overflow-y-auto px-2 py-2">
         {filtered.length === 0 && repo.branches.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
             <GitBranch className="h-5 w-5" />
