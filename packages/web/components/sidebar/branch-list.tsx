@@ -290,14 +290,14 @@ export function BranchList({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 py-2">
+      <div className="flex-1 overflow-y-auto px-2">
         {filtered.length === 0 && repo.branches.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
             <GitBranch className="h-5 w-5" />
             <p className="text-xs text-center">Create a new branch to start working with an agent</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5 py-1">
             {filtered.map((branch) => {
               const isActive = branch.id === activeBranchId
               const isBold = branch.status === BRANCH_STATUS.RUNNING || branch.status === BRANCH_STATUS.CREATING || (branch.unread && !isActive)
