@@ -4,13 +4,13 @@
  * Import this module to register all agents with the registry.
  */
 
-import { registry } from "../core/registry.js"
-import { claudeAgent } from "./claude/index.js"
-import { codexAgent } from "./codex/index.js"
-import { geminiAgent } from "./gemini/index.js"
-import { gooseAgent } from "./goose/index.js"
-import { opencodeAgent } from "./opencode/index.js"
-import { piAgent } from "./pi/index.js"
+import { registry } from "../core/registry"
+import { claudeAgent } from "./claude/index"
+import { codexAgent } from "./codex/index"
+import { geminiAgent } from "./gemini/index"
+import { gooseAgent } from "./goose/index"
+import { opencodeAgent } from "./opencode/index"
+import { piAgent } from "./pi/index"
 
 // Register all built-in agents
 registry.register(claudeAgent)
@@ -21,25 +21,25 @@ registry.register(opencodeAgent)
 registry.register(piAgent)
 
 // Export agent definitions for direct import if needed
-export { claudeAgent } from "./claude/index.js"
-export { codexAgent } from "./codex/index.js"
-export { geminiAgent } from "./gemini/index.js"
-export { gooseAgent } from "./goose/index.js"
-export { opencodeAgent } from "./opencode/index.js"
-export { piAgent } from "./pi/index.js"
+export { claudeAgent } from "./claude/index"
+export { codexAgent } from "./codex/index"
+export { geminiAgent } from "./gemini/index"
+export { gooseAgent } from "./goose/index"
+export { opencodeAgent } from "./opencode/index"
+export { piAgent } from "./pi/index"
 
 // Re-export tool mappings for testing
-export { CLAUDE_TOOL_MAPPINGS } from "./claude/tools.js"
-export { CODEX_TOOL_MAPPINGS } from "./codex/tools.js"
-export { GEMINI_TOOL_MAPPINGS } from "./gemini/tools.js"
-export { GOOSE_TOOL_MAPPINGS } from "./goose/tools.js"
-export { OPENCODE_TOOL_MAPPINGS } from "./opencode/tools.js"
-export { PI_TOOL_MAPPINGS } from "./pi/tools.js"
+export { CLAUDE_TOOL_MAPPINGS } from "./claude/tools"
+export { CODEX_TOOL_MAPPINGS } from "./codex/tools"
+export { GEMINI_TOOL_MAPPINGS } from "./gemini/tools"
+export { GOOSE_TOOL_MAPPINGS } from "./goose/tools"
+export { OPENCODE_TOOL_MAPPINGS } from "./opencode/tools"
+export { PI_TOOL_MAPPINGS } from "./pi/tools"
 
 // Re-export parsers for testing
-export { parseClaudeLine } from "./claude/parser.js"
-export { parseCodexLine } from "./codex/parser.js"
-export { parseGeminiLine } from "./gemini/parser.js"
-export { parseGooseLine } from "./goose/parser.js"
-export { parseOpencodeLine } from "./opencode/parser.js"
-export { parsePiLine } from "./pi/parser.js"
+export { parseClaudeLine } from "./claude/parser"
+export { parseCodexLine } from "./codex/parser"
+export { parseGeminiLine } from "./gemini/parser"
+export { parseGooseLine } from "./goose/parser"
+export { parseOpencodeLine } from "./opencode/parser"
+export { parsePiLine } from "./pi/parser"

@@ -8,11 +8,11 @@ export type {
   SessionMeta,
   StartOptions,
   TurnHandle,
-} from "./types.js"
+} from "./types"
 
 export {
   createBackgroundSession,
   writeInitialSessionMeta,
   readProviderFromMeta,
   type BackgroundSession,
-} from "./session.js"
+} from "./session"

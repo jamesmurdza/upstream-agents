@@ -5,8 +5,8 @@
  * No inheritance required - just implement this interface.
  */
 
-import type { Event } from "../types/events.js"
-import type { CodeAgentSandbox } from "../types/provider.js"
+import type { Event } from "../types/events"
+import type { CodeAgentSandbox } from "../types/provider"
 
 /**
  * Command specification returned by buildCommand()

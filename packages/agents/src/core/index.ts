@@ -8,9 +8,9 @@ export type {
   CommandSpec,
   ParseContext,
   RunOptions,
-} from "./agent.js"
+} from "./agent"
 
-export { registry, getAgent, getAgentNames } from "./registry.js"
+export { registry, getAgent, getAgentNames } from "./registry"
 
 export {
   normalizeToolName,
@@ -18,4 +18,4 @@ export {
   getToolDisplayName,
   CANONICAL_DISPLAY_NAMES,
   type CanonicalToolName,
-} from "./tools.js"
+} from "./tools"

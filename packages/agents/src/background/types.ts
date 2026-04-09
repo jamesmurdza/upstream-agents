@@ -2,7 +2,7 @@
  * Background Session Types
  */
 
-import type { Event } from "../types/events.js"
+import type { Event } from "../types/events"
 
 /**
  * Run phase for background sessions

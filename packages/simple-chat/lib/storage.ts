@@ -4,16 +4,36 @@
  */
 
 import type { AppState, Chat, Settings, Message } from "./types"
+import type { UserCredentialFlags } from "@upstream/common"
 
 const STORAGE_KEY = "simple-chat-state"
+
+const DEFAULT_SETTINGS: Settings = {
+  anthropicApiKey: "",
+  openaiApiKey: "",
+  opencodeApiKey: "",
+  geminiApiKey: "",
+  defaultAgent: "opencode", // Default to opencode (has free models)
+  defaultModel: "opencode/big-pickle", // Free model
+  theme: "system",
+}
 
 const DEFAULT_STATE: AppState = {
   currentChatId: null,
   chats: [],
-  settings: {
-    anthropicApiKey: "",
-    theme: "system",
-  },
+  settings: DEFAULT_SETTINGS,
+}
+
+/**
+ * Get user credential flags based on settings
+ */
+export function getCredentialFlags(settings: Settings): UserCredentialFlags {
+  return {
+    hasAnthropicApiKey: !!settings.anthropicApiKey,
+    hasOpenaiApiKey: !!settings.openaiApiKey,
+    hasOpencodeApiKey: !!settings.opencodeApiKey,
+    hasGeminiApiKey: !!settings.geminiApiKey,
+  }
 }
 
 /**

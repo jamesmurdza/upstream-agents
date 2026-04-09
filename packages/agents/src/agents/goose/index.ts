@@ -2,10 +2,10 @@
  * Goose CLI Agent Definition
  */
 
-import type { AgentDefinition, CommandSpec, ParseContext, RunOptions } from "../../core/agent.js"
-import type { Event } from "../../types/events.js"
-import { parseGooseLine } from "./parser.js"
-import { GOOSE_TOOL_MAPPINGS } from "./tools.js"
+import type { AgentDefinition, CommandSpec, ParseContext, RunOptions } from "../../core/agent"
+import type { Event } from "../../types/events"
+import { parseGooseLine } from "./parser"
+import { GOOSE_TOOL_MAPPINGS } from "./tools"
 
 /**
  * Determine the goose provider and model based on the model name and environment.

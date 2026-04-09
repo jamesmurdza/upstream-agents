@@ -1,6 +1,27 @@
 /**
  * Types for Simple Chat
+ * Re-exports shared types from @upstream/common
  */
+
+// Re-export shared types
+export type {
+  ContentBlock,
+  ToolCall,
+  AgentStatus,
+  AgentStatusResponse,
+} from "@upstream/common"
+
+// Re-export agent types
+export type { Agent, ModelOption, UserCredentialFlags } from "@upstream/common"
+export {
+  agentModels,
+  agentLabels,
+  defaultAgentModel,
+  getDefaultAgent,
+  getDefaultModelForAgent,
+  getModelLabel,
+  hasCredentialsForModel,
+} from "@upstream/common"
 
 export interface Message {
   id: string
@@ -30,6 +51,10 @@ export interface Chat {
   branch: string | null         // "swift-lunar-abc1" - the NEW branch we created
   sandboxId: string | null      // Daytona sandbox ID
 
+  // Agent config (per-chat, can be changed)
+  agent?: string        // "claude-code" | "opencode" | "codex" | etc.
+  model?: string        // Model ID for the agent
+
   // Chat data
   messages: Message[]
   createdAt: number
@@ -47,7 +72,17 @@ export type ChatStatus = "pending" | "creating" | "ready" | "running" | "error"
 export type Theme = "light" | "dark" | "system"
 
 export interface Settings {
+  // API keys for various providers
   anthropicApiKey: string
+  openaiApiKey: string
+  opencodeApiKey: string
+  geminiApiKey: string
+
+  // Default agent/model selection
+  defaultAgent: string
+  defaultModel: string
+
+  // UI preferences
   theme: Theme
 }
 
@@ -97,29 +132,10 @@ export interface ExecuteAgentRequest {
   sandboxId: string
   prompt: string
   repoName: string
+  agent?: string
+  model?: string
 }
 
 export interface ExecuteAgentResponse {
   success: boolean
-}
-
-export interface AgentStatusResponse {
-  status: "running" | "completed" | "error"
-  content: string
-  toolCalls: Array<{
-    tool: string
-    summary: string
-    fullSummary?: string
-    output?: string
-  }>
-  error?: string
-}
-
-// Content block types (matching SDK)
-export type ContentBlock = {
-  type: "text"
-  text: string
-} | {
-  type: "tool_calls"
-  toolCalls: Array<{ tool: string; summary: string; fullSummary?: string; output?: string }>
 }

@@ -3,23 +3,31 @@
 import { useState, useRef, useEffect } from "react"
 import { ArrowUp, Square, ChevronDown, Github } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Chat } from "@/lib/types"
-import { NEW_REPOSITORY } from "@/lib/types"
+import type { Chat, Settings, Agent, ModelOption } from "@/lib/types"
+import { NEW_REPOSITORY, agentModels, agentLabels, getModelLabel } from "@/lib/types"
 import { MessageBubble } from "./MessageBubble"
 
 interface ChatPanelProps {
   chat: Chat | null
-  onSendMessage: (message: string) => void
+  settings: Settings
+  onSendMessage: (message: string, agent: string, model: string) => void
   onStopAgent: () => void
   onChangeRepo?: () => void
+  onUpdateChat?: (updates: Partial<Chat>) => void
 }
 
-export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChangeRepo, onUpdateChat }: ChatPanelProps) {
   const [input, setInput] = useState("")
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
+  const [showAgentDropdown, setShowAgentDropdown] = useState(false)
+  const [showModelDropdown, setShowModelDropdown] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+
+  // Get current agent/model (from chat or settings)
+  const currentAgent = (chat?.agent || settings.defaultAgent) as Agent
+  const currentModel = chat?.model || settings.defaultModel
 
   const isRunning = chat?.status === "running"
   const isCreating = chat?.status === "creating"
@@ -49,9 +57,22 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
     }
   }, [input])
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('[data-dropdown]')) {
+        setShowAgentDropdown(false)
+        setShowModelDropdown(false)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [])
+
   const handleSend = () => {
     if (!canSend) return
-    onSendMessage(input.trim())
+    onSendMessage(input.trim(), currentAgent, currentModel)
     setInput("")
   }
 
@@ -59,6 +80,23 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+    }
+  }
+
+  const handleAgentChange = (agent: Agent) => {
+    setShowAgentDropdown(false)
+    // Update chat's agent if possible
+    if (chat && onUpdateChat) {
+      const models = agentModels[agent] ?? []
+      const newModel = models[0]?.value || currentModel
+      onUpdateChat({ agent, model: newModel })
+    }
+  }
+
+  const handleModelChange = (model: string) => {
+    setShowModelDropdown(false)
+    if (chat && onUpdateChat) {
+      onUpdateChat({ model })
     }
   }
 
@@ -76,6 +114,10 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
   const isNewRepo = chat.repo === NEW_REPOSITORY
   const canChangeRepo = chat.messages.length === 0 && !chat.sandboxId
   const isNewChat = chat.messages.length === 0
+
+  // Get available models for current agent
+  const availableModels = agentModels[currentAgent] ?? []
+  const agents: Agent[] = ["claude-code", "opencode", "codex", "gemini", "goose", "pi"]
 
   // Chat input component (used in two places)
   // Slightly wider than messages container (max-w-3xl = 48rem, this is ~52rem)
@@ -147,16 +189,66 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
           <div className="flex-1" />
 
           {/* Agent selector */}
-          <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-            OpenCode
-            <ChevronDown className="h-3 w-3" />
-          </button>
+          <div className="relative" data-dropdown>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowAgentDropdown(!showAgentDropdown)
+                setShowModelDropdown(false)
+              }}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              {agentLabels[currentAgent]}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {showAgentDropdown && (
+              <div className="absolute bottom-full right-0 mb-1 w-40 bg-popover border border-border rounded-md shadow-lg py-1 z-50">
+                {agents.map((agent) => (
+                  <button
+                    key={agent}
+                    onClick={() => handleAgentChange(agent)}
+                    className={cn(
+                      "w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors",
+                      agent === currentAgent && "bg-accent"
+                    )}
+                  >
+                    {agentLabels[agent]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Model selector */}
-          <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-            Claude Sonnet
-            <ChevronDown className="h-3 w-3" />
-          </button>
+          <div className="relative" data-dropdown>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowModelDropdown(!showModelDropdown)
+                setShowAgentDropdown(false)
+              }}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              {getModelLabel(currentAgent, currentModel)}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {showModelDropdown && (
+              <div className="absolute bottom-full right-0 mb-1 w-52 max-h-64 overflow-y-auto bg-popover border border-border rounded-md shadow-lg py-1 z-50">
+                {availableModels.map((model: ModelOption) => (
+                  <button
+                    key={model.value}
+                    onClick={() => handleModelChange(model.value)}
+                    className={cn(
+                      "w-full px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors",
+                      model.value === currentModel && "bg-accent"
+                    )}
+                  >
+                    {model.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

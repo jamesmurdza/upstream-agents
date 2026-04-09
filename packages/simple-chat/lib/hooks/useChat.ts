@@ -25,7 +25,15 @@ const MAX_CHATS_ANONYMOUS = 2 // Max chats for non-signed-in users
 const DEFAULT_STATE: AppState = {
   currentChatId: null,
   chats: [],
-  settings: { anthropicApiKey: "", theme: "system" },
+  settings: {
+    anthropicApiKey: "",
+    openaiApiKey: "",
+    opencodeApiKey: "",
+    geminiApiKey: "",
+    defaultAgent: "opencode",
+    defaultModel: "opencode/big-pickle",
+    theme: "system",
+  },
 }
 
 export function useChat() {
@@ -154,11 +162,18 @@ export function useChat() {
     setState(newState)
   }, [])
 
+  // Update the current chat
+  const updateCurrentChat = useCallback((updates: Partial<Chat>) => {
+    if (!state.currentChatId) return
+    const newState = updateChat(state.currentChatId, updates)
+    setState(newState)
+  }, [state.currentChatId])
+
   // =============================================================================
   // Messaging
   // =============================================================================
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, agent?: string, model?: string) => {
     if (!currentChat) return
 
     // For GitHub repos, we need auth. For NEW_REPOSITORY, we don't.
@@ -166,8 +181,12 @@ export function useChat() {
     if (!isNewRepo && !session?.accessToken) return
 
     const chat = currentChat
-    // OpenCode uses free models by default, so API key is optional
-    const anthropicApiKey = state.settings.anthropicApiKey
+    // Get API keys from settings
+    const { anthropicApiKey, openaiApiKey, opencodeApiKey, geminiApiKey } = state.settings
+
+    // Use provided agent/model or fall back to chat/settings defaults
+    const selectedAgent = agent || chat.agent || state.settings.defaultAgent
+    const selectedModel = model || chat.model || state.settings.defaultModel
 
     // 1. Add user message
     const userMessage: Message = {
@@ -264,6 +283,13 @@ export function useChat() {
           prompt: content,
           repoName,
           previewUrlPattern,
+          agent: selectedAgent,
+          model: selectedModel,
+          // Pass API keys
+          ...(anthropicApiKey && { anthropicApiKey }),
+          ...(openaiApiKey && { openaiApiKey }),
+          ...(opencodeApiKey && { opencodeApiKey }),
+          ...(geminiApiKey && { geminiApiKey }),
         }),
       })
 
@@ -292,7 +318,7 @@ export function useChat() {
       newState = updateChat(chat.id, { status: "error" })
       setState(newState)
     }
-  }, [currentChat, session?.accessToken, state.settings.anthropicApiKey])
+  }, [currentChat, session?.accessToken, state.settings])
 
   // =============================================================================
   // Polling
@@ -418,6 +444,7 @@ export function useChat() {
     selectChat,
     removeChat,
     updateChatRepo,
+    updateCurrentChat,
     sendMessage,
     stopAgent,
     updateSettings,

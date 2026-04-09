@@ -11,10 +11,10 @@
  * - Tool calls use {"type":"tool_use",...} and {"type":"tool_result",...}
  */
 
-import type { Event } from "../../types/events.js"
-import type { ParseContext } from "../../core/agent.js"
-import { createToolStartEvent } from "../../core/tools.js"
-import { safeJsonParse } from "../../utils/json.js"
+import type { Event } from "../../types/events"
+import type { ParseContext } from "../../core/agent"
+import { createToolStartEvent } from "../../core/tools"
+import { safeJsonParse } from "../../utils/json"
 
 /**
  * Content block types within a message

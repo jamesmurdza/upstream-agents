@@ -24,6 +24,7 @@ export default function HomePage() {
     selectChat,
     removeChat,
     updateChatRepo,
+    updateCurrentChat,
     sendMessage,
     stopAgent,
     updateSettings,
@@ -64,13 +65,13 @@ export default function HomePage() {
   }
 
   // Handler for sending message
-  const handleSendMessage = (message: string) => {
+  const handleSendMessage = (message: string, agent: string, model: string) => {
     // For GitHub repos, we need auth
     if (currentChat && currentChat.repo !== NEW_REPOSITORY && !session) {
       signIn("github")
       return
     }
-    sendMessage(message)
+    sendMessage(message, agent, model)
   }
 
   // Don't render chats until hydrated to avoid SSR mismatch
@@ -97,9 +98,11 @@ export default function HomePage() {
 
       <ChatPanel
         chat={displayCurrentChat}
+        settings={settings}
         onSendMessage={handleSendMessage}
         onStopAgent={stopAgent}
         onChangeRepo={handleChangeRepo}
+        onUpdateChat={updateCurrentChat}
       />
 
       <RepoPickerModal

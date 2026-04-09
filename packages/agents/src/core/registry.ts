@@ -5,7 +5,7 @@
  * Replaces the hardcoded switch-based factory.
  */
 
-import type { AgentDefinition } from "./agent.js"
+import type { AgentDefinition } from "./agent"
 
 /**
  * Registry for agent definitions.

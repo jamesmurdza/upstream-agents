@@ -1,5 +1,5 @@
 import { execSync, spawnSync } from "node:child_process"
-import type { ProviderName } from "../types/index.js"
+import type { ProviderName } from "../types/index"
 
 /**
  * CLI package information for each provider.

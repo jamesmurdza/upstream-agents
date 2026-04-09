@@ -2,10 +2,10 @@
  * Claude Code CLI Agent Definition
  */
 
-import type { AgentDefinition, CommandSpec, ParseContext, RunOptions } from "../../core/agent.js"
-import type { Event } from "../../types/events.js"
-import { parseClaudeLine } from "./parser.js"
-import { CLAUDE_TOOL_MAPPINGS } from "./tools.js"
+import type { AgentDefinition, CommandSpec, ParseContext, RunOptions } from "../../core/agent"
+import type { Event } from "../../types/events"
+import { parseClaudeLine } from "./parser"
+import { CLAUDE_TOOL_MAPPINGS } from "./tools"
 
 /**
  * Claude Code CLI agent definition.

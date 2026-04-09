@@ -19,10 +19,10 @@
  *   { type: "assistant.complete" }
  */
 
-import type { Event } from "../../types/events.js"
-import type { ParseContext } from "../../core/agent.js"
-import { createToolStartEvent, normalizeToolName } from "../../core/tools.js"
-import { safeJsonParse } from "../../utils/json.js"
+import type { Event } from "../../types/events"
+import type { ParseContext } from "../../core/agent"
+import { createToolStartEvent, normalizeToolName } from "../../core/tools"
+import { safeJsonParse } from "../../utils/json"
 
 /**
  * Raw event types from Gemini's JSON stream

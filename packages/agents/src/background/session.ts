@@ -6,18 +6,18 @@
  */
 
 import { randomUUID } from "node:crypto"
-import type { AgentDefinition, ParseContext, RunOptions } from "../core/agent.js"
-import type { Event } from "../types/events.js"
-import type { CodeAgentSandbox } from "../types/provider.js"
+import type { AgentDefinition, ParseContext, RunOptions } from "../core/agent"
+import type { Event } from "../types/events"
+import type { CodeAgentSandbox } from "../types/provider"
 import type {
   PollResult,
   SessionMeta,
   StartOptions,
   TurnHandle,
-} from "./types.js"
+} from "./types"
 // Re-export for convenience (BackgroundRunPhase is used via PollResult.runPhase)
-export type { BackgroundRunPhase } from "./types.js"
-import { debugLog } from "../debug.js"
+export type { BackgroundRunPhase } from "./types"
+import { debugLog } from "../debug"
 
 /** After startedAt, ignore "done but no output" briefly (race with wrapper). */
 const BACKGROUND_STARTUP_GRACE_MS = 4000

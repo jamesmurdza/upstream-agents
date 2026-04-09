@@ -5,11 +5,11 @@
  * Supports both legacy item.tool.* and current item.started/item.completed formats.
  */
 
-import type { Event } from "../../types/events.js"
-import type { ShellToolInput, WriteToolInput } from "../../types/events.js"
-import { createToolStartEvent } from "../../core/tools.js"
-import { safeJsonParse } from "../../utils/json.js"
-import { normalizeCodexToolName } from "./tools.js"
+import type { Event } from "../../types/events"
+import type { ShellToolInput, WriteToolInput } from "../../types/events"
+import { createToolStartEvent } from "../../core/tools"
+import { safeJsonParse } from "../../utils/json"
+import { normalizeCodexToolName } from "./tools"
 
 /**
  * Raw event types from Codex's JSON stream

@@ -7,10 +7,10 @@ import type {
   CommandSpec,
   ParseContext,
   RunOptions,
-} from "../../core/agent.js"
-import type { Event } from "../../types/events.js"
-import { parseOpencodeLine } from "./parser.js"
-import { OPENCODE_TOOL_MAPPINGS } from "./tools.js"
+} from "../../core/agent"
+import type { Event } from "../../types/events"
+import { parseOpencodeLine } from "./parser"
+import { OPENCODE_TOOL_MAPPINGS } from "./tools"
 
 /**
  * Quote a string for bash

@@ -8,10 +8,10 @@
  * https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent#cli-reference
  */
 
-import type { Event } from "../../types/events.js"
-import type { ParseContext } from "../../core/agent.js"
-import { createToolStartEvent } from "../../core/tools.js"
-import { safeJsonParse } from "../../utils/json.js"
+import type { Event } from "../../types/events"
+import type { ParseContext } from "../../core/agent"
+import { createToolStartEvent } from "../../core/tools"
+import { safeJsonParse } from "../../utils/json"
 
 /**
  * Raw event types from Pi CLI's --mode json output

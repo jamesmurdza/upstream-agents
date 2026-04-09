@@ -10,10 +10,10 @@ import type {
   CommandSpec,
   ParseContext,
   RunOptions,
-} from "../../core/agent.js"
-import type { Event } from "../../types/events.js"
-import { parsePiLine } from "./parser.js"
-import { PI_TOOL_MAPPINGS } from "./tools.js"
+} from "../../core/agent"
+import type { Event } from "../../types/events"
+import { parsePiLine } from "./parser"
+import { PI_TOOL_MAPPINGS } from "./tools"
 
 /**
  * Pi Coding Agent CLI agent definition.

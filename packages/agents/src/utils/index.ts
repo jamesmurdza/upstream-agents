@@ -1,2 +1,2 @@
-export * from "./json.js"
-export * from "./install.js"
+export * from "./json"
+export * from "./install"

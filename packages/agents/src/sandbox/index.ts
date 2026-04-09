@@ -2,10 +2,10 @@
  * Sandbox module: public API and adapter dispatch.
  * Implementations live in sandbox/daytona.ts and daytona-ssh.ts.
  */
-import type { CodeAgentSandbox, AdaptSandboxOptions } from "../types/index.js"
-import { adaptDaytonaSandbox } from "./daytona.js"
-export type { CodeAgentSandbox, AdaptSandboxOptions } from "../types/index.js"
-export { adaptDaytonaSandbox } from "./daytona.js"
+import type { CodeAgentSandbox, AdaptSandboxOptions } from "../types/index"
+import { adaptDaytonaSandbox } from "./daytona"
+export type { CodeAgentSandbox, AdaptSandboxOptions } from "../types/index"
+export { adaptDaytonaSandbox } from "./daytona"
 
 /**
  * Adapt a sandbox for use with createProvider/createSession.

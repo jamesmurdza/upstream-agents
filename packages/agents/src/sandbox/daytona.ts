@@ -3,8 +3,8 @@
  * Background-only execution using executeCommand + nohup.
  */
 import type { Sandbox } from "@daytonaio/sdk"
-import type { CodeAgentSandbox, AdaptSandboxOptions, ExecuteBackgroundOptions, ProviderName } from "../types/index.js"
-import { getPackageName, getShellInstaller } from "../utils/install.js"
+import type { CodeAgentSandbox, AdaptSandboxOptions, ExecuteBackgroundOptions, ProviderName } from "../types/index"
+import { getPackageName, getShellInstaller } from "../utils/install"
 
 /** Escape a string for use in single-quoted shell strings */
 function escapeShell(str: string): string {

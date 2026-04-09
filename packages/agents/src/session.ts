@@ -6,20 +6,20 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { debugLog } from "./debug.js"
+import { debugLog } from "./debug"
 
 // Import and register all agents
-import "./agents/index.js"
+import "./agents/index"
 
-import { getAgent, getAgentNames } from "./core/registry.js"
+import { getAgent, getAgentNames } from "./core/registry"
 import {
   createBackgroundSession as createBgSession,
   writeInitialSessionMeta,
   readProviderFromMeta,
   type BackgroundSession,
-} from "./background/index.js"
-import { adaptSandbox } from "./sandbox/index.js"
-import type { CodeAgentSandbox, ProviderName } from "./types/provider.js"
+} from "./background/index"
+import { adaptSandbox } from "./sandbox/index"
+import type { CodeAgentSandbox, ProviderName } from "./types/provider"
 
 const CODEAGENT_SESSION_DIR_PREFIX = "/tmp/codeagent-"
 
@@ -196,5 +196,5 @@ async function createSessionWithId(
 }
 
 // Re-export types
-export type { BackgroundSession } from "./background/index.js"
-export type { BackgroundRunPhase, PollResult, TurnHandle } from "./background/types.js"
+export type { BackgroundSession } from "./background/index"
+export type { BackgroundRunPhase, PollResult, TurnHandle } from "./background/types"

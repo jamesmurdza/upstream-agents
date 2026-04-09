@@ -7,11 +7,11 @@ import type {
   CommandSpec,
   ParseContext,
   RunOptions,
-} from "../../core/agent.js"
-import type { Event } from "../../types/events.js"
-import type { CodeAgentSandbox } from "../../types/provider.js"
-import { parseCodexLine } from "./parser.js"
-import { CODEX_TOOL_MAPPINGS } from "./tools.js"
+} from "../../core/agent"
+import type { Event } from "../../types/events"
+import type { CodeAgentSandbox } from "../../types/provider"
+import { parseCodexLine } from "./parser"
+import { CODEX_TOOL_MAPPINGS } from "./tools"
 
 /**
  * Codex agent-specific setup: login with API key

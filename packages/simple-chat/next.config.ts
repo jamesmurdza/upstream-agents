@@ -1,8 +1,8 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  // Treat @upstream/agents as external (don't bundle)
-  serverExternalPackages: ["@upstream/agents"],
+  // Transpile workspace packages (source imports)
+  transpilePackages: ["@upstream/agents", "@upstream/common"],
 }
 
 export default nextConfig

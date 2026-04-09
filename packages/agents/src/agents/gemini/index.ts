@@ -7,10 +7,10 @@ import type {
   CommandSpec,
   ParseContext,
   RunOptions,
-} from "../../core/agent.js"
-import type { Event } from "../../types/events.js"
-import { parseGeminiLine } from "./parser.js"
-import { GEMINI_TOOL_MAPPINGS } from "./tools.js"
+} from "../../core/agent"
+import type { Event } from "../../types/events"
+import { parseGeminiLine } from "./parser"
+import { GEMINI_TOOL_MAPPINGS } from "./tools"
 
 /**
  * Google Gemini CLI agent definition.

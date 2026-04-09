@@ -56,7 +56,7 @@ export type {
   GrepToolInput,
   ShellToolInput,
   ToolInputMap,
-} from "./types/events.js"
+} from "./types/events"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core Types
@@ -68,9 +68,9 @@ export type {
   CommandSpec,
   ParseContext,
   RunOptions,
-} from "./core/agent.js"
+} from "./core/agent"
 
-export type { CanonicalToolName } from "./core/tools.js"
+export type { CanonicalToolName } from "./core/tools"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Background Session Types
@@ -81,7 +81,7 @@ export type {
   BackgroundRunPhase,
   PollResult,
   TurnHandle,
-} from "./background/index.js"
+} from "./background/index"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sandbox Types
@@ -91,7 +91,7 @@ export type {
   CodeAgentSandbox,
   ExecuteBackgroundOptions,
   AdaptSandboxOptions,
-} from "./types/provider.js"
+} from "./types/provider"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Session API (Main Entry Point)
@@ -103,13 +103,13 @@ export {
   getAgentNames,
   type SessionOptions,
   type CreateSessionOptions,
-} from "./session.js"
+} from "./session"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent Registry
 // ─────────────────────────────────────────────────────────────────────────────
 
-export { registry, getAgent } from "./core/registry.js"
+export { registry, getAgent } from "./core/registry"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool Utilities
@@ -120,7 +120,7 @@ export {
   createToolStartEvent,
   getToolDisplayName,
   CANONICAL_DISPLAY_NAMES,
-} from "./core/tools.js"
+} from "./core/tools"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent Definitions (for direct import)
@@ -131,13 +131,13 @@ export {
   codexAgent,
   geminiAgent,
   opencodeAgent,
-} from "./agents/index.js"
+} from "./agents/index"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sandbox Adapter
 // ─────────────────────────────────────────────────────────────────────────────
 
-export { adaptDaytonaSandbox, adaptSandbox } from "./sandbox/index.js"
+export { adaptDaytonaSandbox, adaptSandbox } from "./sandbox/index"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilities
@@ -150,7 +150,7 @@ export {
   ensureCliInstalled,
   getPackageName,
   getInstallationStatus,
-} from "./utils/index.js"
+} from "./utils/index"
 
 // Debug (enable with CODING_AGENTS_DEBUG=1)
-export { isDebugEnabled, debugLog } from "./debug.js"
+export { isDebugEnabled, debugLog } from "./debug"

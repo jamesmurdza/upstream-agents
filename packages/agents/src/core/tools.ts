@@ -5,7 +5,7 @@
  * Each agent provides its own mappings, but normalization logic is shared.
  */
 
-import type { ToolStartEvent } from "../types/events.js"
+import type { ToolStartEvent } from "../types/events"
 
 /**
  * Canonical tool names used across all agents.
