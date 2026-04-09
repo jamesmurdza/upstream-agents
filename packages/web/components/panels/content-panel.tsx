@@ -704,28 +704,33 @@ export function ContentPanel({
   const previousFilesRef = useRef<ModifiedFile[]>([])
 
   const [isResizing, setIsResizing] = useState(false)
+  const [isAboutToCollapse, setIsAboutToCollapse] = useState(false)
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const serverPollIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // ===== Resize Logic =====
   const startResize = useCallback(() => {
     setIsResizing(true)
+    setIsAboutToCollapse(false)
     document.body.style.cursor = "col-resize"
     document.body.style.userSelect = "none"
   }, [])
 
   // Threshold for collapsing - if dragged narrower than this, collapse
   const COLLAPSE_THRESHOLD = 100
+  const COLLAPSED_WIDTH = 6
 
   useEffect(() => {
     if (!isResizing) return
 
     function onMouseMove(e: MouseEvent) {
       const rawWidth = window.innerWidth - e.clientX
-      // If dragged past the collapse threshold, just track it but don't update width
+      // If dragged past the collapse threshold, show collapse preview
       if (rawWidth < COLLAPSE_THRESHOLD) {
+        setIsAboutToCollapse(true)
         return
       }
+      setIsAboutToCollapse(false)
       // Uncollapse if we were collapsed and now dragging wider
       if (contentPanelCollapsed && rawWidth >= MIN_WIDTH) {
         setContentPanelCollapsed(false)
@@ -740,6 +745,7 @@ export function ContentPanel({
         setContentPanelCollapsed(true)
       }
       setIsResizing(false)
+      setIsAboutToCollapse(false)
       document.body.style.cursor = ""
       document.body.style.userSelect = ""
     }
@@ -928,12 +934,23 @@ export function ContentPanel({
 
   const activeTab = contentPanelTabs.find(t => t.id === contentPanelActiveTabId)
 
-  // Collapsed state - show thin strip that can be dragged to expand
+  // Collapsed state - show strip that can be dragged to expand
   if (contentPanelCollapsed) {
     return (
       <div
-        className="flex h-full shrink-0 flex-col border-l border-border bg-card relative w-1 cursor-col-resize hover:bg-primary/30 transition-colors"
+        className="flex h-full shrink-0 flex-col border-l border-border bg-muted/50 hover:bg-primary/20 cursor-col-resize transition-colors"
+        style={{ width: COLLAPSED_WIDTH }}
         onMouseDown={startResize}
+      />
+    )
+  }
+
+  // About to collapse - show preview of collapsed state
+  if (isAboutToCollapse) {
+    return (
+      <div
+        className="flex h-full shrink-0 flex-col border-l border-border bg-primary/20 cursor-col-resize transition-colors"
+        style={{ width: COLLAPSED_WIDTH }}
       />
     )
   }
@@ -946,7 +963,7 @@ export function ContentPanel({
       {/* Resize Handle */}
       <div
         onMouseDown={startResize}
-        className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-10"
+        className="absolute left-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary/30 transition-colors z-10"
       />
 
       {/* Tab Bar */}
