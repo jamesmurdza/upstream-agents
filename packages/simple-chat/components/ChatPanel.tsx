@@ -78,8 +78,9 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
   const isNewChat = chat.messages.length === 0
 
   // Chat input component (used in two places)
+  // Slightly wider than messages container (max-w-3xl = 48rem, this is ~52rem)
   const chatInput = (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="w-full max-w-[52rem] mx-auto">
       <div
         className={cn(
           "flex flex-col rounded-2xl border shadow-sm",
@@ -217,7 +218,7 @@ export function ChatPanel({ chat, onSendMessage, onStopAgent, onChangeRepo }: Ch
       </div>
 
       {/* Input */}
-      <div className="p-4">
+      <div className="px-4 pb-4">
         {chatInput}
       </div>
     </div>
