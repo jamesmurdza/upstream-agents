@@ -62,6 +62,11 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
     }
   }, [chat?.messages, userHasScrolledUp])
 
+  // Focus prompt when switching chats
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [chat?.id])
+
   // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current
