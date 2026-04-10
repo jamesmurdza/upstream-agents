@@ -9,8 +9,6 @@ import {
   isDaytonaKeyError,
   internalError,
 } from "@/lib/shared/api-helpers"
-import { readFileSync } from "fs"
-import { join } from "path"
 
 // Timeout for terminal setup - 60 seconds
 export const maxDuration = 60
@@ -130,32 +128,14 @@ export async function POST(req: Request) {
           })
         }
 
-        // Read server files from the @upstream/terminal package
-        let serverCode: string
-        let packageJson: string
-
-        try {
-          // Try to read from the installed package
-          const terminalPackagePath = require.resolve("@upstream/terminal/server")
-          const serverDir = join(terminalPackagePath, "..")
-          serverCode = readFileSync(join(serverDir, "websocket-server.js"), "utf-8")
-          packageJson = readFileSync(join(serverDir, "package.json"), "utf-8")
-        } catch {
-          // Fallback: read from packages/terminal in the monorepo
-          const monorepoPath = join(process.cwd(), "..", "terminal", "src", "server")
-          try {
-            serverCode = readFileSync(join(monorepoPath, "websocket-server.js"), "utf-8")
-            packageJson = readFileSync(join(monorepoPath, "package.json"), "utf-8")
-          } catch {
-            // Final fallback: inline minimal server code
-            serverCode = getInlineServerCode()
-            packageJson = JSON.stringify({
-              name: "websocket-pty-server",
-              version: "1.0.0",
-              dependencies: { ws: "^8.18.0", "node-pty": "^1.0.0" },
-            })
-          }
-        }
+        // Get the PTY server code (inlined to avoid bundling node-pty in Next.js)
+        // The server code runs inside the sandbox, not in the Next.js app
+        const serverCode = getInlineServerCode()
+        const packageJson = JSON.stringify({
+          name: "websocket-pty-server",
+          version: "1.0.0",
+          dependencies: { ws: "^8.18.0", "node-pty": "^1.0.0" },
+        })
 
         // Upload server files to sandbox
         await sandbox.fs.uploadFile(

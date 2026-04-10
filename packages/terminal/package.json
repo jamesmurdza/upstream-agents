@@ -26,7 +26,6 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./server": "./src/server/websocket-server.js",
     "./components": "./src/components/index.ts"
   },
   "files": [
