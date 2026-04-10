@@ -117,14 +117,21 @@ export async function POST(req: Request) {
   const auth = await requireAuth()
   if (isAuthError(auth)) return auth
 
-  let body: Record<string, unknown>
+  let body: {
+    sandboxId?: string
+    repoPath?: string
+    action?: string
+    filePath?: string
+    command?: string
+    maxLines?: number
+  }
   try {
     body = await req.json()
   } catch {
     return badRequest("Invalid or empty JSON body")
   }
 
-  const { sandboxId, repoPath, action, filePath, since } = body
+  const { sandboxId, repoPath, action, filePath } = body
 
   if (!sandboxId || !repoPath || !action) {
     return badRequest("Missing required fields")
@@ -177,7 +184,7 @@ export async function POST(req: Request) {
         }
 
         const safePath = escapeShell(filePath)
-        const maxLines = typeof body.maxLines === "number" ? body.maxLines : undefined
+        const maxLines = body.maxLines
 
         // Get file metadata first
         const statResult = await sandbox.process.executeCommand(
