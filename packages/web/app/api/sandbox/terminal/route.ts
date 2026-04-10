@@ -297,11 +297,21 @@ export async function POST(req: Request) {
 function getInlineServerCode(): string {
   return `
 const http = require('http');
+const fs = require('fs');
 const WebSocket = require('ws');
 const pty = require('node-pty');
 const os = require('os');
 
 const PORT = process.env.PTY_PORT || 44777;
+
+// Custom rcfile that sources the user's bashrc and then overrides PS1.
+// Setting PS1 only via the env doesn't work because interactive bash sources
+// ~/.bashrc on startup and most distro bashrcs reset PS1 themselves.
+const RCFILE = '/tmp/.pty-bashrc';
+fs.writeFileSync(
+  RCFILE,
+  '[ -f ~/.bashrc ] && source ~/.bashrc\\nPS1="\\\\u:\\\\w\\\\$ "\\n'
+);
 
 const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/health') {
@@ -319,7 +329,8 @@ wss.on('connection', (ws, req) => {
   console.log('[WS] Connection from:', req.socket.remoteAddress);
 
   const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
-  const ptyProcess = pty.spawn(shell, [], {
+  const shellArgs = os.platform() === 'win32' ? [] : ['--rcfile', RCFILE, '-i'];
+  const ptyProcess = pty.spawn(shell, shellArgs, {
     name: 'xterm-256color',
     cols: 80,
     rows: 30,
