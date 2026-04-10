@@ -19,7 +19,7 @@ export { WebSocketTerminal } from './components/WebSocketTerminal';
 export type { WebSocketTerminalProps } from './components/WebSocketTerminal';
 
 // Constants
-export const PTY_SERVER_PORT = 3001;
+export const PTY_SERVER_PORT = 44777;
 
 /**
  * Get the WebSocket URL from an HTTPS preview URL

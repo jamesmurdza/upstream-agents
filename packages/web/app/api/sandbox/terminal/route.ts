@@ -13,8 +13,8 @@ import {
 // Timeout for terminal setup - 60 seconds
 export const maxDuration = 60
 
-// Port for the WebSocket PTY server
-const PTY_SERVER_PORT = 3001
+// Port for the WebSocket PTY server (unique high port to avoid conflicts with dev servers)
+const PTY_SERVER_PORT = 44777
 
 /**
  * POST /api/sandbox/terminal
@@ -246,7 +246,7 @@ const WebSocket = require('ws');
 const pty = require('node-pty');
 const os = require('os');
 
-const PORT = process.env.PTY_PORT || 3001;
+const PORT = process.env.PTY_PORT || 44777;
 
 const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/health') {
