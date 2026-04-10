@@ -313,7 +313,7 @@ export function SettingsModal({ open, onClose, settings, onSave, highlightKey }:
                 placeholder="..."
                 highlight={highlightKey === "opencode"}
                 inputRef={opencodeInputRef}
-                helpUrl="https://opencode.ai"
+                helpUrl="https://opencode.ai/auth"
                 helpText="Get key"
               />
 

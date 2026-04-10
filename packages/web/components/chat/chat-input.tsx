@@ -78,12 +78,14 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
     // Group models by requirement for display
     const modelSections = useMemo(() => {
       const freeModels = availableModels.filter(m => m.requiresKey === "none")
+      const opencodeModels = availableModels.filter(m => m.requiresKey === "opencode")
       const anthropicModels = availableModels.filter(m => m.requiresKey === "anthropic")
       const openaiModels = availableModels.filter(m => m.requiresKey === "openai")
       const geminiModels = availableModels.filter(m => m.requiresKey === "gemini")
       const sections: { label: string; models: typeof availableModels }[] = []
 
       if (freeModels.length > 0) sections.push({ label: "Free", models: freeModels })
+      if (opencodeModels.length > 0) sections.push({ label: "OpenCode", models: opencodeModels })
       if (anthropicModels.length > 0) sections.push({ label: "Anthropic", models: anthropicModels })
       if (openaiModels.length > 0) sections.push({ label: "OpenAI", models: openaiModels })
       if (geminiModels.length > 0) sections.push({ label: "Gemini", models: geminiModels })
@@ -147,7 +149,14 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
       // Check if user has credentials for this model (pass current agent for proper credential checking)
       if (!hasCredentialsForModel(model, credentials, currentAgent)) {
         // Determine which field to highlight based on model requirement
-        const field = model.requiresKey === "openai" ? "openaiApiKey" : "anthropicApiKey"
+        const fieldMap: Record<string, string> = {
+          openai: "openaiApiKey",
+          anthropic: "anthropicApiKey",
+          opencode: "opencodeApiKey",
+          gemini: "geminiApiKey",
+          pi: "anthropicApiKey",
+        }
+        const field = fieldMap[model.requiresKey ?? ""] ?? "anthropicApiKey"
         onOpenSettingsWithHighlight?.(field)
       }
     }, [onModelChange, onOpenSettingsWithHighlight, credentials, currentAgent])

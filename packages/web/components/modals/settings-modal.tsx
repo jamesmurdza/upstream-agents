@@ -561,7 +561,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
                     {renderClearButton(credentials?.hasOpencodeApiKey ?? false, "opencodeApiKey")}
                     {renderUndoClearButton("opencodeApiKey")}
                     <a
-                      href="https://opencode.ai/keys"
+                      href="https://opencode.ai/auth"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"

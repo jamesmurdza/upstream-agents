@@ -93,7 +93,7 @@ export const agentModels: Record<Agent, ModelOption[]> = {
     { value: "opencode/gpt-5-codex", label: "GPT-5 Codex", requiresKey: "opencode" },
     { value: "opencode/gpt-5-nano", label: "GPT-5 Nano", requiresKey: "opencode" },
     { value: "opencode/gemini-3-flash", label: "Gemini 3 Flash", requiresKey: "opencode" },
-    { value: "opencode/gemini-3-pro", label: "Gemini 3 Pro", requiresKey: "opencode" },
+    { value: "opencode/gemini-3.1-pro", label: "Gemini 3.1 Pro", requiresKey: "opencode" },
     { value: "opencode/kimi-k2.5", label: "Kimi K2.5", requiresKey: "opencode" },
     // Anthropic direct models (requires Anthropic API key)
     { value: "anthropic/claude-sonnet-4-5", label: "Claude Sonnet 4.5", requiresKey: "anthropic" },
@@ -137,6 +137,7 @@ export const agentModels: Record<Agent, ModelOption[]> = {
   "gemini": [
     { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (Recommended)", requiresKey: "gemini" },
     { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", requiresKey: "gemini" },
+    { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", requiresKey: "gemini" },
     { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", requiresKey: "gemini" },
   ],
   "goose": [
