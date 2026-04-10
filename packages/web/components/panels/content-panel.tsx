@@ -941,6 +941,8 @@ export function ContentPanel({
         className="flex h-full shrink-0 flex-col border-l border-border bg-muted/50 hover:bg-primary/20 cursor-col-resize transition-colors"
         style={{ width: COLLAPSED_WIDTH }}
         onMouseDown={startResize}
+        onDoubleClick={() => setContentPanelCollapsed(false)}
+        title="Double-click to expand"
       />
     )
   }
@@ -963,6 +965,8 @@ export function ContentPanel({
       {/* Resize Handle */}
       <div
         onMouseDown={startResize}
+        onDoubleClick={() => setContentPanelCollapsed(true)}
+        title="Double-click to collapse"
         className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-10"
       />
 
