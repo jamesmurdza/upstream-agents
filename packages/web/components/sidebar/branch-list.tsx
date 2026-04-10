@@ -158,6 +158,34 @@ export function BranchList({
     onSwitchAwayFromBranchBeforeDelete,
   })
 
+  const clickCountRef = useRef(0)
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  function handleResizeHandleMouseDown() {
+    clickCountRef.current += 1
+
+    if (clickCountRef.current === 1) {
+      // Start a timer to detect single vs double click
+      clickTimeoutRef.current = setTimeout(() => {
+        // Single click - start resize
+        if (clickCountRef.current === 1) {
+          isResizing.current = true
+          document.body.style.cursor = "col-resize"
+          document.body.style.userSelect = "none"
+        }
+        clickCountRef.current = 0
+      }, 200) // 200ms threshold for double-click detection
+    } else if (clickCountRef.current === 2) {
+      // Double click - toggle collapse
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current)
+        clickTimeoutRef.current = null
+      }
+      clickCountRef.current = 0
+      onToggleCollapse?.()
+    }
+  }
+
   function startResize() {
     isResizing.current = true
     document.body.style.cursor = "col-resize"
@@ -253,14 +281,13 @@ export function BranchList({
   if (collapsed && !isMobile) {
     return (
       <div
-        className="relative flex h-full shrink-0 flex-col bg-card border-r border-border"
-        style={{ width: 0 }}
+        className="relative flex h-full shrink-0 flex-col bg-card border-r border-border overflow-visible"
+        style={{ width: 4 }}
       >
-        {/* Resize handle for expanding */}
+        {/* Resize handle for expanding - positioned to be visible and clickable */}
         <div
-          onMouseDown={startResize}
-          onDoubleClick={onToggleCollapse}
-          className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-10"
+          onMouseDown={handleResizeHandleMouseDown}
+          className="absolute left-0 top-0 h-full w-1 cursor-col-resize bg-primary/20 hover:bg-primary/40 transition-colors z-10"
           title="Double-click to expand"
         />
       </div>
@@ -526,8 +553,7 @@ export function BranchList({
       {/* Resize handle (desktop only) */}
       {!isMobile && (
         <div
-          onMouseDown={startResize}
-          onDoubleClick={onToggleCollapse}
+          onMouseDown={handleResizeHandleMouseDown}
           className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-10"
           title="Double-click to collapse/expand"
         />
