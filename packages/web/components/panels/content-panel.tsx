@@ -556,17 +556,20 @@ function TerminalTabContent({
       }, 0)
 
       // Connect WebSocket
+      console.log("[Terminal] Connecting to", websocketUrl)
       const socket = new WebSocket(websocketUrl)
       socketRef.current = socket
 
       socket.onopen = () => {
+        console.log("[Terminal] WebSocket open")
         setStatus("connected")
         // Send initial resize
         const { cols, rows } = terminal
         socket.send(JSON.stringify({ type: "resize", cols, rows }))
       }
 
-      socket.onerror = () => {
+      socket.onerror = (event) => {
+        console.error("[Terminal] WebSocket error", event)
         setStatus("error")
         setErrorMessage("Connection error")
       }
@@ -582,8 +585,14 @@ function TerminalTabContent({
         }
       }
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
+        console.warn(
+          `[Terminal] WebSocket closed code=${event.code} reason=${event.reason || "(none)"} wasClean=${event.wasClean}`
+        )
         setStatus("disconnected")
+        setErrorMessage(
+          `closed code=${event.code}${event.reason ? ` reason=${event.reason}` : ""}`
+        )
       }
 
       // Handle terminal input
@@ -721,7 +730,9 @@ function TerminalTabContent({
         <div className="absolute inset-0 flex items-center justify-center bg-black/50">
           <div className="flex flex-col items-center gap-2">
             <span className="text-sm text-yellow-500">Disconnected</span>
-            <span className="text-xs text-muted-foreground">Terminal session ended</span>
+            <span className="text-xs text-muted-foreground">
+              {errorMessage || "Terminal session ended"}
+            </span>
           </div>
         </div>
       )}

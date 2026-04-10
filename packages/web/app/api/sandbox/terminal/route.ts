@@ -52,6 +52,8 @@ export async function POST(req: Request) {
     return badRequest("Missing sandboxId")
   }
 
+  console.log(`[terminal] action=${action} sandboxId=${sandboxId}`)
+
   // Verify ownership
   const sandboxRecord = await prisma.sandbox.findUnique({
     where: { sandboxId },
@@ -120,6 +122,16 @@ export async function POST(req: Request) {
           const signedUrl = await sandbox.getSignedPreviewUrl(PTY_SERVER_PORT, 3600)
           const wsUrl = signedUrl.url.replace("https://", "wss://")
 
+          const logTail = await sandbox.process.executeCommand(
+            `tail -30 /tmp/pty-server.log 2>/dev/null || echo "(no log)"`,
+            undefined,
+            undefined,
+            10
+          )
+          console.log(
+            `[terminal] reusing existing server\n  wsUrl=${wsUrl}\n  pty-server.log tail:\n${logTail.result}`
+          )
+
           return Response.json({
             status: "running",
             websocketUrl: wsUrl,
@@ -147,7 +159,10 @@ export async function POST(req: Request) {
           "/tmp/pty-package.json"
         )
 
-        // Install dependencies
+        // Install dependencies. node-gyp 12.1.0 crashes in a post-build cleanup step
+        // (lstat node_gyp_bins ENOENT) after a successful native build, so npm reports
+        // failure even though pty.node was produced. Ignore the exit code and verify
+        // the build artifact directly.
         const installResult = await sandbox.process.executeCommand(
           `cd /tmp && npm install --prefix /tmp ws node-pty 2>&1`,
           undefined,
@@ -155,7 +170,14 @@ export async function POST(req: Request) {
           60
         )
 
-        if (installResult.exitCode !== 0) {
+        const ptyArtifactCheck = await sandbox.process.executeCommand(
+          `test -f /tmp/node_modules/node-pty/build/Release/pty.node && test -d /tmp/node_modules/ws && echo ok || echo missing`,
+          undefined,
+          undefined,
+          10
+        )
+
+        if (ptyArtifactCheck.result?.trim() !== "ok") {
           console.error("[terminal] Failed to install dependencies:", installResult.result)
           return Response.json(
             {
@@ -221,6 +243,16 @@ export async function POST(req: Request) {
         // Get signed preview URL
         const signedUrl = await sandbox.getSignedPreviewUrl(PTY_SERVER_PORT, 3600)
         const wsUrl = signedUrl.url.replace("https://", "wss://")
+
+        const logTail = await sandbox.process.executeCommand(
+          `tail -30 /tmp/pty-server.log 2>/dev/null || echo "(no log)"`,
+          undefined,
+          undefined,
+          10
+        )
+        console.log(
+          `[terminal] started new server\n  wsUrl=${wsUrl}\n  pty-server.log tail:\n${logTail.result}`
+        )
 
         return Response.json({
           status: "running",
