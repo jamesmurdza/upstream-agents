@@ -129,7 +129,9 @@ export function useGitDialogs({
         `/api/github/branches?owner=${encodeURIComponent(repoOwner)}&repo=${encodeURIComponent(repoName)}`
       )
       const data = await res.json()
-      const branches = (data.branches || []).filter((b: string) => b !== branchName)
+      const branches = (data.branches || [])
+        .map((b: { name: string }) => b.name)
+        .filter((name: string) => name !== branchName)
       setRemoteBranches(branches)
       setSelectedBranch(branches.includes(branchBaseName) ? branchBaseName : branches[0] || "")
     } catch {
