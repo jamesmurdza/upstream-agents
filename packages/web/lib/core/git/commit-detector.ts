@@ -12,6 +12,7 @@ import { ASSISTANT_SOURCE } from "@/lib/shared/constants"
 // =============================================================================
 
 export interface Commit {
+  hash: string
   shortHash: string
   message: string
 }

@@ -22,8 +22,8 @@ describe('getExistingCommitHashes', () => {
 describe('filterNewCommits', () => {
   it('filters out already-shown commits', () => {
     const commits: Commit[] = [
-      { shortHash: 'new1', message: 'New' },
-      { shortHash: 'old1', message: 'Old' },
+      { hash: 'new1full', shortHash: 'new1', message: 'New' },
+      { hash: 'old1full', shortHash: 'old1', message: 'Old' },
     ]
     const result = filterNewCommits(commits, new Set(['old1']))
     expect(result).toHaveLength(1)
@@ -32,9 +32,9 @@ describe('filterNewCommits', () => {
 
   it('stops at first seen commit', () => {
     const commits: Commit[] = [
-      { shortHash: 'c3', message: 'Newest' },
-      { shortHash: 'c2', message: 'Seen' },
-      { shortHash: 'c1', message: 'Oldest' },
+      { hash: 'c3full', shortHash: 'c3', message: 'Newest' },
+      { hash: 'c2full', shortHash: 'c2', message: 'Seen' },
+      { hash: 'c1full', shortHash: 'c1', message: 'Oldest' },
     ]
     const result = filterNewCommits(commits, new Set(['c2']))
     expect(result).toHaveLength(1)
