@@ -265,10 +265,11 @@ export async function POST(req: Request) {
         // If starting from a specific commit (new branch only), fetch it and reset to it
         if (startCommit && !isRecreation) {
           sendProgress(controller, `Resetting to commit ${startCommit.slice(0, 7)}...`)
-          // Fetch the specific commit in case it's not part of the cloned branch history
-          // This handles the case where user branches from a commit that exists on a different branch
+          // Fetch all remote refs to ensure the commit is available locally.
+          // We can't fetch a specific SHA directly - git fetch requires a refspec (branch/tag).
+          // The commit may exist on a different branch than what was cloned.
           await sandbox.process.executeCommand(
-            `cd ${repoPath} && git fetch ${authedUrl} ${startCommit} 2>&1`
+            `cd ${repoPath} && git fetch ${authedUrl} '+refs/heads/*:refs/remotes/origin/*' 2>&1`
           )
           const resetResult = await sandbox.process.executeCommand(
             `cd ${repoPath} && git reset --hard ${startCommit} 2>&1`
