@@ -525,15 +525,16 @@ export function MessageBubble({ message, agent = "claude-code", agentLabel, sand
 
   // Commit row rendering
   if (message.commitHash) {
+    const shortHash = message.commitHash.slice(0, 7)
     return (
-      <div id={`commit-${message.commitHash}`} className="group/commitrow flex items-center gap-3 py-1">
+      <div id={`commit-${shortHash}`} className="group/commitrow flex items-center gap-3 py-1">
         <div className="h-px flex-1 bg-border" />
         <button
           onClick={() => onCommitClick?.(message.commitHash!, message.commitMessage || "")}
           className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground hover:bg-accent/50 hover:border-primary/30 transition-colors"
         >
           <GitCommitHorizontal className="h-3 w-3" />
-          <code className="font-mono text-[10px] text-primary/70">{message.commitHash}</code>
+          <code className="font-mono text-[10px] text-primary/70">{shortHash}</code>
           <span className="max-w-[200px] truncate">{message.commitMessage}</span>
         </button>
         <div className="relative h-px flex-1 bg-border">

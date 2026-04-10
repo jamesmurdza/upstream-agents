@@ -165,7 +165,7 @@ export async function detectAndShowCommits(params: DetectAndShowCommitsParams): 
             hour: "2-digit",
             minute: "2-digit",
           }),
-          commitHash: c.shortHash,
+          commitHash: c.hash,  // Store full hash; truncate for display
           commitMessage: c.message,
         }
         await onAddMessage(branchId, commitMessage)

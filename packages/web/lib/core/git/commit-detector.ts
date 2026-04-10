@@ -12,7 +12,8 @@ import { ASSISTANT_SOURCE } from "@/lib/shared/constants"
 // =============================================================================
 
 export interface Commit {
-  shortHash: string
+  hash: string       // Full 40-char hash (used for storage and git operations)
+  shortHash: string  // 7-char hash (used for deduplication with existing messages)
   message: string
 }
 
@@ -55,8 +56,9 @@ export function filterNewCommits(
   existingHashes: Set<string>
 ): Commit[] {
   // Find the first commit that's already in chat
+  // Check both short and full hash to handle existing data (short) and new data (full)
   const firstSeenIdx = allCommits.findIndex((c) =>
-    existingHashes.has(c.shortHash)
+    existingHashes.has(c.shortHash) || existingHashes.has(c.hash)
   )
 
   // Get only commits before the first seen one
@@ -103,7 +105,7 @@ export function createCommitMessage(
       hour: '2-digit',
       minute: '2-digit',
     }),
-    commitHash: commit.shortHash,
+    commitHash: commit.hash,  // Store full hash; truncate for display
     commitMessage: commit.message,
   }
 }
