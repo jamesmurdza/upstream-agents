@@ -178,69 +178,25 @@ two-project setup.
 
 ## Deployment
 
-Both Next.js apps (`packages/web` and `packages/simple-chat`) are deployed as
-**two independent Vercel projects** that point at the same Git repository.
-Each project has its own URL, env vars, build cache, and rollback timeline.
+`packages/web` and `packages/simple-chat` deploy as **two independent Vercel
+projects** from the same repo. Each has its own `vercel.json` pinning
+`buildCommand`, `outputDirectory`, and an `ignoreCommand` that delegates to
+[scripts/vercel-ignore.sh](scripts/vercel-ignore.sh); there is no root
+`vercel.json`.
 
-### Layout
+For each app, create the project via **Add New… → Project → Import Git
+Repository** in the Vercel dashboard (not `vercel deploy` — that creates a
+project with no Git connection). Set **Root Directory** to `packages/web` or
+`packages/simple-chat`, leave all Build & Output overrides off so
+`vercel.json` wins, and add env vars before the first deploy. `web` needs the
+full set from [Environment Variables](#4-environment-variables); `simple-chat`
+only needs `DAYTONA_API_KEY`, `DAYTONA_API_URL`, `NEXTAUTH_URL`,
+`NEXTAUTH_SECRET` (generate a fresh one), and optionally a separate GitHub
+OAuth app.
 
-```
-sandboxed-agents/                       # repo root
-├── packages/
-│   ├── web/
-│   │   └── vercel.json                 # config for the "web" Vercel project
-│   └── simple-chat/
-│       └── vercel.json                 # config for the "simple-chat" Vercel project
-└── scripts/
-    └── vercel-ignore.sh                # shared "Ignored Build Step" script
-```
-
-There is **no** root `vercel.json`. Each Vercel project has its **Root
-Directory** set to its package, and Vercel auto-detects the npm workspace at
-the repo root for `npm install`.
-
-### Initial Vercel setup
-
-Do this once per app:
-
-1. Create a new Vercel project pointed at this Git repository.
-2. Settings → General → **Root Directory**: `packages/web` (or
-   `packages/simple-chat`).
-3. Settings → General → **Framework Preset**: Next.js (auto-detected).
-4. Settings → General → **Install Command**, **Build Command**, **Output
-   Directory**: leave on defaults — the workspace + `package.json` scripts
-   handle everything.
-5. Settings → Environment Variables: copy the variables this app needs
-   (see [Environment Variables](#4-environment-variables) for `web`;
-   `simple-chat` only needs `DAYTONA_API_KEY`, `NEXTAUTH_SECRET`,
-   `NEXTAUTH_URL`, and optionally GitHub OAuth).
-6. Trigger a redeploy.
-
-### How "deploy only what changed" works
-
-Each per-app `vercel.json` runs `scripts/vercel-ignore.sh` as its
-[Ignored Build Step](https://vercel.com/docs/projects/overview#ignored-build-step).
-The script asks: *did this commit touch anything that affects this app?*
-
-An app rebuilds when any of these changed since the previous deploy:
-
-- its own package directory (`packages/<app>/`)
-- shared workspace dependencies (`packages/agents/`, `packages/common/`)
-- root config (`package.json`, `package-lock.json`, `tsconfig.json`,
-  `scripts/`)
-
-A push that only touches the *other* app's code is skipped automatically,
-so the two projects don't redeploy each other unnecessarily.
-
-### Linking locally
-
-To use `vercel` CLI commands against a specific app, run `vercel link` from
-inside that package directory:
-
-```bash
-cd packages/web && vercel link            # links packages/web/.vercel
-cd packages/simple-chat && vercel link    # links packages/simple-chat/.vercel
-```
+`vercel-ignore.sh` skips a deploy when nothing under the app's package, its
+workspace dependencies (`agents`, `common`), or root config changed since the
+previous deploy. The first deploy of a project always runs.
 
 ---
 
