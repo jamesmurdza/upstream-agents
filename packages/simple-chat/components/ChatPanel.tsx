@@ -165,7 +165,12 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
   }
 
   const isNewRepo = chat.repo === NEW_REPOSITORY
-  const canChangeRepo = chat.messages.length === 0 && !chat.sandboxId
+  // Can select an existing repo only before first message
+  const canSelectRepo = chat.messages.length === 0 && !chat.sandboxId
+  // Can create a new repo anytime before sandbox is created, if still on NEW_REPOSITORY
+  const canCreateRepo = isNewRepo && !chat.sandboxId
+  // Show the repo button if either action is available
+  const showRepoButton = canSelectRepo || canCreateRepo
   const isNewChat = chat.messages.length === 0
 
   const agents: Agent[] = ["claude-code", "opencode", "codex", "gemini", "goose", "pi"]
@@ -261,8 +266,8 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
           "flex items-center gap-2 border-t border-border/50",
           isMobile ? "px-3 py-2 flex-wrap" : "px-4 py-2 gap-4"
         )}>
-          {/* Repo selector - only show before agent starts */}
-          {canChangeRepo && (
+          {/* Repo selector - show if can select or create repo */}
+          {showRepoButton && (
             <div className="flex items-center gap-1">
               {onChangeRepo && (
                 <button
@@ -276,7 +281,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
                   <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
                 </button>
               )}
-              {!isNewRepo && onUpdateChat && (
+              {!isNewRepo && onUpdateChat && canSelectRepo && (
                 <button
                   onClick={() => onUpdateChat({ repo: NEW_REPOSITORY, baseBranch: "main" })}
                   className={cn(

@@ -219,6 +219,7 @@ export default function HomePage() {
         onClose={() => setRepoPickerOpen(false)}
         onSelect={handleRepoSelect}
         isMobile={isMobile}
+        allowCreate={currentChat?.repo === NEW_REPOSITORY}
       />
 
       <SettingsModal
