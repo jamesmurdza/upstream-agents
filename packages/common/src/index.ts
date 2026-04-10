@@ -46,3 +46,51 @@ export {
   getDefaultModelForAgent,
   getModelLabel,
 } from "./agents"
+
+// SSE utilities
+export {
+  // Types
+  type SSEEvent,
+  type StreamController,
+  type StreamOptions,
+  type ProgressEvent,
+  type ErrorEvent,
+  type DoneEvent,
+  type StreamEvent,
+  // Constants
+  SSE_HEADERS,
+  // Server-side
+  createSSEStream,
+  sendProgress,
+  sendError,
+  sendDone,
+  // Client-side
+  parseSSEStream,
+  waitForSSEResult,
+} from "./sse"
+
+// GitHub client utilities
+export {
+  // Types
+  type GitHubApiError,
+  type GitHubFetchOptions,
+  type GitHubUser,
+  type GitHubRepo,
+  type GitHubBranch,
+  type GitHubCompareResult,
+  type GitHubPullRequest,
+  // Core helpers
+  githubFetch,
+  githubFetchText,
+  isGitHubApiError,
+  // High-level API methods
+  getUser,
+  getUserRepos,
+  getRepo,
+  getRepoBranches,
+  compareBranches,
+  getDiff,
+  createRepo,
+  forkRepo,
+  createPullRequest,
+} from "./github"
