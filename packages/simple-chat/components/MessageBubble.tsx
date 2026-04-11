@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { ChevronDown, ChevronRight, Terminal, FileText, Search, GitMerge, LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Message, ContentBlock, ToolCall } from "@/lib/types"
@@ -143,8 +143,10 @@ function AssistantContent({ message, isStreaming, isMobile = false }: { message:
     )
   }
 
-  // Merge consecutive tool_calls blocks into single groups
-  const mergedBlocks = hasBlocks ? mergeConsecutiveToolCalls(message.contentBlocks!) : null
+  // Merge consecutive tool_calls blocks into single groups (memoized to avoid recalculating on every render)
+  const mergedBlocks = useMemo(() => {
+    return hasBlocks ? mergeConsecutiveToolCalls(message.contentBlocks!) : null
+  }, [hasBlocks, message.contentBlocks])
 
   return (
     <div className={cn(
@@ -283,7 +285,7 @@ function ToolCallGroup({ toolCalls, isMobile = false }: ToolCallGroupProps) {
     <div className="rounded overflow-hidden bg-muted/30">
       {toolCalls.map((tool, index) => (
         <ToolCallRow
-          key={index}
+          key={`${tool.tool}-${tool.summary}-${index}`}
           tool={tool}
           isMobile={isMobile}
           isLast={index === toolCalls.length - 1}
