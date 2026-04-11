@@ -38,7 +38,7 @@ function rebaseConflictCacheKey(sandboxId: string, branchId: string): string {
 }
 
 /**
- * Shared hook for git dialog operations: merge, rebase, tag
+ * Shared hook for git dialog operations: merge, rebase
  * Used by both mobile and desktop interfaces
  */
 export function useGitDialogs({
@@ -62,7 +62,6 @@ export function useGitDialogs({
   // Dialog open states
   const [mergeOpen, setMergeOpen] = useState(false)
   const [rebaseOpen, setRebaseOpen] = useState(false)
-  const [tagOpen, setTagOpen] = useState(false)
   const [prOpen, setPROpen] = useState(false)
 
   // Shared state for branch picker dialogs
@@ -79,9 +78,6 @@ export function useGitDialogs({
   useEffect(() => {
     if (mergeOpen) setSquashMerge(defaultSquashOnMerge)
   }, [mergeOpen, defaultSquashOnMerge])
-
-  // Tag-specific state
-  const [tagNameInput, setTagNameInput] = useState("")
 
   // Internal state; display uses module cache synchronously (see rebaseConflict below) so first paint after branch switch is never blocked on useEffect.
   const [rebaseConflictState, setRebaseConflictState] = useState<RebaseConflictState>({
@@ -156,13 +152,6 @@ export function useGitDialogs({
       fetchBranches()
     }
   }, [mergeOpen, rebaseOpen, prOpen, fetchBranches])
-
-  // Reset tag input when dialog opens
-  useEffect(() => {
-    if (tagOpen) {
-      setTagNameInput("")
-    }
-  }, [tagOpen])
 
   const toggleMergeDirection = useCallback(() => {
     setMergeDirection(prev => prev === "into-current" ? "from-current" : "into-current")
@@ -319,38 +308,6 @@ export function useGitDialogs({
     }
   }, [selectedBranch, branch, sandboxId, branchName, branchId, repoOwner, repoName, repoFullName, addSystemMessage, onAddMessage, onUpdateMessage, putRebaseConflictInCache])
 
-  const handleTag = useCallback(async () => {
-    const name = tagNameInput.trim()
-    if (!name || !branch || !sandboxId) return
-    setActionLoading(true)
-
-    const [owner, repo] = repoFullName.split("/")
-
-    try {
-      const res = await fetch("/api/sandbox/git", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sandboxId,
-          repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
-          action: "tag",
-          tagName: name,
-          repoOwner: owner,
-          repoApiName: repo,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      addSystemMessage(`::icon-success:: **Tag** **${name}** created and pushed.`)
-      setTagOpen(false)
-      setTagNameInput("")
-    } catch (err: unknown) {
-      addSystemMessage(`::icon-error:: **Tag failed:** ${err instanceof Error ? err.message : "Unknown error"}`)
-    } finally {
-      setActionLoading(false)
-    }
-  }, [tagNameInput, branch, sandboxId, repoFullName, repoName, addSystemMessage])
-
   const handleCreatePR = useCallback(async () => {
     if (!selectedBranch || !branch) return
     setActionLoading(true)
@@ -487,8 +444,6 @@ export function useGitDialogs({
     setMergeOpen,
     rebaseOpen,
     setRebaseOpen,
-    tagOpen,
-    setTagOpen,
     prOpen,
     setPROpen,
 
@@ -507,17 +462,12 @@ export function useGitDialogs({
     squashMerge,
     setSquashMerge,
 
-    // Tag state
-    tagNameInput,
-    setTagNameInput,
-
     // Current branch info (for display)
     branchName,
 
     // Actions
     handleMerge,
     handleRebase,
-    handleTag,
     handleCreatePR,
     handleAbortConflict,
     checkRebaseStatus,

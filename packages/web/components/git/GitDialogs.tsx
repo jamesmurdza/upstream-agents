@@ -1,6 +1,6 @@
 "use client"
 
-import { MergeDialog, RebaseDialog, TagDialog, PRDialog } from "./dialogs"
+import { MergeDialog, RebaseDialog, PRDialog } from "./dialogs"
 import type { UseGitDialogsReturn } from "./hooks/useGitDialogs"
 
 interface GitDialogsProps {
@@ -8,7 +8,7 @@ interface GitDialogsProps {
 }
 
 /**
- * Renders all git dialogs (merge, rebase, tag, pr)
+ * Renders all git dialogs (merge, rebase, pr)
  * Used by both mobile and desktop interfaces
  */
 export function GitDialogs({ gitDialogs }: GitDialogsProps) {
@@ -42,16 +42,6 @@ export function GitDialogs({ gitDialogs }: GitDialogsProps) {
         actionLoading={gitDialogs.actionLoading}
         onRebase={gitDialogs.handleRebase}
         onCancel={() => gitDialogs.setRebaseOpen(false)}
-      />
-
-      <TagDialog
-        open={gitDialogs.tagOpen}
-        onOpenChange={(open) => { if (!open) { gitDialogs.setTagOpen(false); gitDialogs.setTagNameInput("") } }}
-        tagNameInput={gitDialogs.tagNameInput}
-        onTagNameInputChange={gitDialogs.setTagNameInput}
-        actionLoading={gitDialogs.actionLoading}
-        onTag={gitDialogs.handleTag}
-        onCancel={() => { gitDialogs.setTagOpen(false); gitDialogs.setTagNameInput("") }}
       />
 
       <PRDialog

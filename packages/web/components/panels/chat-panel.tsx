@@ -583,9 +583,6 @@ export function ChatPanel({
       case "rebase":
         gitActions.gitDialogs.setRebaseOpen(true)
         break
-      case "tag":
-        gitActions.gitDialogs.setTagOpen(true)
-        break
       case "pr":
         gitActions.gitDialogs.setPROpen(true)
         break

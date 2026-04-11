@@ -27,11 +27,6 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     icon: "GitBranch",
   },
   {
-    name: "tag",
-    description: "Create a git tag",
-    icon: "Tag",
-  },
-  {
     name: "pr",
     description: "Create a pull request",
     icon: "GitPullRequest",

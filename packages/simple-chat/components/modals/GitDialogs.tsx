@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Loader2, GitMerge, GitBranch, Tag, GitPullRequest, ChevronDown } from "lucide-react"
+import { X, Loader2, GitMerge, GitBranch, GitPullRequest, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat } from "@/lib/types"
 
@@ -322,96 +322,6 @@ export function RebaseDialog({ open, onClose, chat, onExecuteGitCommand, isMobil
 }
 
 // ============================================================================
-// Tag Dialog
-// ============================================================================
-
-interface TagDialogProps {
-  open: boolean
-  onClose: () => void
-  chat: Chat | null
-  onExecuteGitCommand: (command: string) => void
-  isMobile?: boolean
-}
-
-export function TagDialog({ open, onClose, chat, onExecuteGitCommand, isMobile = false }: TagDialogProps) {
-  const [tagName, setTagName] = useState("")
-  const [loading, setLoading] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (open) {
-      setTagName("")
-      setTimeout(() => inputRef.current?.focus(), 100)
-    }
-  }, [open])
-
-  const handleCreateTag = async () => {
-    if (!tagName.trim()) return
-    setLoading(true)
-    try {
-      onExecuteGitCommand(`git tag ${tagName.trim()} && git push origin ${tagName.trim()}`)
-      onClose()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <BaseDialog
-      open={open}
-      onClose={onClose}
-      title="Create Tag"
-      icon={<Tag className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
-      isMobile={isMobile}
-    >
-      <div className={cn("space-y-4", isMobile && "space-y-5")}>
-        <div>
-          <label className={cn(
-            "block text-muted-foreground mb-1",
-            isMobile ? "text-sm" : "text-xs"
-          )}>Tag name</label>
-          <input
-            ref={inputRef}
-            type="text"
-            value={tagName}
-            onChange={(e) => setTagName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreateTag()}
-            placeholder="v1.0.0"
-            className={cn(
-              "w-full bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono",
-              isMobile ? "px-4 py-3 text-base" : "px-3 py-2 text-sm"
-            )}
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <button
-            onClick={onClose}
-            className={cn(
-              "rounded-md hover:bg-accent transition-colors",
-              isMobile ? "px-4 py-2.5 text-base" : "px-3 py-1.5 text-sm"
-            )}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleCreateTag}
-            disabled={!tagName.trim() || loading}
-            className={cn(
-              "rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2",
-              isMobile ? "px-4 py-2.5 text-base" : "px-3 py-1.5 text-sm"
-            )}
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Create
-          </button>
-        </div>
-      </div>
-    </BaseDialog>
-  )
-}
-
-// ============================================================================
 // PR Dialog
 // ============================================================================
 
@@ -542,8 +452,6 @@ export interface UseGitDialogsResult {
   setMergeOpen: (open: boolean) => void
   rebaseOpen: boolean
   setRebaseOpen: (open: boolean) => void
-  tagOpen: boolean
-  setTagOpen: (open: boolean) => void
   prOpen: boolean
   setPROpen: (open: boolean) => void
 }
@@ -551,7 +459,6 @@ export interface UseGitDialogsResult {
 export function useGitDialogs(): UseGitDialogsResult {
   const [mergeOpen, setMergeOpen] = useState(false)
   const [rebaseOpen, setRebaseOpen] = useState(false)
-  const [tagOpen, setTagOpen] = useState(false)
   const [prOpen, setPROpen] = useState(false)
 
   return {
@@ -559,8 +466,6 @@ export function useGitDialogs(): UseGitDialogsResult {
     setMergeOpen,
     rebaseOpen,
     setRebaseOpen,
-    tagOpen,
-    setTagOpen,
     prOpen,
     setPROpen,
   }

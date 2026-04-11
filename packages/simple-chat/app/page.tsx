@@ -8,7 +8,7 @@ import { ChatPanel } from "@/components/ChatPanel"
 import { SDKContent } from "@/components/SDKContent"
 import { RepoPickerModal } from "@/components/modals/RepoPickerModal"
 import { SettingsModal, type HighlightKey } from "@/components/modals/SettingsModal"
-import { MergeDialog, RebaseDialog, TagDialog, PRDialog, useGitDialogs } from "@/components/modals/GitDialogs"
+import { MergeDialog, RebaseDialog, PRDialog, useGitDialogs } from "@/components/modals/GitDialogs"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
 import { useChat } from "@/lib/hooks/useChat"
 import { useMobile } from "@/lib/hooks/useMobile"
@@ -168,9 +168,6 @@ export default function HomePage() {
       case "rebase":
         gitDialogs.setRebaseOpen(true)
         break
-      case "tag":
-        gitDialogs.setTagOpen(true)
-        break
       case "pr":
         gitDialogs.setPROpen(true)
         break
@@ -303,13 +300,6 @@ export default function HomePage() {
       <RebaseDialog
         open={gitDialogs.rebaseOpen}
         onClose={() => gitDialogs.setRebaseOpen(false)}
-        chat={displayCurrentChat}
-        onExecuteGitCommand={handleExecuteGitCommand}
-        isMobile={isMobile}
-      />
-      <TagDialog
-        open={gitDialogs.tagOpen}
-        onClose={() => gitDialogs.setTagOpen(false)}
         chat={displayCurrentChat}
         onExecuteGitCommand={handleExecuteGitCommand}
         isMobile={isMobile}

@@ -1,18 +1,17 @@
 "use client"
 
 import { useEffect, useRef, useCallback, useMemo, useState } from "react"
-import { GitMerge, GitBranch, Tag, GitPullRequest } from "lucide-react"
+import { GitMerge, GitBranch, GitPullRequest } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { filterSlashCommands, type SlashCommand } from "@upstream/common"
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   GitMerge,
   GitBranch,
-  Tag,
   GitPullRequest,
 }
 
-export type SlashCommandType = "merge" | "rebase" | "tag" | "pr"
+export type SlashCommandType = "merge" | "rebase" | "pr"
 
 interface SlashCommandMenuProps {
   /** The current input value (used for filtering) */
