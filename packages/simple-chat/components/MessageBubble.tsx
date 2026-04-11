@@ -187,43 +187,48 @@ function GitOperationBubble({ content, isError = false, isMobile = false }: { co
 
   const hasDetails = isError && details.length > 0
 
+  const containerClasses = cn(
+    "rounded border overflow-hidden",
+    isError
+      ? "border-red-500/30 bg-red-500/10 dark:bg-red-500/5"
+      : "border-green-500/30 bg-green-500/10 dark:bg-green-500/5"
+  )
+
+  const rowClasses = cn(
+    "flex items-center gap-2 w-full text-left",
+    isMobile ? "px-3 py-2.5 text-sm" : "px-2 py-1 text-xs",
+    hasDetails && "hover:bg-accent/50 active:bg-accent cursor-pointer touch-target"
+  )
+
+  const iconClasses = cn(
+    "shrink-0",
+    isError ? "text-red-500 dark:text-red-400" : "text-green-600 dark:text-green-400",
+    isMobile ? "h-4 w-4" : "h-3 w-3"
+  )
+
+  const chevronClasses = cn(
+    "text-muted-foreground shrink-0",
+    isMobile ? "h-4 w-4" : "h-3 w-3"
+  )
+
   return (
-    <div className={cn(
-      "rounded border overflow-hidden",
-      isError
-        ? "border-red-500/30 bg-red-500/10 dark:bg-red-500/5"
-        : "border-green-500/30 bg-green-500/10 dark:bg-green-500/5"
-    )}>
-      <button
-        onClick={() => hasDetails && setExpanded(!expanded)}
-        className={cn(
-          "flex items-center gap-2 w-full text-left",
-          isMobile ? "px-3 py-2.5 text-sm" : "px-2 py-1 text-xs",
-          hasDetails && "hover:bg-accent/50 active:bg-accent cursor-pointer touch-target"
-        )}
-      >
-        <GitMerge className={cn(
-          "shrink-0",
-          isError ? "text-red-500 dark:text-red-400" : "text-green-600 dark:text-green-400",
-          isMobile ? "h-4 w-4" : "h-3 w-3"
-        )} />
-        <span className="flex-1 truncate font-mono">
-          {summary}
-        </span>
-        {hasDetails && (
-          expanded ? (
-            <ChevronDown className={cn(
-              "text-muted-foreground shrink-0",
-              isMobile ? "h-4 w-4" : "h-3 w-3"
-            )} />
+    <div className={containerClasses}>
+      {hasDetails ? (
+        <button onClick={() => setExpanded(!expanded)} className={rowClasses}>
+          <GitMerge className={iconClasses} />
+          <span className="flex-1 truncate font-mono">{summary}</span>
+          {expanded ? (
+            <ChevronDown className={chevronClasses} />
           ) : (
-            <ChevronRight className={cn(
-              "text-muted-foreground shrink-0",
-              isMobile ? "h-4 w-4" : "h-3 w-3"
-            )} />
-          )
-        )}
-      </button>
+            <ChevronRight className={chevronClasses} />
+          )}
+        </button>
+      ) : (
+        <div className={rowClasses}>
+          <GitMerge className={iconClasses} />
+          <span className="flex-1 truncate font-mono">{summary}</span>
+        </div>
+      )}
 
       {expanded && hasDetails && (
         <div className={cn(
