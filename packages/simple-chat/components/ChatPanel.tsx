@@ -164,9 +164,8 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
         })
 
         if (!response.ok) {
-          const error = await response.json()
+          const error = await response.json().catch(() => ({ error: "Upload failed" }))
           console.error("Upload failed:", error)
-          setIsUploading(false)
           return
         }
 
@@ -174,10 +173,10 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
         uploadedFilePaths = result.uploadedFiles.map((f: { path: string }) => f.path)
       } catch (error) {
         console.error("Upload error:", error)
-        setIsUploading(false)
         return
+      } finally {
+        setIsUploading(false)
       }
-      setIsUploading(false)
     }
 
     onSendMessage(input.trim(), currentAgent, currentModel, uploadedFilePaths)
