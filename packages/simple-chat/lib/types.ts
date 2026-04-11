@@ -46,6 +46,8 @@ export interface Message {
   }>
   /** Ordered content blocks (text and tool calls interleaved) */
   contentBlocks?: ContentBlock[]
+  /** Files uploaded with this message (for user messages) */
+  uploadedFiles?: string[]
 }
 
 // Special value for new repository (local git repo, no GitHub)

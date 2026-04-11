@@ -204,6 +204,29 @@ export function updateLastMessage(
 }
 
 /**
+ * Update a specific message by ID
+ */
+export function updateMessage(
+  chatId: string,
+  messageId: string,
+  updates: Partial<Message>
+): AppState {
+  const state = loadState()
+  const newState = {
+    ...state,
+    chats: state.chats.map((chat) => {
+      if (chat.id !== chatId) return chat
+      const messages = chat.messages.map((msg) =>
+        msg.id === messageId ? { ...msg, ...updates } : msg
+      )
+      return { ...chat, messages, updatedAt: Date.now() }
+    }),
+  }
+  saveState(newState)
+  return newState
+}
+
+/**
  * Get a specific chat
  */
 export function getChat(chatId: string): Chat | undefined {

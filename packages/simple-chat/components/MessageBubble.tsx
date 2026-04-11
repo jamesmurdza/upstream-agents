@@ -16,6 +16,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isStreaming, isMobile = false, repo }: MessageBubbleProps) {
   const isUser = message.role === "user"
+  const hasUploadedFiles = isUser && message.uploadedFiles && message.uploadedFiles.length > 0
 
   return (
     <div className={cn("flex", isUser && "justify-end")}>
@@ -25,11 +26,29 @@ export function MessageBubble({ message, isStreaming, isMobile = false, repo }: 
         isMobile ? "max-w-[95%]" : "max-w-[90%]"
       )}>
         {isUser ? (
-          <div className={cn(
-            "inline-block rounded-lg bg-muted text-foreground",
-            isMobile ? "px-3 py-2 text-base" : "px-4 py-2 text-sm"
-          )}>
-            <p className="whitespace-pre-wrap">{message.content}</p>
+          <div>
+            <div className={cn(
+              "inline-block rounded-lg bg-muted text-foreground",
+              isMobile ? "px-3 py-2 text-base" : "px-4 py-2 text-sm"
+            )}>
+              <p className="whitespace-pre-wrap">{message.content}</p>
+            </div>
+            {/* Uploaded files display */}
+            {hasUploadedFiles && (
+              <div className={cn(
+                "mt-1 text-muted-foreground",
+                isMobile ? "text-sm" : "text-xs"
+              )}>
+                {message.uploadedFiles!.map((filePath, index) => {
+                  const fileName = filePath.split("/").pop() || filePath
+                  return (
+                    <div key={index} className="truncate">
+                      {fileName}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         ) : (
           <AssistantContent message={message} isStreaming={isStreaming} isMobile={isMobile} repo={repo} />
