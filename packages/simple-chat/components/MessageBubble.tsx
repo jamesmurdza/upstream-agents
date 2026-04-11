@@ -215,15 +215,33 @@ function SystemMessage({ icon: Icon, content, variant = "success", isMobile = fa
     isMobile ? "h-4 w-4" : "h-3.5 w-3.5"
   )
 
-  // Parse git merge messages to extract target branch for link
+  // Parse git merge messages to extract branches and target for link
   // Format: "Merged X into Y" or "Squash merged X into Y"
-  const getMergeTargetBranch = (text: string): string | null => {
-    const mergeMatch = text.match(/^(?:Squash )?[Mm]erged .+ into (\S+)/)
-    return mergeMatch ? mergeMatch[1] : null
+  const parseMergeMessage = (text: string) => {
+    const mergeMatch = text.match(/^((?:Squash )?[Mm]erged )(.+?)( into )(\S+)(.*)$/)
+    if (mergeMatch) {
+      const [, prefix, sourceBranch, mid, targetBranch, suffix] = mergeMatch
+      return { prefix, sourceBranch, mid, targetBranch, suffix }
+    }
+    return null
   }
 
-  const targetBranch = getMergeTargetBranch(content)
-  const branchUrl = repo && targetBranch ? `https://github.com/${repo}/tree/${targetBranch}` : null
+  const parsed = parseMergeMessage(content)
+  const branchUrl = repo && parsed ? `https://github.com/${repo}/tree/${parsed.targetBranch}` : null
+
+  // Render content with bold branch names
+  const renderContent = () => {
+    if (!parsed) return content
+    return (
+      <>
+        {parsed.prefix}
+        <span className="font-semibold">{parsed.sourceBranch}</span>
+        {parsed.mid}
+        <span className="font-semibold">{parsed.targetBranch}</span>
+        {parsed.suffix}
+      </>
+    )
+  }
 
   return (
     <div className={cn(
@@ -238,10 +256,10 @@ function SystemMessage({ icon: Icon, content, variant = "success", isMobile = fa
           rel="noopener noreferrer"
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
-          {content}
+          {renderContent()}
         </a>
       ) : (
-        <span className="text-muted-foreground">{content}</span>
+        <span className="text-muted-foreground">{renderContent()}</span>
       )}
     </div>
   )
