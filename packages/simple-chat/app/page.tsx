@@ -12,7 +12,7 @@ import { MergeDialog, RebaseDialog, PRDialog, useGitDialogs } from "@/components
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
 import { useChat } from "@/lib/hooks/useChat"
 import { useMobile } from "@/lib/hooks/useMobile"
-import { NEW_REPOSITORY } from "@/lib/types"
+import { NEW_REPOSITORY, type Message } from "@/lib/types"
 
 export default function HomePage() {
   const { data: session } = useSession()
@@ -33,6 +33,7 @@ export default function HomePage() {
     sendMessage,
     stopAgent,
     updateSettings,
+    addMessage,
   } = useChat()
 
   const [repoPickerOpen, setRepoPickerOpen] = useState(false)
@@ -46,8 +47,18 @@ export default function HomePage() {
     return window.location.pathname === "/sdk" ? "sdk" : "chat"
   })
 
-  // Git dialogs state
-  const gitDialogs = useGitDialogs()
+  // Handler for adding messages to current chat
+  const handleAddMessage = useCallback((message: Message) => {
+    if (currentChatId) {
+      addMessage(currentChatId, message)
+    }
+  }, [currentChatId, addMessage])
+
+  // Git dialogs state - now uses API calls
+  const gitDialogs = useGitDialogs({
+    chat: currentChat ?? null,
+    onAddMessage: handleAddMessage,
+  })
 
   // Close mobile sidebar when switching to desktop
   useEffect(() => {
@@ -174,16 +185,6 @@ export default function HomePage() {
     }
   }, [gitDialogs])
 
-  // Handler for executing git commands via the sandbox
-  const handleExecuteGitCommand = useCallback((command: string) => {
-    // Send the git command as a message to the agent
-    if (currentChat) {
-      const agent = currentChat.agent || settings.defaultAgent
-      const model = currentChat.model || settings.defaultModel
-      sendMessage(command, agent, model)
-    }
-  }, [currentChat, settings.defaultAgent, settings.defaultModel, sendMessage])
-
   // Don't render chats until hydrated to avoid SSR mismatch
   const displayChats = isHydrated ? chats : []
   const displayCurrentChatId = isHydrated ? currentChatId : null
@@ -289,26 +290,26 @@ export default function HomePage() {
         isMobile={isMobile}
       />
 
-      {/* Git Dialogs */}
+      {/* Git Dialogs - now use API calls instead of pasting git commands */}
       <MergeDialog
         open={gitDialogs.mergeOpen}
         onClose={() => gitDialogs.setMergeOpen(false)}
+        gitDialogs={gitDialogs}
         chat={displayCurrentChat}
-        onExecuteGitCommand={handleExecuteGitCommand}
         isMobile={isMobile}
       />
       <RebaseDialog
         open={gitDialogs.rebaseOpen}
         onClose={() => gitDialogs.setRebaseOpen(false)}
+        gitDialogs={gitDialogs}
         chat={displayCurrentChat}
-        onExecuteGitCommand={handleExecuteGitCommand}
         isMobile={isMobile}
       />
       <PRDialog
         open={gitDialogs.prOpen}
         onClose={() => gitDialogs.setPROpen(false)}
+        gitDialogs={gitDialogs}
         chat={displayCurrentChat}
-        onExecuteGitCommand={handleExecuteGitCommand}
         isMobile={isMobile}
       />
     </div>
