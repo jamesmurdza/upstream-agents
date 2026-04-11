@@ -131,25 +131,12 @@ function AssistantContent({ message, isStreaming, isMobile = false }: { message:
     )
   }
 
-  // Git operation messages use InfoBubble with colored variant
+  // Git operation messages use SystemMessage component
   if (isGitOperation) {
-    // For errors, extract summary and details
-    let summary = message.content
-    let details: string | undefined
-
-    if (message.isError) {
-      const colonIndex = message.content.indexOf(": ")
-      if (colonIndex !== -1) {
-        summary = message.content.slice(0, colonIndex)
-        details = message.content.slice(colonIndex + 2).trim()
-      }
-    }
-
     return (
-      <InfoBubble
+      <SystemMessage
         icon={GitMerge}
-        summary={summary}
-        output={details}
+        content={message.content}
         variant={message.isError ? "error" : "success"}
         isMobile={isMobile}
       />
@@ -202,81 +189,31 @@ function AssistantContent({ message, isStreaming, isMobile = false }: { message:
 }
 
 // =============================================================================
-// Shared Info Bubble (used for tool calls and git operations)
+// System Message (for git operations and other system messages)
 // =============================================================================
 
-interface InfoBubbleProps {
+interface SystemMessageProps {
   icon: LucideIcon
-  summary: string
-  output?: string
-  variant?: "default" | "success" | "error"
+  content: string
+  variant?: "success" | "error"
   isMobile?: boolean
 }
 
-function InfoBubble({ icon: Icon, summary, output, variant = "default", isMobile = false }: InfoBubbleProps) {
-  const [expanded, setExpanded] = useState(false)
-  const hasOutput = !!output
-
-  const containerClasses = cn(
-    "rounded overflow-hidden",
-    variant === "error" && "bg-red-500/10 dark:bg-red-500/5",
-    variant === "success" && "bg-green-500/10 dark:bg-green-500/5",
-    variant === "default" && "bg-muted/30"
-  )
-
+function SystemMessage({ icon: Icon, content, variant = "success", isMobile = false }: SystemMessageProps) {
   const iconClasses = cn(
     "shrink-0",
     variant === "error" && "text-red-500 dark:text-red-400",
     variant === "success" && "text-green-600 dark:text-green-400",
-    variant === "default" && "text-muted-foreground",
-    isMobile ? "h-4 w-4" : "h-3 w-3"
+    isMobile ? "h-4 w-4" : "h-3.5 w-3.5"
   )
 
   return (
-    <div className={containerClasses}>
-      <button
-        onClick={() => hasOutput && setExpanded(!expanded)}
-        className={cn(
-          "flex items-center gap-2 text-left text-muted-foreground transition-colors",
-          // Padding is the same regardless of hasOutput, and touch-target is
-          // only for mobile tap accessibility — applying it conditionally on
-          // hasOutput made rows with output visibly taller than rows without.
-          isMobile ? "px-3 py-2.5 text-sm touch-target" : "px-2.5 py-1.5 text-xs",
-          hasOutput && "hover:text-foreground cursor-pointer"
-        )}
-      >
-        <Icon className={iconClasses} />
-        <span className="truncate">
-          {summary}
-        </span>
-        {hasOutput && (
-          expanded ? (
-            <ChevronDown className={cn(
-              "shrink-0",
-              isMobile ? "h-4 w-4" : "h-3 w-3"
-            )} />
-          ) : (
-            <ChevronRight className={cn(
-              "shrink-0",
-              isMobile ? "h-4 w-4" : "h-3 w-3"
-            )} />
-          )
-        )}
-      </button>
-
-      {expanded && output && (
-        <div className={cn(
-          "border-t border-border/50 bg-muted/30",
-          isMobile ? "px-3 py-2" : "px-2 py-1"
-        )}>
-          <pre className={cn(
-            "font-mono whitespace-pre-wrap overflow-x-auto mobile-scroll",
-            isMobile ? "text-sm max-h-64" : "text-xs max-h-48"
-          )}>
-            {output}
-          </pre>
-        </div>
-      )}
+    <div className={cn(
+      "flex items-start gap-2",
+      isMobile ? "text-base" : "text-sm"
+    )}>
+      <Icon className={cn(iconClasses, "mt-0.5")} />
+      <span className="text-foreground">{content}</span>
     </div>
   )
 }
@@ -298,7 +235,7 @@ function getToolIcon(toolName: string): LucideIcon {
 }
 
 // =============================================================================
-// Tool Call Accordion (groups consecutive tool calls)
+// Tool Call Accordion (groups consecutive tool calls into unified block)
 // =============================================================================
 
 interface ToolCallAccordionProps {
@@ -311,61 +248,88 @@ function ToolCallAccordion({ toolCalls, isMobile = false }: ToolCallAccordionPro
 
   if (toolCalls.length === 0) return null
 
-  // Single tool call - render directly without accordion wrapper
-  if (toolCalls.length === 1) {
-    const tool = toolCalls[0]
-    return (
-      <InfoBubble
-        icon={getToolIcon(tool.tool)}
-        summary={tool.summary}
-        output={tool.output}
-        isMobile={isMobile}
-      />
-    )
-  }
-
-  // Multiple tool calls - show accordion
-  const firstTool = toolCalls[0]
-  const remainingCount = toolCalls.length - 1
+  const count = toolCalls.length
+  const visibleTools = expanded ? toolCalls : toolCalls.slice(0, 1)
 
   return (
-    <div className="flex flex-col gap-1">
-      {/* First tool call always visible */}
-      <InfoBubble
-        icon={getToolIcon(firstTool.tool)}
-        summary={firstTool.summary}
-        output={firstTool.output}
-        isMobile={isMobile}
-      />
+    <div className="rounded overflow-hidden bg-muted/30">
+      {/* Tool call rows */}
+      {visibleTools.map((tool, index) => (
+        <ToolCallRow
+          key={index}
+          tool={tool}
+          isMobile={isMobile}
+          isLast={index === visibleTools.length - 1 && (expanded || count === 1)}
+        />
+      ))}
 
-      {/* Toggle button for remaining */}
+      {/* Expand/collapse row (only show if more than 1 tool call) */}
+      {count > 1 && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className={cn(
+            "flex items-center justify-between w-full text-left text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors",
+            isMobile ? "px-3 py-2 text-sm" : "px-2.5 py-1.5 text-xs"
+          )}
+        >
+          <span>
+            {expanded ? "Show less" : `${count - 1} more tool ${count - 1 === 1 ? "call" : "calls"}`}
+          </span>
+          {expanded ? (
+            <ChevronDown className={cn("shrink-0", isMobile ? "h-4 w-4" : "h-3 w-3")} />
+          ) : (
+            <ChevronRight className={cn("shrink-0", isMobile ? "h-4 w-4" : "h-3 w-3")} />
+          )}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Individual tool call row within the accordion
+interface ToolCallRowProps {
+  tool: ToolCall
+  isMobile?: boolean
+  isLast?: boolean
+}
+
+function ToolCallRow({ tool, isMobile = false, isLast = false }: ToolCallRowProps) {
+  const [expanded, setExpanded] = useState(false)
+  const Icon = getToolIcon(tool.tool)
+  const hasOutput = !!tool.output
+
+  return (
+    <div className={cn(!isLast && "border-b border-border/30")}>
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => hasOutput && setExpanded(!expanded)}
         className={cn(
-          "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
-          isMobile ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs"
+          "flex items-center gap-2 w-full text-left text-muted-foreground transition-colors",
+          isMobile ? "px-3 py-2.5 text-sm touch-target" : "px-2.5 py-1.5 text-xs",
+          hasOutput && "hover:text-foreground hover:bg-muted/50 cursor-pointer"
         )}
       >
-        {expanded ? (
-          <ChevronDown className={cn(isMobile ? "h-3 w-3" : "h-2.5 w-2.5")} />
-        ) : (
-          <ChevronRight className={cn(isMobile ? "h-3 w-3" : "h-2.5 w-2.5")} />
+        <Icon className={cn("shrink-0 text-muted-foreground", isMobile ? "h-4 w-4" : "h-3 w-3")} />
+        <span className="flex-1 truncate">{tool.summary}</span>
+        {hasOutput && (
+          expanded ? (
+            <ChevronDown className={cn("shrink-0", isMobile ? "h-4 w-4" : "h-3 w-3")} />
+          ) : (
+            <ChevronRight className={cn("shrink-0", isMobile ? "h-4 w-4" : "h-3 w-3")} />
+          )
         )}
-        <span>{remainingCount} more tool {remainingCount === 1 ? "call" : "calls"}</span>
       </button>
 
-      {/* Expanded tool calls */}
-      {expanded && (
-        <div className="flex flex-col gap-1">
-          {toolCalls.slice(1).map((tool, index) => (
-            <InfoBubble
-              key={index}
-              icon={getToolIcon(tool.tool)}
-              summary={tool.summary}
-              output={tool.output}
-              isMobile={isMobile}
-            />
-          ))}
+      {expanded && tool.output && (
+        <div className={cn(
+          "border-t border-border/30 bg-muted/20",
+          isMobile ? "px-3 py-2" : "px-2.5 py-1.5"
+        )}>
+          <pre className={cn(
+            "font-mono whitespace-pre-wrap overflow-x-auto mobile-scroll",
+            isMobile ? "text-sm max-h-64" : "text-xs max-h-48"
+          )}>
+            {tool.output}
+          </pre>
         </div>
       )}
     </div>
