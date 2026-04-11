@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, ChevronRight, Terminal, FileText, Search, GitMerge } from "lucide-react"
+import { ChevronDown, ChevronRight, Terminal, FileText, Search, GitMerge, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Message, ContentBlock } from "@/lib/types"
 import ReactMarkdown from "react-markdown"
@@ -170,36 +170,99 @@ function AssistantContent({ message, isStreaming, isMobile = false }: { message:
 // =============================================================================
 
 function GitOperationBubble({ content, isMobile = false }: { content: string; isMobile?: boolean }) {
+  const [expanded, setExpanded] = useState(false)
+
+  // Check if this is an error message (contains "failed:" pattern)
+  const isError = /\*\*.*failed.*:\*\*/i.test(content) || /failed:/i.test(content)
+
+  // For errors, extract the summary (before the colon) and details (after the colon)
+  let summary = content
+  let details = ""
+
+  if (isError) {
+    // Match pattern like "**Merge failed:** error details"
+    const match = content.match(/^(\*\*[^*]+\*\*:?)\s*(.*)$/s)
+    if (match) {
+      summary = match[1]
+      details = match[2].trim()
+    }
+  }
+
+  const hasDetails = isError && details.length > 0
+  const Icon = isError ? AlertCircle : GitMerge
+
   return (
-    <div className="rounded border border-green-500/30 bg-green-500/10 dark:bg-green-500/5 overflow-hidden">
-      <div className={cn(
-        "flex items-start gap-2",
-        isMobile ? "px-3 py-2.5 text-sm" : "px-2 py-1.5 text-xs"
-      )}>
-        <GitMerge className={cn(
-          "text-green-600 dark:text-green-400 shrink-0 mt-0.5",
-          isMobile ? "h-4 w-4" : "h-3.5 w-3.5"
+    <div className={cn(
+      "rounded border overflow-hidden",
+      isError
+        ? "border-red-500/30 bg-red-500/10 dark:bg-red-500/5"
+        : "border-green-500/30 bg-green-500/10 dark:bg-green-500/5"
+    )}>
+      <button
+        onClick={() => hasDetails && setExpanded(!expanded)}
+        className={cn(
+          "flex items-center gap-2 w-full text-left",
+          isMobile ? "px-3 py-2.5 text-sm" : "px-2 py-1 text-xs",
+          hasDetails && "hover:bg-accent/50 active:bg-accent cursor-pointer touch-target"
+        )}
+      >
+        <Icon className={cn(
+          "shrink-0",
+          isError ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400",
+          isMobile ? "h-4 w-4" : "h-3 w-3"
         )} />
-        <div className={cn(
-          "flex-1 prose dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-0",
-          isMobile ? "prose-sm" : "prose-xs"
-        )}>
+        <span className="flex-1 truncate">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               p: ({ children }) => <span>{children}</span>,
               strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
               a: ({ children, ...props }) => (
-                <a {...props} target="_blank" rel="noopener noreferrer" className="text-green-600 dark:text-green-400 underline">
+                <a
+                  {...props}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "underline",
+                    isError ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"
+                  )}
+                >
                   {children}
                 </a>
               ),
             }}
           >
-            {content}
+            {hasDetails ? summary : content}
           </ReactMarkdown>
+        </span>
+        {hasDetails && (
+          expanded ? (
+            <ChevronDown className={cn(
+              "text-muted-foreground shrink-0",
+              isMobile ? "h-4 w-4" : "h-3 w-3"
+            )} />
+          ) : (
+            <ChevronRight className={cn(
+              "text-muted-foreground shrink-0",
+              isMobile ? "h-4 w-4" : "h-3 w-3"
+            )} />
+          )
+        )}
+      </button>
+
+      {expanded && hasDetails && (
+        <div className={cn(
+          "border-t border-border/50 bg-muted/30",
+          isMobile ? "px-3 py-2" : "px-2 py-1"
+        )}>
+          <pre className={cn(
+            "font-mono whitespace-pre-wrap overflow-x-auto mobile-scroll",
+            isMobile ? "text-sm max-h-64" : "text-xs max-h-48"
+          )}>
+            {details}
+          </pre>
         </div>
-      </div>
+      )}
     </div>
   )
 }
