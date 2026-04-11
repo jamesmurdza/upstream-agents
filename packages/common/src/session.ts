@@ -62,7 +62,15 @@ The repository is cloned at ${repoPath}.
 - Example: nohup npm start > server.log 2>&1 &
 
 ## When Finished
-- Provide a clear summary of what you did.`
+- Provide a clear summary of what you did.
+
+## User Slash Commands
+The user has access to the following slash commands in the chat interface (these are handled by the UI, not by you):
+- /merge - Merge branches (allows user to merge the current branch into another branch like main)
+- /rebase - Rebase onto another branch (allows user to rebase the current branch onto another branch)
+- /pr - Create a pull request (allows user to create a PR from the current branch)
+
+These commands help the user manage git operations outside of your direct control. You do not need to handle these commands yourself.`
 
   if (previewUrlPattern) {
     const defaultPort = String(SANDBOX_CONFIG.DEFAULT_PREVIEW_PORT)
