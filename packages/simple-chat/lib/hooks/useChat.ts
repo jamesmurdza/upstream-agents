@@ -373,6 +373,23 @@ export function useChat() {
         const response = await fetch(`/api/agent/status?${params}`)
 
         if (!response.ok) {
+          // Handle 404: session no longer exists (server restarted or session expired)
+          if (response.status === 404) {
+            console.warn("Agent session no longer exists, stopping polling")
+            isPollingRef.current = false
+            if (pollingRef.current) {
+              clearInterval(pollingRef.current)
+              pollingRef.current = null
+            }
+            // Update chat status to ready (not error, since work may have completed)
+            const currentState = loadState()
+            const existingChat = currentState.chats.find((c) => c.id === chatId)
+            if (existingChat && existingChat.status === "running") {
+              const newState = updateChat(chatId, { status: "ready" })
+              setState(newState)
+            }
+            return
+          }
           throw new Error("Failed to poll status")
         }
 
