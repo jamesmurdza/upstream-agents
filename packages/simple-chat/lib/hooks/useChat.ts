@@ -14,6 +14,7 @@ import {
   setCurrentChat,
   addMessage,
   updateLastMessage,
+  updateMessage,
   updateSettings as updateStoredSettings,
 } from "@/lib/storage"
 import { generateBranchName } from "@/lib/utils"
@@ -297,6 +298,10 @@ export function useChat() {
 
         const uploadResult = await uploadResponse.json()
         uploadedFilePaths = uploadResult.uploadedFiles.map((f: { path: string }) => f.path)
+
+        // Update user message with uploaded file paths
+        newState = updateMessage(chat.id, userMessage.id, { uploadedFiles: uploadedFilePaths })
+        setState(newState)
       } catch (error) {
         console.error("Failed to upload files:", error)
         // Continue without files - add warning to message
