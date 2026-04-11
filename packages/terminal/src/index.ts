@@ -3,27 +3,50 @@
  *
  * WebSocket-based PTY terminal for Daytona sandboxes.
  *
- * This package provides an xterm.js-based React component that connects
- * to a WebSocket PTY server running inside a Daytona sandbox.
+ * This package provides:
+ * - A React component (xterm.js) for rendering the terminal in the browser
+ * - Sandbox setup functions to install and run the PTY server
+ * - The PTY server code itself (for custom deployments)
  *
- * The PTY server code is inlined in the API route to avoid bundling
- * native modules (node-pty) in the Next.js build.
+ * Quick Start:
+ * ```typescript
+ * import { Daytona } from "@daytonaio/sdk"
+ * import { setupTerminal, WebSocketTerminal } from "@upstream/terminal"
  *
- * Usage:
- *    import { WebSocketTerminal } from '@upstream/terminal';
- *    <WebSocketTerminal websocketUrl={wsUrl} />
+ * const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
+ * const sandbox = await daytona.create()
+ * const { websocketUrl } = await setupTerminal(sandbox)
+ *
+ * // In React:
+ * <WebSocketTerminal websocketUrl={websocketUrl} />
+ * ```
  */
 
-// Re-export components
-export { WebSocketTerminal } from './components/WebSocketTerminal';
-export type { WebSocketTerminalProps } from './components/WebSocketTerminal';
+// React components
+export { WebSocketTerminal } from './components/WebSocketTerminal'
+export type { WebSocketTerminalProps } from './components/WebSocketTerminal'
 
-// Constants
-export const PTY_SERVER_PORT = 44777;
+// Sandbox setup (requires @daytonaio/sdk)
+export {
+  setupTerminal,
+  stopTerminal,
+  getTerminalStatus,
+} from './sandbox'
+export type {
+  TerminalSetupResult,
+  TerminalSetupOptions,
+} from './sandbox'
+
+// Server code (for custom deployments)
+export {
+  getPtyServerCode,
+  getPtyServerPackageJson,
+  PTY_SERVER_PORT,
+} from './server'
 
 /**
- * Get the WebSocket URL from an HTTPS preview URL
+ * Convert an HTTPS URL to a WebSocket URL
  */
 export function httpsToWss(httpsUrl: string): string {
-  return httpsUrl.replace(/^https:\/\//, 'wss://');
+  return httpsUrl.replace(/^https:\/\//, 'wss://')
 }
