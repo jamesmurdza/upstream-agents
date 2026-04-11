@@ -533,13 +533,14 @@ export function useGitDialogs({ chat, onAddMessage }: UseGitDialogsOptions): Use
   // Get repo name from repo path (owner/name -> name)
   const repoName = repoApiName || ""
 
-  // Add system message helper
+  // Add system message helper for git operations
   const addSystemMessage = useCallback((content: string) => {
     if (!onAddMessage) return
     onAddMessage({
       id: generateId(),
       role: "assistant",
       content,
+      messageType: "git-operation",
       timestamp: Date.now(),
     })
   }, [onAddMessage])

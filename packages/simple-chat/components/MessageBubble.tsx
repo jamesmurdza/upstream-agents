@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, ChevronRight, Terminal, FileText, Search } from "lucide-react"
+import { ChevronDown, ChevronRight, Terminal, FileText, Search, GitMerge } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Message, ContentBlock } from "@/lib/types"
 import ReactMarkdown from "react-markdown"
@@ -104,6 +104,7 @@ function AssistantContent({ message, isStreaming, isMobile = false }: { message:
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0
   const hasBlocks = message.contentBlocks && message.contentBlocks.length > 0
   const isEmpty = !hasContent && !hasToolCalls && !hasBlocks
+  const isGitOperation = message.messageType === "git-operation"
 
   if (isEmpty) {
     return (
@@ -111,6 +112,11 @@ function AssistantContent({ message, isStreaming, isMobile = false }: { message:
         ...
       </div>
     )
+  }
+
+  // Git operation messages get special styling (like tool calls but different color)
+  if (isGitOperation) {
+    return <GitOperationBubble content={message.content} isMobile={isMobile} />
   }
 
   return (
@@ -155,6 +161,45 @@ function AssistantContent({ message, isStreaming, isMobile = false }: { message:
           ...
         </div>
       )}
+    </div>
+  )
+}
+
+// =============================================================================
+// Git Operation Bubble (styled like tool calls but with different background)
+// =============================================================================
+
+function GitOperationBubble({ content, isMobile = false }: { content: string; isMobile?: boolean }) {
+  return (
+    <div className="rounded border border-green-500/30 bg-green-500/10 dark:bg-green-500/5 overflow-hidden">
+      <div className={cn(
+        "flex items-start gap-2",
+        isMobile ? "px-3 py-2.5 text-sm" : "px-2 py-1.5 text-xs"
+      )}>
+        <GitMerge className={cn(
+          "text-green-600 dark:text-green-400 shrink-0 mt-0.5",
+          isMobile ? "h-4 w-4" : "h-3.5 w-3.5"
+        )} />
+        <div className={cn(
+          "flex-1 prose dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-0",
+          isMobile ? "prose-sm" : "prose-xs"
+        )}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({ children }) => <span>{children}</span>,
+              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+              a: ({ children, ...props }) => (
+                <a {...props} target="_blank" rel="noopener noreferrer" className="text-green-600 dark:text-green-400 underline">
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        </div>
+      </div>
     </div>
   )
 }

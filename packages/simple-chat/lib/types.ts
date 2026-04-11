@@ -25,11 +25,16 @@ export {
   hasCredentialsForModel,
 } from "@upstream/common"
 
+/** Message type for distinguishing system messages from regular chat */
+export type MessageType = "chat" | "git-operation"
+
 export interface Message {
   id: string
   role: "user" | "assistant"
   content: string
   timestamp: number
+  /** Type of message - defaults to "chat" for regular messages */
+  messageType?: MessageType
   /** Tool calls made by the assistant */
   toolCalls?: Array<{
     tool: string
