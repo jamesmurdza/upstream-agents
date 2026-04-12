@@ -13,16 +13,25 @@ export const PATHS = {
   LOGS_DIR: "/tmp/logs",
   /** Marker file created after clone completes, used as baseline for modified file detection */
   CLONE_MARKER_FILE: "/tmp/.clone_complete",
-  /** Claude credentials directory */
-  CLAUDE_CREDENTIALS_DIR: "/home/daytona/.claude",
-  /** Claude credentials file */
-  CLAUDE_CREDENTIALS_FILE: "/home/daytona/.claude/.credentials.json",
   /** Claude hooks directory */
   CLAUDE_HOOKS_DIR: "/home/daytona/.claude/hooks",
   /** Claude settings file */
   CLAUDE_SETTINGS_FILE: "/home/daytona/.claude/settings.json",
   /** Agent session ID persistence file */
   AGENT_SESSION_FILE: "/home/daytona/.agent_session_id",
+} as const
+
+// =============================================================================
+// Environment Variables
+// =============================================================================
+
+export const ENV_VARS = {
+  /**
+   * Environment variable for Claude Code credentials.
+   * When set, the Agent SDK will automatically write this to ~/.claude/.credentials.json
+   * Value should be the JSON content of the credentials file (e.g., {"claudeAiOauth":{"accessToken":"..."}})
+   */
+  CLAUDE_CODE_CREDENTIALS: "CLAUDE_CODE_CREDENTIALS",
 } as const
 
 // =============================================================================
