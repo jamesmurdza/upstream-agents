@@ -181,13 +181,8 @@ export async function POST(req: Request) {
         // Track sandbox ID for cleanup if subsequent steps fail
         daytonaSandboxId = sandbox.id
 
-        // Write Claude credentials file directly for the Claude CLI to use
-        if (anthropicAuthToken) {
-          const credentialsB64 = Buffer.from(anthropicAuthToken).toString("base64")
-          await sandbox.process.executeCommand(
-            `mkdir -p ${PATHS.CLAUDE_CREDENTIALS_DIR} && echo '${credentialsB64}' | base64 -d > ${PATHS.CLAUDE_CREDENTIALS_FILE} && chmod 600 ${PATHS.CLAUDE_CREDENTIALS_FILE}`
-          )
-        }
+        // Note: Claude credentials are passed via CLAUDE_CODE_CREDENTIALS env var at execution time
+        // The Agent SDK's claude setup() function writes them to ~/.claude/.credentials.json
 
         // Create the logs directory for agent output
         await sandbox.process.executeCommand(`mkdir -p ${PATHS.LOGS_DIR}`)
