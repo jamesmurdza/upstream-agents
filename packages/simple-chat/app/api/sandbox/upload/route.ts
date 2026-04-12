@@ -132,7 +132,7 @@ async function fileExists(
 ): Promise<boolean> {
   try {
     const result = await sandbox.process.executeCommand(`test -e "${path}" && echo "exists"`)
-    return result.output?.trim() === "exists"
+    return result.result?.trim() === "exists"
   } catch {
     return false
   }
