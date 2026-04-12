@@ -127,7 +127,7 @@ export async function POST(req: Request) {
       sessionId: resumeSessionId,
       agent,
       model,
-      // Note: env is passed at start() time for freshest credentials
+      env, // Pass env at session creation for setup() (e.g., CLAUDE_CODE_CREDENTIALS)
     })
     console.log(`[agent/execute] createBackgroundAgentSession took ${Date.now() - t0}ms`)
 
