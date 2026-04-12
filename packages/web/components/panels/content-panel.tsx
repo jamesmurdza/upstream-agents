@@ -1007,10 +1007,25 @@ export function ContentPanel({
   const isInitialLoadRef = useRef(true)
 
   useEffect(() => {
-    if (files.length === 0) return
-
     const previousPaths = new Set(previousFilesRef.current.map(f => f.path))
+    const currentPaths = new Set(files.map(f => f.path))
     const isInitialLoad = isInitialLoadRef.current
+
+    // Close tabs for log files that have been deleted
+    // Only do this after initial load (not on first render)
+    if (!isInitialLoad) {
+      const logTabsToClose = contentPanelTabs.filter(
+        tab => tab.type === "file" && tab.filePath && isLogFile(tab.filePath) && !currentPaths.has(tab.filePath)
+      )
+      logTabsToClose.forEach(tab => closeTab(tab.id))
+    }
+
+    // Skip adding new tabs if no files
+    if (files.length === 0) {
+      previousFilesRef.current = files
+      isInitialLoadRef.current = false
+      return
+    }
 
     // Only auto-open LOG files (in /tmp/logs or /tmp/claude), not regular code files
     // On initial load, add recent log files. On subsequent polls, only add truly new log files.
@@ -1035,7 +1050,7 @@ export function ContentPanel({
 
     previousFilesRef.current = files
     isInitialLoadRef.current = false
-  }, [files, contentPanelOpen, contentPanelTabs.length, openContentPanel, addFileTab])
+  }, [files, contentPanelOpen, contentPanelTabs, openContentPanel, addFileTab, closeTab])
 
   // ===== Swap tab context on branch/repo switch =====
   // Snapshots the current tabs under the previous cacheKey and restores
