@@ -8,6 +8,7 @@ import type { ProviderName } from "../types/index"
 const PROVIDER_PACKAGES: Record<ProviderName, string> = {
   claude: "@anthropic-ai/claude-code",
   codex: "@openai/codex",
+  eliza: "", // eliza is built-in, no installation needed
   goose: "", // goose uses shell script installer, not npm
   opencode: "opencode",
   gemini: "@google/gemini-cli",
@@ -118,7 +119,7 @@ export function ensureCliInstalled(
  * Check installation status of all providers
  */
 export function getInstallationStatus(): Record<ProviderName, boolean> {
-  const providers: ProviderName[] = ["claude", "codex", "goose", "opencode", "gemini", "pi"]
+  const providers: ProviderName[] = ["claude", "codex", "eliza", "goose", "opencode", "gemini", "pi"]
   const status: Record<string, boolean> = {}
 
   for (const provider of providers) {
