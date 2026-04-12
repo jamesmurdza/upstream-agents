@@ -21,6 +21,7 @@ export async function GET() {
         defaultBranch: true,
         preferredBaseBranch: true,
         branches: {
+          orderBy: { updatedAt: "desc" },
           select: {
             id: true,
             name: true,
