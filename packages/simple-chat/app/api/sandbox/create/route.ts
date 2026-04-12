@@ -105,6 +105,10 @@ export async function POST(req: Request) {
       await sandbox.process.executeCommand(
         `cd ${repoPath} && echo "# Project" > README.md && git add . && git commit -m "Initial commit"`
       )
+      // Create and checkout the working branch (same as we do for GitHub repos)
+      await sandbox.process.executeCommand(
+        `cd ${repoPath} && git checkout -b ${newBranch}`
+      )
     } else {
       // Clone the GitHub repository
       const cloneUrl = `https://github.com/${owner}/${repoApiName}.git`
