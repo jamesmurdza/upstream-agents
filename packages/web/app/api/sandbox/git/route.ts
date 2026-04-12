@@ -764,11 +764,10 @@ export async function POST(req: Request) {
             return Response.json(duplicateCheck, { status: 409 })
           }
 
-          // Use raw SQL to update only the name without touching updatedAt.
-          // This prevents the branch from being sorted to the top of the list
-          // just because it was renamed (we don't want auto-rename to change
-          // the "foremost" branch).
-          await prisma.$executeRaw`UPDATE "Branch" SET "name" = ${newName} WHERE "id" = ${branchRecord.id}`
+          await prisma.branch.update({
+            where: { id: branchRecord.id },
+            data: { name: newName },
+          })
         }
 
         // Track whether branch exists on GitHub (for setting upstream later)
@@ -794,7 +793,10 @@ export async function POST(req: Request) {
             // 404 means branch doesn't exist on GitHub yet - that's okay, we'll push after local rename
             // Any other error is a real failure - roll back DB change
             if (branchRecord) {
-              await prisma.$executeRaw`UPDATE "Branch" SET "name" = ${currentBranch} WHERE "id" = ${branchRecord.id}`
+              await prisma.branch.update({
+                where: { id: branchRecord.id },
+                data: { name: currentBranch },
+              })
             }
             const errorData = await renameRes.json().catch(() => ({}))
             const errorMessage = (errorData as { message?: string }).message || `Status ${renameRes.status}`
@@ -812,7 +814,10 @@ export async function POST(req: Request) {
         if (renameResult.exitCode) {
           // Roll back DB change on local rename failure
           if (branchRecord) {
-            await prisma.$executeRaw`UPDATE "Branch" SET "name" = ${currentBranch} WHERE "id" = ${branchRecord.id}`
+            await prisma.branch.update({
+              where: { id: branchRecord.id },
+              data: { name: currentBranch },
+            })
           }
           return Response.json({ error: "Local rename failed: " + renameResult.result }, { status: 500 })
         }
