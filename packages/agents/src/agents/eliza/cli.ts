@@ -15,6 +15,8 @@ import { matchPattern, hashString } from "./patterns.js"
 // Configuration from environment
 const sessionId = process.env.ELIZA_SESSION_ID || `eliza-${randomUUID()}`
 const cwd = process.env.ELIZA_CWD || process.cwd()
+// Delay multiplier for testing (e.g., ELIZA_DELAY_MULTIPLIER=10 for 10x slower)
+const delayMultiplier = Math.max(1, Number(process.env.ELIZA_DELAY_MULTIPLIER) || 1)
 
 /**
  * Sleep for a given number of milliseconds
@@ -46,8 +48,9 @@ async function emit(obj: unknown, delayMs: number = 0): Promise<void> {
 async function runEliza(prompt: string): Promise<void> {
   // Calculate deterministic delays based on input
   const inputHash = hashString(prompt)
-  const thinkingDelay = 500 + (inputHash % 1000) // 500-1500ms
-  const interEventDelay = 100 + (inputHash % 200) // 100-300ms
+  // Base delays, multiplied by ELIZA_DELAY_MULTIPLIER for testing
+  const thinkingDelay = (500 + (inputHash % 1000)) * delayMultiplier // 500-1500ms base
+  const interEventDelay = (100 + (inputHash % 200)) * delayMultiplier // 100-300ms base
 
   // Emit session init
   await emit({

@@ -28,6 +28,11 @@ const __dirname = path.dirname(__filename)
  * - Uses classic ELIZA regex pattern matching (deterministic, not random/LLM)
  * - Outputs Claude Code compatible JSON lines with realistic delays
  * - Can create and delete actual files as "therapeutic exercises"
+ *
+ * Environment variables:
+ * - ELIZA_SESSION_ID: Override session ID
+ * - ELIZA_CWD: Override working directory for file operations
+ * - ELIZA_DELAY_MULTIPLIER: Multiply all delays by this factor (for testing, e.g., 10 for 10x slower)
  */
 export const elizaAgent: AgentDefinition = {
   name: "eliza",
