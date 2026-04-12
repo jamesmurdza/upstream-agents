@@ -1124,7 +1124,7 @@ export function ContentPanel({
         onMouseDown={startResize}
         onDoubleClick={() => setContentPanelCollapsed(true)}
         title="Double-click to collapse"
-        className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-10"
+        className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/30 transition-colors z-20"
       />
 
       {/* Tab Bar */}

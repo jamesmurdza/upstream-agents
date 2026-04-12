@@ -30,6 +30,8 @@ export interface ContentPanelTabSnapshot {
   tabs: ContentPanelTab[]
   activeId: string | null
   terminalCounter: number
+  panelOpen: boolean
+  panelCollapsed: boolean
 }
 
 interface UIState {
@@ -360,6 +362,8 @@ const storeCreator = (set: (partial: Partial<UIState & UIActions>) => void, get:
         tabs: state.contentPanelTabs,
         activeId: state.contentPanelActiveTabId,
         terminalCounter: state.contentPanelTerminalCounter,
+        panelOpen: state.contentPanelOpen,
+        panelCollapsed: state.contentPanelCollapsed,
       }
     }
 
@@ -370,6 +374,8 @@ const storeCreator = (set: (partial: Partial<UIState & UIActions>) => void, get:
       contentPanelTabs: restored?.tabs ?? [],
       contentPanelActiveTabId: restored?.activeId ?? null,
       contentPanelTerminalCounter: restored?.terminalCounter ?? 0,
+      contentPanelOpen: restored?.panelOpen ?? false,
+      contentPanelCollapsed: restored?.panelCollapsed ?? false,
     })
   },
 
