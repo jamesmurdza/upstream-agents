@@ -39,6 +39,7 @@ export const elizaAgent: AgentDefinition = {
 
   capabilities: {
     supportsSystemPrompt: false,
+    ignoresSystemPrompt: true, // ELIZA is a fake agent, ignore system prompts entirely
     supportsResume: false,
   },
 

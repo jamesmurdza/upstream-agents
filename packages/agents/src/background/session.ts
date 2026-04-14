@@ -118,8 +118,11 @@ class BackgroundSessionImpl implements BackgroundSession {
     }
 
     // Handle system prompt for agents without native support
-    if (opts.systemPrompt && !this.agent.capabilities?.supportsSystemPrompt) {
-      opts.prompt = opts.systemPrompt + "\n\n" + (opts.prompt ?? "")
+    // Skip entirely for agents that ignore system prompts (e.g., ELIZA)
+    if (opts.systemPrompt && !this.agent.capabilities?.ignoresSystemPrompt) {
+      if (!this.agent.capabilities?.supportsSystemPrompt) {
+        opts.prompt = opts.systemPrompt + "\n\n" + (opts.prompt ?? "")
+      }
     }
 
     if (!this.sandbox.executeCommand) {
