@@ -431,6 +431,7 @@ export default function Home() {
     <PaletteProvider
       repos={repos}
       activeRepoId={activeRepoId}
+      activeBranchId={activeBranchId}
       onSelectRepo={handlePaletteSelectRepo}
       onSelectBranch={handlePaletteSelectBranch}
       onRunCommand={handleRunCommand}
