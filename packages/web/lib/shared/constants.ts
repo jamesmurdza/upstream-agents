@@ -174,6 +174,7 @@ export const PATHS = {
     "claude-code": "/home/daytona/.claude.json",
     "opencode": "/home/daytona/.config/opencode/opencode.jsonc",
     "codex": "/home/daytona/.codex/config.toml",
+    "eliza": "", // ELIZA is a fake agent, no MCP config
     "gemini": "/home/daytona/.gemini/settings.json",
     "goose": "/home/daytona/.config/goose/config.yaml",
     "pi": "/home/daytona/.pi/config.json",
