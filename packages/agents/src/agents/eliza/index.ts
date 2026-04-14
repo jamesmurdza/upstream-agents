@@ -38,8 +38,7 @@ export const elizaAgent: AgentDefinition = {
   toolMappings: ELIZA_TOOL_MAPPINGS,
 
   capabilities: {
-    supportsSystemPrompt: false,
-    ignoresSystemPrompt: true, // ELIZA is a fake agent, ignore system prompts entirely
+    supportsSystemPrompt: true, // Claim support so it doesn't get prepended to prompt (ELIZA ignores it)
     supportsResume: false,
   },
 

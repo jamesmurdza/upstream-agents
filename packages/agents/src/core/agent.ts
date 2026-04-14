@@ -54,8 +54,6 @@ export interface RunOptions {
 export interface AgentCapabilities {
   /** Agent supports native system prompt (vs synthetic prefix) */
   supportsSystemPrompt?: boolean
-  /** Agent completely ignores system prompt (for fake/test agents like ELIZA) */
-  ignoresSystemPrompt?: boolean
   /** Agent supports session resumption */
   supportsResume?: boolean
   /** Agent requires special setup (e.g., login) */
