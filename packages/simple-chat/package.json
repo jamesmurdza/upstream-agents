@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 4000",
+    "dev": "npm run build -w @upstream/common && npm run build -w @upstream/agents && next dev --port 4000",
     "build": "next build",
     "start": "next start --port 4000",
     "lint": "eslint .",

@@ -2,12 +2,20 @@
   "name": "@upstream/common",
   "version": "0.1.0",
   "description": "Shared utilities and types for upstream-agents packages",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*"
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
   "scripts": {
     "build": "tsc",

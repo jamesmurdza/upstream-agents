@@ -5,13 +5,13 @@
     "packages/*"
   ],
   "scripts": {
-    "postinstall": "cd packages/web && npx prisma generate",
+    "postinstall": "npm run build -w @upstream/common && npm run build -w @upstream/terminal && cd packages/web && npx prisma generate",
     "dev": "cd packages/web && prisma generate && next dev --webpack",
     "dev:simple-chat": "npm run dev -w @upstream/simple-chat",
-    "build": "npm run build -w @upstream/agents && npm run build -w @upstream/web && npm run build -w @upstream/simple-chat",
+    "build": "npm run build -w @upstream/common && npm run build -w @upstream/terminal && npm run build -w @upstream/agents && npm run build -w @upstream/web && npm run build -w @upstream/simple-chat",
     "build:sdk": "npm run build -w @upstream/agents",
-    "build:web": "npm run build -w @upstream/agents && npm run build -w @upstream/web",
-    "build:simple-chat": "npm run build -w @upstream/agents && npm run build -w @upstream/simple-chat",
+    "build:web": "npm run build -w @upstream/common && npm run build -w @upstream/terminal && npm run build -w @upstream/agents && npm run build -w @upstream/web",
+    "build:simple-chat": "npm run build -w @upstream/common && npm run build -w @upstream/agents && npm run build -w @upstream/simple-chat",
     "start": "cd packages/web && next start",
     "start:simple-chat": "npm run start -w @upstream/simple-chat",
     "lint": "npm run lint --workspaces --if-present",
