@@ -148,9 +148,9 @@ var ELIZA_PATTERNS = [
       "Is that a significant memory for you?"
     ]
   },
-  // File creation trigger
+  // File creation trigger - requires "file" or "note" keyword
   {
-    pattern: /(?:create|make|write) (?:a )?(?:file|note) (?:called |named )?["']?([^"']+)["']?/i,
+    pattern: /(?:create|make|write) (?:a )?(?:file|note) (?:called |named )?["']?([a-zA-Z0-9_\\-\\.]+)["']?/i,
     responses: ["I'll create that file for you as a therapeutic exercise."],
     fileAction: {
       type: "write",
@@ -158,9 +158,9 @@ var ELIZA_PATTERNS = [
       contentTemplate: "Therapeutic Note\\n================\\nCreated during ELIZA therapy session.\\nDate: {date}\\n\\nUse this space to write your thoughts.\\n"
     }
   },
-  // File deletion trigger
+  // File deletion trigger - requires "file" keyword to avoid matching general "delete" usage
   {
-    pattern: /(?:delete|remove) (?:the )?(?:file )?["']?([^"']+)["']?/i,
+    pattern: /(?:delete|remove) (?:the )?file ["']?([a-zA-Z0-9_\\-\\.]+)["']?/i,
     responses: [
       "Sometimes letting go is therapeutic. I'll help you delete that."
     ],
@@ -169,9 +169,9 @@ var ELIZA_PATTERNS = [
       fileNameTemplate: "{0}"
     }
   },
-  // File reading trigger
+  // File reading trigger - requires "file" keyword
   {
-    pattern: /(?:read|show|open) (?:the )?(?:file )?["']?([^"']+)["']?/i,
+    pattern: /(?:read|show|open) (?:the )?file ["']?([a-zA-Z0-9_\\-\\.]+)["']?/i,
     responses: ["Let me read that file for you."],
     fileAction: {
       type: "read",
