@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npm run build -w @upstream/agents && prisma generate && next dev --webpack",
+    "dev": "npm run build -w @upstream/common && npm run build -w @upstream/terminal && npm run build -w @upstream/agents && prisma generate && next dev --webpack",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
