@@ -8,6 +8,7 @@ import type { ProviderName } from "../types/index"
 const PROVIDER_PACKAGES: Record<ProviderName, string> = {
   claude: "@anthropic-ai/claude-code",
   codex: "@openai/codex",
+  eliza: "", // eliza is built-in, no installation needed
   goose: "", // goose uses shell script installer, not npm
   opencode: "opencode",
   gemini: "@google/gemini-cli",
@@ -77,6 +78,14 @@ export function installProvider(name: ProviderName): boolean {
 }
 
 /**
+ * Check if a provider is built-in and doesn't need installation.
+ */
+export function isBuiltInProvider(name: ProviderName): boolean {
+  // ELIZA is built-in: runs via node within the agents package
+  return name === "eliza"
+}
+
+/**
  * Ensure a provider CLI is installed, installing it if necessary
  * @param name - Provider name
  * @param autoInstall - Whether to automatically install if missing (default: false)
@@ -87,6 +96,11 @@ export function ensureCliInstalled(
   name: ProviderName,
   autoInstall: boolean = false
 ): boolean {
+  // Built-in providers don't need installation
+  if (isBuiltInProvider(name)) {
+    return true
+  }
+
   if (isCliInstalled(name)) {
     return true
   }
@@ -118,11 +132,12 @@ export function ensureCliInstalled(
  * Check installation status of all providers
  */
 export function getInstallationStatus(): Record<ProviderName, boolean> {
-  const providers: ProviderName[] = ["claude", "codex", "goose", "opencode", "gemini", "pi"]
+  const providers: ProviderName[] = ["claude", "codex", "eliza", "goose", "opencode", "gemini", "pi"]
   const status: Record<string, boolean> = {}
 
   for (const provider of providers) {
-    status[provider] = isCliInstalled(provider)
+    // Built-in providers are always "installed"
+    status[provider] = isBuiltInProvider(provider) || isCliInstalled(provider)
   }
 
   return status as Record<ProviderName, boolean>

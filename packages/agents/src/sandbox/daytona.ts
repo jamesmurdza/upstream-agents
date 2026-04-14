@@ -5,6 +5,10 @@
 import type { Sandbox } from "@daytonaio/sdk"
 import type { CodeAgentSandbox, AdaptSandboxOptions, ExecuteBackgroundOptions, ProviderName } from "../types/index"
 import { getPackageName, getShellInstaller } from "../utils/install"
+import { ELIZA_BUNDLE_CONTENT } from "../agents/eliza/bundle-content"
+
+// Path to ELIZA bundle (uploaded to sandbox when needed)
+const ELIZA_SANDBOX_PATH = "/tmp/eliza-cli.bundle.js"
 
 /** Escape a string for use in single-quoted shell strings */
 function escapeShell(str: string): string {
@@ -147,6 +151,22 @@ export function adaptDaytonaSandbox(
     },
 
     async ensureProvider(name: ProviderName): Promise<void> {
+      // ELIZA is built-in - upload the bundle to the sandbox
+      if (name === "eliza") {
+        // Check if already uploaded
+        const checkResult = await sandbox.process.executeCommand(`test -f ${ELIZA_SANDBOX_PATH} && echo "exists"`)
+        if (checkResult.result?.trim() === "exists") {
+          return
+        }
+
+        // Upload the embedded bundle content to sandbox
+        console.log(`Uploading ELIZA CLI bundle to sandbox...`)
+        const bundleBuffer = Buffer.from(ELIZA_BUNDLE_CONTENT, "utf-8")
+        await sandbox.fs.uploadFile(bundleBuffer, ELIZA_SANDBOX_PATH)
+        console.log(`Uploaded ELIZA CLI bundle to ${ELIZA_SANDBOX_PATH}`)
+        return
+      }
+
       // For goose, also check in ~/.local/bin which is the default install location
       const checkCommand = name === "goose"
         ? `which ${name} || test -x "$HOME/.local/bin/${name}"`
@@ -158,7 +178,14 @@ export function adaptDaytonaSandbox(
 
       // Check if provider uses shell installer or npm
       const shellInstaller = getShellInstaller(name)
-      const installCommand = shellInstaller ?? `npm install -g ${getPackageName(name)}`
+      const packageName = getPackageName(name)
+
+      // Skip installation if no package name and no shell installer (built-in provider)
+      if (!shellInstaller && !packageName) {
+        return
+      }
+
+      const installCommand = shellInstaller ?? `npm install -g ${packageName}`
 
       const installResult = await sandbox.process.executeCommand(
         installCommand, undefined, undefined, 120
