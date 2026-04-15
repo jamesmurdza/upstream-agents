@@ -8,7 +8,7 @@ import {
   getSession,
   type Event,
   type EndEvent,
-} from "@upstream/agents"
+} from "background-agents"
 import {
   buildSystemPrompt,
   buildContentBlocks,

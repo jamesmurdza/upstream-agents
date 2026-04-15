@@ -77,6 +77,6 @@ https://github.com/user-attachments/assets/d3a10c97-8a23-4171-a08f-c08179b419d6
 
 - **Frontend**: Next.js 16 with React 19, Tailwind CSS 4, and Radix UI primitives
 - **Authentication**: NextAuth.js with GitHub OAuth provider
-- **Agent SDK**: Uses `@upstream/agents` for agent session management
+- **Agent SDK**: Uses `background-agents` for agent session management
 - **Sandbox**: Daytona SDK for isolated development environments
 - **State Management**: Local storage with React hooks for persistence

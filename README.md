@@ -72,7 +72,7 @@ This is an npm-workspaces monorepo:
 
 ```
 packages/
-├── agents/        # @upstream/agents      — TypeScript SDK for AI coding agents
+├── agents/        # background-agents      — TypeScript SDK for AI coding agents
 ├── common/        # @upstream/common      — Shared utilities and types
 ├── terminal/      # @upstream/terminal    — WebSocket-based PTY terminal
 ├── web/           # @upstream/web         — Main Next.js application

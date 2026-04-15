@@ -20,7 +20,7 @@ const nextConfig = {
     unoptimized: true,
   },
   // Transpile workspace packages (source imports for dev mode)
-  transpilePackages: ["@upstream/agents", "@upstream/common"],
+  transpilePackages: ["background-agents", "@upstream/common"],
   // Mark native addon packages as external so they're not bundled by webpack
   serverExternalPackages: [
     "ssh2",

@@ -1,12 +1,14 @@
 {
-  "name": "@upstream/agents",
+  "name": "background-agents",
   "version": "0.1.2",
   "description": "A TypeScript SDK for interacting with various AI coding agents (Claude, Codex, OpenCode, Gemini, Pi)",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run build:eliza-bundle && npm run build:eliza-embed",
+    "build:eliza-bundle": "esbuild src/agents/eliza/cli.ts --bundle --platform=node --format=esm --outfile=dist/agents/eliza/cli.bundle.js",
+    "build:eliza-embed": "npx tsx scripts/embed-eliza-bundle.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "esbuild": "^0.20.0",
     "typescript": "^5.3.0",
     "vitest": "^1.0.0"
   },

@@ -8,7 +8,7 @@ import type {
   TokenEvent,
   ToolStartEvent,
   ToolEndEvent,
-} from "@upstream/agents"
+} from "background-agents"
 import type { ContentBlock, ToolCall } from "./types"
 import { PATHS, SANDBOX_CONFIG } from "./constants"
 

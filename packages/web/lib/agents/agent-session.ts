@@ -20,7 +20,7 @@ import {
   type ToolEndEvent,
   type EndEvent,
   type BackgroundRunPhase,
-} from "@upstream/agents"
+} from "background-agents"
 import {
   buildSystemPrompt,
   buildContentBlocks as commonBuildContentBlocks,
