@@ -307,20 +307,17 @@ Pass the output as `CLAUDE_CODE_CREDENTIALS`. The SDK automatically writes it to
 
 ## Development
 
+Build, test, and iterate locally. Start by installing dependencies and running the unit test suite:
+
 ```bash
 npm install
 npm run build
 npm test
-
-# Integration tests (OpenCode — no provider key needed)
-DAYTONA_API_KEY=... npm test -- tests/integration/polling-e2e.test.ts
-
-# Integration tests (Claude — needs Anthropic key)
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npm test -- tests/integration/sandbox-background.test.ts
-
-# Interactive REPL
-DAYTONA_API_KEY=... ANTHROPIC_API_KEY=... npx tsx scripts/repl-polling.ts
 ```
+
+For integration and end-to-end testing, see [TESTING.md](./TESTING.md).
+
+For testing scenarios, you can use the deterministic Eliza agent, which requires no provider API key.
 
 ---
 
