@@ -132,11 +132,14 @@ export {
   type MergeResult,
   type RebaseResult,
   type GitOperationContext,
+  type SandboxProcessExecutor,
   // Functions
   formatPRTitleFromBranch,
   formatPRBodyFromCommits,
   isGitNothingToCommitMessage,
   parseConflictedFiles,
+  createAuthenticatedUrl,
+  fetchBranchWithAuth,
   // Constants
   EMPTY_CONFLICT_STATE,
 } from "./git-operations"
