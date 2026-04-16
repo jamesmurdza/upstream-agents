@@ -12,7 +12,6 @@ First, create a Daytona sandbox and clone your repo:
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
-import { createSession } from "background-agents"
 
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
 const sandbox = await daytona.create()
@@ -24,6 +23,8 @@ await sandbox.git.checkoutBranch("/home/daytona/repo", "fix-auth-bug")
 Then create a session and start the agent:
 
 ```typescript
+import { createSession } from "background-agents"
+
 const session = await createSession("claude", {
   sandbox,
   cwd: "/home/daytona/repo",
@@ -33,7 +34,14 @@ const session = await createSession("claude", {
 await session.start("Refactor the auth module")
 ```
 
-The agent is now running in the sandbox with your repo cloned into it. To use a different agent, change `"claude"` to any of the supported agents: `"codex"`, `"gemini"`, `"goose"`, `"opencode"`, or `"pi"`.
+The agent is now running in the sandbox with your repo cloned into it. To use a different agent, change `"claude"` to any of the supported agents:
+
+- `"claude"` — [Claude Code](https://docs.anthropic.com/en/docs/claude-code)
+- `"codex"` — [Codex](https://developers.openai.com/codex/cli)
+- `"gemini"` — [Gemini CLI](https://geminicli.com/docs/)
+- `"goose"` — [Goose](https://block.github.io/goose/docs/)
+- `"opencode"` — [OpenCode](https://opencode.ai/docs/)
+- `"pi"` — [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
 
 ## Long-Running Agents
 
