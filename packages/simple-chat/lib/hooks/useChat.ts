@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { nanoid } from "nanoid"
 import { useSession } from "next-auth/react"
-import type { AppState, Chat, Message, Settings, AgentStatusResponse } from "@/lib/types"
+import type { AppState, Chat, Message, Settings, SSEUpdateEvent, SSECompleteEvent } from "@/lib/types"
 import { NEW_REPOSITORY } from "@/lib/types"
 import {
   loadState,
@@ -19,7 +19,9 @@ import {
 } from "@/lib/storage"
 import { generateBranchName } from "@/lib/utils"
 
-const POLL_INTERVAL = 1000 // 1 second
+// SSE reconnection settings
+const SSE_RECONNECT_DELAY = 1000 // 1 second delay before reconnecting
+const SSE_MAX_RECONNECT_ATTEMPTS = 10
 
 // Default empty state for SSR
 const DEFAULT_STATE: AppState = {
@@ -49,10 +51,22 @@ export function useChat() {
     setIsHydrated(true)
   }, [])
 
-  // Polling ref
-  const pollingRef = useRef<NodeJS.Timeout | null>(null)
-  const isPollingRef = useRef(false)
-  // Accumulated content for current polling session (resets when new agent run starts)
+  // SSE connection ref
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const isStreamingRef = useRef(false)
+  // Track cursor for reconnection
+  const cursorRef = useRef(0)
+  // Track reconnection attempts
+  const reconnectAttemptsRef = useRef(0)
+  // Store connection params for reconnection
+  const connectionParamsRef = useRef<{
+    chatId: string
+    sandboxId: string
+    repoName: string
+    backgroundSessionId: string
+    previewUrlPattern?: string
+  } | null>(null)
+  // Accumulated content for current streaming session (resets when new agent run starts)
   const accumulatedContentRef = useRef<{
     content: string
     toolCalls: Message["toolCalls"]
@@ -106,11 +120,12 @@ export function useChat() {
     // Get the chat before deleting to access sandboxId
     const chat = state.chats.find((c) => c.id === chatId)
 
-    // Stop polling if this is the current chat
-    if (pollingRef.current && state.currentChatId === chatId) {
-      clearInterval(pollingRef.current)
-      pollingRef.current = null
-      isPollingRef.current = false
+    // Stop SSE stream if this is the current chat
+    if (eventSourceRef.current && state.currentChatId === chatId) {
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
+      isStreamingRef.current = false
+      connectionParamsRef.current = null
     }
 
     // Mark as deleting (grays out the item)
@@ -377,8 +392,8 @@ export function useChat() {
       const executeData = await response.json()
       const { backgroundSessionId } = executeData
 
-      // 4. Start polling for status
-      startPolling(chat.id, sandboxId!, repoName, backgroundSessionId, previewUrlPattern || chat.previewUrlPattern)
+      // 4. Start SSE streaming for status
+      startStreaming(chat.id, sandboxId!, repoName, backgroundSessionId, previewUrlPattern || chat.previewUrlPattern)
 
       // 5. Generate chat name from first message (fire-and-forget)
       if (isFirstMessage) {
@@ -410,90 +425,97 @@ export function useChat() {
   }, [currentChat, session?.accessToken, state.settings])
 
   // =============================================================================
-  // Polling
+  // SSE Streaming
   // =============================================================================
 
-  const startPolling = useCallback((
+  const startStreaming = useCallback((
     chatId: string,
     sandboxId: string,
     repoName: string,
     backgroundSessionId: string,
     previewUrlPattern?: string
   ) => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current)
+    // Close existing connection if any
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
     }
 
-    isPollingRef.current = true
-    // Reset accumulated content for new polling session
+    isStreamingRef.current = true
+    // Reset for new streaming session
+    cursorRef.current = 0
+    reconnectAttemptsRef.current = 0
     accumulatedContentRef.current = { content: "", toolCalls: [], contentBlocks: [] }
 
-    const poll = async () => {
-      if (!isPollingRef.current) return
+    // Store params for reconnection
+    connectionParamsRef.current = {
+      chatId,
+      sandboxId,
+      repoName,
+      backgroundSessionId,
+      previewUrlPattern,
+    }
 
-      try {
-        const params = new URLSearchParams({
-          sandboxId,
-          repoName,
-          backgroundSessionId,
-        })
-        if (previewUrlPattern) {
-          params.set("previewUrlPattern", previewUrlPattern)
+    const connect = (cursor: number = 0) => {
+      if (!isStreamingRef.current) return
+
+      const params = new URLSearchParams({
+        sandboxId,
+        repoName,
+        backgroundSessionId,
+      })
+      if (previewUrlPattern) {
+        params.set("previewUrlPattern", previewUrlPattern)
+      }
+      if (cursor > 0) {
+        params.set("cursor", cursor.toString())
+      }
+
+      const eventSource = new EventSource(`/api/agent/stream?${params}`)
+      eventSourceRef.current = eventSource
+
+      eventSource.addEventListener("update", (event) => {
+        try {
+          const data: SSEUpdateEvent = JSON.parse(event.data)
+
+          // Update cursor for reconnection
+          cursorRef.current = data.cursor
+          // Reset reconnect attempts on successful message
+          reconnectAttemptsRef.current = 0
+
+          // Accumulate content (server sends incremental updates)
+          const acc = accumulatedContentRef.current
+          acc.content += data.content
+          acc.toolCalls = [...(acc.toolCalls || []), ...(data.toolCalls || [])]
+          acc.contentBlocks = [...(acc.contentBlocks || []), ...(data.contentBlocks || [])]
+
+          // Update message with accumulated content
+          const newState = updateLastMessage(chatId, {
+            content: acc.content,
+            toolCalls: acc.toolCalls,
+            contentBlocks: acc.contentBlocks,
+          })
+          setState(newState)
+        } catch (err) {
+          console.error("Failed to parse SSE update event:", err)
         }
+      })
 
-        const response = await fetch(`/api/agent/status?${params}`)
+      eventSource.addEventListener("complete", async (event) => {
+        try {
+          const data: SSECompleteEvent = JSON.parse(event.data)
 
-        if (!response.ok) {
-          // Handle 404: session no longer exists (server restarted or session expired)
-          if (response.status === 404) {
-            console.warn("Agent session no longer exists, stopping polling")
-            isPollingRef.current = false
-            if (pollingRef.current) {
-              clearInterval(pollingRef.current)
-              pollingRef.current = null
-            }
-            // Update chat status to ready (not error, since work may have completed)
-            const currentState = loadState()
-            const existingChat = currentState.chats.find((c) => c.id === chatId)
-            if (existingChat && existingChat.status === "running") {
-              const newState = updateChat(chatId, { status: "ready" })
-              setState(newState)
-            }
-            return
-          }
-          throw new Error("Failed to poll status")
-        }
-
-        const data: AgentStatusResponse = await response.json()
-
-        // Accumulate content from each poll (server returns incremental updates)
-        const acc = accumulatedContentRef.current
-        acc.content += data.content
-        acc.toolCalls = [...(acc.toolCalls || []), ...(data.toolCalls || [])]
-        acc.contentBlocks = [...(acc.contentBlocks || []), ...(data.contentBlocks || [])]
-
-        // Update message with accumulated content
-        let newState = updateLastMessage(chatId, {
-          content: acc.content,
-          toolCalls: acc.toolCalls,
-          contentBlocks: acc.contentBlocks,
-        })
-        setState(newState)
-
-        // Handle completion
-        if (data.status === "completed" || data.status === "error") {
-          isPollingRef.current = false
-          if (pollingRef.current) {
-            clearInterval(pollingRef.current)
-            pollingRef.current = null
-          }
+          // Clean up
+          isStreamingRef.current = false
+          eventSource.close()
+          eventSourceRef.current = null
+          connectionParamsRef.current = null
 
           // Store sessionId for conversation continuity
           const updates: Partial<Chat> = { status: data.status === "error" ? "error" : "ready" }
           if (data.sessionId) {
             updates.sessionId = data.sessionId
           }
-          newState = updateChat(chatId, updates)
+          const newState = updateChat(chatId, updates)
           setState(newState)
 
           // Auto-push on completion (only for GitHub repos, not NEW_REPOSITORY)
@@ -515,26 +537,86 @@ export function useChat() {
               }
             }
           }
+        } catch (err) {
+          console.error("Failed to parse SSE complete event:", err)
         }
-      } catch (error) {
-        console.error("Polling error:", error)
+      })
+
+      eventSource.addEventListener("heartbeat", (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          // Update cursor from heartbeat
+          cursorRef.current = data.cursor
+          // Reset reconnect attempts on heartbeat
+          reconnectAttemptsRef.current = 0
+        } catch (err) {
+          console.error("Failed to parse SSE heartbeat:", err)
+        }
+      })
+
+      eventSource.addEventListener("error", (event) => {
+        try {
+          const data = JSON.parse((event as MessageEvent).data)
+          console.error("SSE error event:", data.error)
+
+          // Clean up and update status
+          isStreamingRef.current = false
+          eventSource.close()
+          eventSourceRef.current = null
+          connectionParamsRef.current = null
+
+          const newState = updateChat(chatId, { status: "error" })
+          setState(newState)
+        } catch {
+          // This is a connection error, not a server-sent error event
+          // Attempt reconnection
+        }
+      })
+
+      eventSource.onerror = () => {
+        // Connection error - attempt reconnection
+        eventSource.close()
+        eventSourceRef.current = null
+
+        if (!isStreamingRef.current) return
+
+        reconnectAttemptsRef.current += 1
+
+        if (reconnectAttemptsRef.current <= SSE_MAX_RECONNECT_ATTEMPTS) {
+          console.log(`SSE connection lost, reconnecting (attempt ${reconnectAttemptsRef.current})...`)
+          setTimeout(() => {
+            if (isStreamingRef.current && connectionParamsRef.current) {
+              connect(cursorRef.current)
+            }
+          }, SSE_RECONNECT_DELAY)
+        } else {
+          console.error("SSE max reconnection attempts reached")
+          isStreamingRef.current = false
+          connectionParamsRef.current = null
+
+          // Update chat status
+          const currentState = loadState()
+          const existingChat = currentState.chats.find((c) => c.id === chatId)
+          if (existingChat && existingChat.status === "running") {
+            const newState = updateChat(chatId, { status: "ready" })
+            setState(newState)
+          }
+        }
       }
     }
 
-    // Initial poll
-    poll()
-
-    // Set up interval
-    pollingRef.current = setInterval(poll, POLL_INTERVAL)
+    // Start initial connection
+    connect()
   }, [])
 
   const stopAgent = useCallback(() => {
-    // Just stop polling - the agent will continue in background but we won't show updates
-    isPollingRef.current = false
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current)
-      pollingRef.current = null
+    // Close SSE connection - the agent will continue in background but we won't show updates
+    isStreamingRef.current = false
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
     }
+    connectionParamsRef.current = null
 
     if (currentChat) {
       const newState = updateChat(currentChat.id, { status: "ready" })
@@ -545,8 +627,8 @@ export function useChat() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current)
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
       }
     }
   }, [])

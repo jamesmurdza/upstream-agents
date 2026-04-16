@@ -141,3 +141,42 @@ export interface ExecuteAgentRequest {
 export interface ExecuteAgentResponse {
   success: boolean
 }
+
+// =============================================================================
+// SSE Event Types
+// =============================================================================
+
+export interface SSEUpdateEvent {
+  status: "running" | "completed" | "error"
+  content: string
+  toolCalls: Array<{
+    tool: string
+    summary: string
+    fullSummary?: string
+    output?: string
+  }>
+  contentBlocks: Array<
+    | { type: "text"; text: string }
+    | { type: "tool_calls"; toolCalls: Array<{ tool: string; summary: string; fullSummary?: string; output?: string }> }
+  >
+  cursor: number
+  sessionId?: string
+  error?: string
+}
+
+export interface SSECompleteEvent {
+  status: "completed" | "error"
+  sessionId?: string
+  error?: string
+  cursor: number
+}
+
+export interface SSEHeartbeatEvent {
+  cursor: number
+  timestamp: number
+}
+
+export interface SSEErrorEvent {
+  error: string
+  cursor: number
+}
