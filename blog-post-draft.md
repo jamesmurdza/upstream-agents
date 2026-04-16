@@ -1,6 +1,8 @@
 # Building AI Agent Interfaces with the Background Agents SDK
 
-Coding agents like Claude Code, Codex, and OpenCode were originally designed for local-first CLI usage, and integrating them into cloud applications comes with a whole set of challenges. The Background Agents SDK is a solution to those challenges—it gives you a unified interface for starting and managing long-running AI coding agents in cloud sandboxes.
+Coding agents like Claude Code, Codex, and OpenCode were originally designed for local-first CLI usage, and integrating them into cloud applications comes with a whole set of challenges. These agents execute code, read and write files, and run shell commands—you don't want that happening on your server. And since agents can run for minutes or longer, serverless functions will time out before they finish.
+
+The Background Agents SDK solves both problems. It gives you a unified interface for running AI coding agents in isolated Daytona sandboxes, where they can execute safely and persist beyond the lifetime of any single request.
 
 ## Introducing the Background Agents SDK
 
@@ -28,12 +30,6 @@ await session.start("Refactor the auth module")
 ```
 
 The agent is now running in an isolated sandbox with your repo cloned into it. To use a different agent, change `"claude"` to any of the supported agents: `"codex"`, `"gemini"`, `"goose"`, `"opencode"`, or `"pi"`.
-
-## Why Sandboxes?
-
-Coding agents execute code, read files, write files, and run shell commands. Sandboxes give you isolation. Each agent runs in its own Daytona environment, finishes its task, and can be deleted when you're done.
-
-The sandbox also persists the state of the agent. In serverless applications, functions can only run for a limited time, but Daytona sandboxes allow the agent to run indefinitely. Your application only needs to persist the sandbox and session IDs.
 
 ## Long-Running Agents
 
@@ -112,6 +108,14 @@ The SDK uses a pluggable registry. Each agent adapter:
 1. Installs and runs the agent using its CLI
 2. Parses the agent's JSON output into normalized events
 3. Maps tool names to a standard format (e.g., `Write` → `write`, `Shell` → `bash`)
+
+## Conclusion
+
+Sandboxes make AI coding agents practical for cloud applications. They give you isolation—agents can execute code without risk to your infrastructure. They give you persistence—agents keep running even when your serverless functions time out. And they give you control—changes stay in the sandbox until you explicitly push them.
+
+The Background Agents SDK handles the complexity of managing these sandboxed agents across multiple providers. You get one interface for Claude, Codex, Gemini, and others, with normalized events and simple session management.
+
+If you're building on top of AI coding agents, it might save you some time.
 
 ---
 
