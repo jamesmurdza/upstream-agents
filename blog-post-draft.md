@@ -17,9 +17,10 @@ const sandbox = await daytona.create()
 await sandbox.git.clone("https://github.com/user/repo.git", "/home/daytona/repo")
 await sandbox.git.checkoutBranch("/home/daytona/repo", "fix-auth-bug")
 
-// Start the agent
+// Start the agent in the repo directory
 const session = await createSession("claude", {
   sandbox,
+  cwd: "/home/daytona/repo",
   env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
 })
 
@@ -47,12 +48,31 @@ for (const event of events) {
 
 The SDK tracks which events you've already seen. Each call to `getEvents()` returns only the new ones. Since every agent has its own output format, the SDK normalizes them into a common event structure.
 
+## Saving to Git
+
 When the agent finishes, push the changes:
 
 ```typescript
 if (!running) {
   await sandbox.git.push("/home/daytona/repo", "x-access-token", githubToken)
 }
+```
+
+You can also create a PR using the GitHub API:
+
+```typescript
+await fetch("https://api.github.com/repos/user/repo/pulls", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${githubToken}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    title: "Refactor auth module",
+    head: "fix-auth-bug",
+    base: "main",
+  }),
+})
 ```
 
 A security benefit of using Daytona to manage the git repo is that the GitHub access token is not stored in the sandbox, which prevents the agent from making any destructive or unwanted changes.
@@ -65,13 +85,13 @@ The sandbox also persists the state of the agent. In serverless applications, fu
 
 ## Adding New Agents
 
-The SDK uses a pluggable registry. Each agent adapter implements how to build the CLI command, parse its JSON output, and map tool names to a common format.
+The SDK uses a pluggable registry where each agent adapter handles three things: installing and running the agent's CLI, parsing its unique JSON output format, and normalizing tool names to a standard format.
 
-We built an agentic workflow for adding new adapters. You create a skeleton module, run a script that captures the agent's raw output, then iteratively build the parser from that. The agents can help—point Claude at the captured JSON and the existing adapters, and it drafts most of the code for you.
+I built an agentic workflow for adding new adapters. You create a skeleton module, run a script that captures the agent's raw output, then iteratively build the parser from that. The agents can help—point Claude at the captured JSON and the existing adapters, and it drafts most of the code for you.
 
 ## Building the Chat Interface
 
-We built an example chat application on top of the SDK to show how the pieces connect. It's intentionally minimal—no database, just local storage.
+I built an example chat application on top of the SDK to show how the pieces connect. It's intentionally minimal—no database, just local storage.
 
 The core is a polling loop. Send a message, the app creates a session and starts polling. Events come back and get rendered as they arrive: tokens stream in as the agent "types," tool calls show what's happening, and completion ends the loop.
 
