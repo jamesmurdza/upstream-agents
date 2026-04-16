@@ -83,8 +83,8 @@ export function PaletteProvider({
         return
       }
 
-      // Alt + Up/Down for chat navigation (only when not in input)
-      if (!isInInput && e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      // Alt + Up/Down for chat navigation (works even in inputs)
+      if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
         if (chatIds.length === 0) return
         e.preventDefault()
 
