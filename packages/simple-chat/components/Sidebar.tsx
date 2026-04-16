@@ -333,22 +333,6 @@ export function Sidebar({
             </button>
           </div>
 
-          {/* API Reference Link */}
-          <div className="px-3 pb-2">
-            <button
-              onClick={() => handleNavigate(currentPage === "sdk" ? "chat" : "sdk")}
-              className={cn(
-                "flex items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors touch-target",
-                currentPage === "sdk"
-                  ? "bg-accent text-accent-foreground"
-                  : "hover:bg-accent/50 active:bg-accent"
-              )}
-            >
-              <Code2 className="h-5 w-5 text-muted-foreground" />
-              <span className="text-base text-foreground">API Reference</span>
-            </button>
-          </div>
-
           {/* Repository Filter */}
           <div className="px-3 pb-2 relative" ref={repoDropdownRef}>
             <button
@@ -433,8 +417,24 @@ export function Sidebar({
             </div>
           </div>
 
+          {/* API Reference Link */}
+          <div className="px-3 py-2 border-t border-sidebar-border">
+            <button
+              onClick={() => handleNavigate(currentPage === "sdk" ? "chat" : "sdk")}
+              className={cn(
+                "flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-colors",
+                currentPage === "sdk"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent/50 active:bg-accent hover:text-foreground"
+              )}
+            >
+              <Code2 className="h-4 w-4" />
+              <span>API Reference</span>
+            </button>
+          </div>
+
           {/* Footer - User & Settings */}
-          <div className="mt-auto p-4 pb-safe border-t border-sidebar-border">
+          <div className="p-4 pb-safe border-t border-sidebar-border">
             {session?.user ? (
               <div className="flex items-center gap-3">
                 {/* User Avatar & Name */}
@@ -517,7 +517,7 @@ export function Sidebar({
       </div>
 
       {/* New Chat Button */}
-      <div className={cn("pb-1", collapsed ? "px-0 flex justify-center" : "px-2")}>
+      <div className={cn("pb-2", collapsed ? "px-0 flex justify-center" : "px-2")}>
         <button
           onClick={onNewChat}
           className={cn(
@@ -527,23 +527,6 @@ export function Sidebar({
         >
           <Plus className="h-4 w-4 text-muted-foreground" />
           {!collapsed && <span className="text-sm text-foreground">New Chat</span>}
-        </button>
-      </div>
-
-      {/* API Reference Link */}
-      <div className={cn("pb-2", collapsed ? "px-0 flex justify-center" : "px-2")}>
-        <button
-          onClick={() => onNavigate?.(currentPage === "sdk" ? "chat" : "sdk")}
-          className={cn(
-            "flex items-center gap-2 rounded-md transition-colors cursor-pointer",
-            collapsed ? "p-1.5" : "w-full px-2 py-2",
-            currentPage === "sdk"
-              ? "bg-accent text-accent-foreground"
-              : "hover:bg-accent/50"
-          )}
-        >
-          <Code2 className="h-4 w-4 text-muted-foreground" />
-          {!collapsed && <span className="text-sm text-foreground">API Reference</span>}
         </button>
       </div>
 
@@ -640,8 +623,25 @@ export function Sidebar({
       {/* Spacer when collapsed */}
       {collapsed && <div className="flex-1" />}
 
+      {/* API Reference Link */}
+      <div className={cn("px-2 py-2", !collapsed && "border-t border-sidebar-border")}>
+        <button
+          onClick={() => onNavigate?.(currentPage === "sdk" ? "chat" : "sdk")}
+          className={cn(
+            "flex items-center gap-2 rounded-md transition-colors cursor-pointer",
+            collapsed ? "p-1.5 justify-center w-full" : "w-full px-2 py-1.5",
+            currentPage === "sdk"
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+          )}
+        >
+          <Code2 className="h-4 w-4" />
+          {!collapsed && <span className="text-sm">API Reference</span>}
+        </button>
+      </div>
+
       {/* Footer - User & Settings */}
-      <div className={cn("mt-auto p-3", !collapsed && "border-t border-sidebar-border")}>
+      <div className={cn("p-3", !collapsed && "border-t border-sidebar-border")}>
         {session?.user ? (
           collapsed ? (
             <CollapsedUserMenu
