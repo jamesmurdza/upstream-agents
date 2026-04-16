@@ -87,7 +87,7 @@ Here's what the events look like when an agent edits a file:
 
 ## Pushing to Git
 
-When the agent finishes, push the changes:
+When `getEvents()` returns `running: false`, the agent has finished. You can then push the changes:
 
 ```typescript
 if (!running) {
