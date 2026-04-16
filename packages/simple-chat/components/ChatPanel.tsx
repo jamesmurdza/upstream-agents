@@ -80,7 +80,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
   // Auto-scroll to bottom when messages change (only if user hasn't scrolled up)
   useEffect(() => {
     if (!userHasScrolledUp) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+      messagesEndRef.current?.scrollIntoView({ behavior: "instant" })
     }
   }, [chat?.messages, userHasScrolledUp])
 
