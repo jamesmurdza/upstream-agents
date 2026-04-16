@@ -6,6 +6,18 @@ The Background Agents SDK handles running agents in sandboxes. But to build a fu
 
 ---
 
+## Section: Using the Background Agents SDK
+
+Brief recap of how the app uses the SDK:
+- Creates a Daytona sandbox
+- Clones the user's repo
+- Starts a session with `createSession()`
+- Polls with `getEvents()`
+
+Link back to the SDK blog post for details.
+
+---
+
 ## Section: GitHub OAuth
 
 - Users sign in with GitHub OAuth
@@ -32,6 +44,20 @@ Show how events are rendered:
 - `end` → stop polling
 
 This is the bridge between the SDK and the UI.
+
+---
+
+## Section: Rendering Tool Calls
+
+Tool calls are the interesting part of the UI. The SDK normalizes tool names (`read`, `write`, `edit`, `shell`, etc.) so you can render them consistently across agents.
+
+Show how tool calls are displayed:
+- Tool name and input (e.g., file path, command)
+- Streaming output via `tool_delta`
+- Final result on `tool_end`
+- Collapsible UI so tool calls don't overwhelm the conversation
+
+Maybe show a simple component or the data structure.
 
 ---
 
