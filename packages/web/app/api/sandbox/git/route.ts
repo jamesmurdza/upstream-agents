@@ -13,6 +13,7 @@ import {
   getGitHubTokenForUser,
 } from "@/lib/shared/api-helpers"
 import { generateCommitMessage } from "@/lib/git/commit-message"
+import { fetchBranchWithAuth } from "@upstream/common"
 // Git operation timeout - 60 seconds (must be literal for Next.js static analysis)
 export const maxDuration = 60
 
@@ -296,25 +297,7 @@ export async function POST(req: Request) {
       case "list-branches": {
         // Fetch all remote branches first (single-branch clones only see origin/main)
         if (githubToken) {
-          const origUrlResult = await sandbox.process.executeCommand(
-            `cd ${repoPath} && git remote get-url origin 2>&1`
-          )
-          const origUrl = origUrlResult.result.trim()
-          // Temporarily set authed URL for private repos
-          const authedUrl = origUrl.replace(
-            /^https:\/\//,
-            `https://x-access-token:${githubToken}@`
-          )
-          await sandbox.process.executeCommand(
-            `cd ${repoPath} && git remote set-url origin '${authedUrl}' 2>&1`
-          )
-          await sandbox.process.executeCommand(
-            `cd ${repoPath} && git fetch origin --prune 2>&1`
-          )
-          // Restore original URL
-          await sandbox.process.executeCommand(
-            `cd ${repoPath} && git remote set-url origin '${origUrl}' 2>&1`
-          )
+          await fetchBranchWithAuth(sandbox.process, repoPath, githubToken, "--prune")
         } else {
           // Best-effort fetch for public repos
           await sandbox.process.executeCommand(
@@ -493,24 +476,7 @@ export async function POST(req: Request) {
         // Fetch target branch from remote first to ensure we have the latest
         // This is important for single-branch clones where the target branch
         // might not exist locally or might be outdated
-        const origUrlResult = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git remote get-url origin 2>&1`
-        )
-        const origUrl = origUrlResult.result.trim()
-        const authedUrl = origUrl.replace(
-          /^https:\/\//,
-          `https://x-access-token:${githubToken}@`
-        )
-        await sandbox.process.executeCommand(
-          `cd ${repoPath} && git remote set-url origin '${authedUrl}' 2>&1`
-        )
-        await sandbox.process.executeCommand(
-          `cd ${repoPath} && git fetch origin ${targetBranch} 2>&1`
-        )
-        // Restore original URL
-        await sandbox.process.executeCommand(
-          `cd ${repoPath} && git remote set-url origin '${origUrl}' 2>&1`
-        )
+        await fetchBranchWithAuth(sandbox.process, repoPath, githubToken, targetBranch)
 
         // Checkout target branch, pull latest, come back, rebase
         const coTarget2 = await sandbox.process.executeCommand(
