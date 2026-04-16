@@ -4,7 +4,7 @@ Coding agents like Claude Code, Codex, and OpenCode were originally designed for
 
 ## Introducing the Background Agents SDK
 
-The Background Agents SDK is a TypeScript library that lets you start long-running AI coding agents from serverless applications. You create a sandbox, clone a repo, create a session, and start a task:
+The Background Agents SDK is a TypeScript library that lets you run long-running AI coding agents from serverless applications. You create a sandbox, clone a repo, and start a task:
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
@@ -28,6 +28,12 @@ await session.start("Refactor the auth module")
 ```
 
 The agent is now running in an isolated sandbox with your repo cloned into it. To use a different agent, change `"claude"` to any of the supported agents: `"codex"`, `"gemini"`, `"goose"`, `"opencode"`, or `"pi"`.
+
+## Why Sandboxes?
+
+Coding agents execute code, read files, write files, and run shell commands. Sandboxes give you isolation. Each agent runs in its own Daytona environment, finishes its task, and can be deleted when you're done.
+
+The sandbox also persists the state of the agent. In serverless applications, functions can only run for a limited time, but Daytona sandboxes allow the agent to run indefinitely. Your application only needs to persist the sandbox and session IDs.
 
 ## Long-Running Agents
 
@@ -61,54 +67,31 @@ if (!running) {
 You can also create a PR using the GitHub API:
 
 ```typescript
-await fetch("https://api.github.com/repos/user/repo/pulls", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${githubToken}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    title: "Refactor auth module",
-    head: "fix-auth-bug",
-    base: "main",
-  }),
+import { Octokit } from "octokit"
+
+const octokit = new Octokit({ auth: githubToken })
+
+await octokit.request("POST /repos/{owner}/{repo}/pulls", {
+  owner: "user",
+  repo: "repo",
+  title: "Refactor auth module",
+  head: "fix-auth-bug",
+  base: "main",
 })
 ```
 
 A security benefit of using Daytona to manage the git repo is that the GitHub access token is not stored in the sandbox, which prevents the agent from making any destructive or unwanted changes.
 
-## Why Sandboxes?
-
-Coding agents execute code, read files, write files, and run shell commands. Sandboxes give you isolation. Each agent runs in its own Daytona environment, finishes its task, and can be deleted when you're done.
-
-The sandbox also persists the state of the agent. In serverless applications, functions can only run for a limited time, but Daytona sandboxes allow the agent to run indefinitely. Your application only needs to persist the sandbox and session IDs.
-
 ## Adding New Agents
 
-The SDK uses a pluggable registry where each agent adapter handles three things: installing and running the agent's CLI, parsing its unique JSON output format, and normalizing tool names to a standard format.
+The SDK uses a pluggable registry. Each agent adapter:
+
+1. Installs and runs the agent using its CLI
+2. Parses the agent's JSON output into normalized events
+3. Maps tool names to a standard format (e.g., `Write` → `write`, `Bash` → `bash`)
 
 I built an agentic workflow for adding new adapters. You create a skeleton module, run a script that captures the agent's raw output, then iteratively build the parser from that. The agents can help—point Claude at the captured JSON and the existing adapters, and it drafts most of the code for you.
 
-## Building the Chat Interface
-
-I built an example chat application on top of the SDK to show how the pieces connect. It's intentionally minimal—no database, just local storage.
-
-The core is a polling loop. Send a message, the app creates a session and starts polling. Events come back and get rendered as they arrive: tokens stream in as the agent "types," tool calls show what's happening, and completion ends the loop.
-
-The UI renders tool calls inline, so you see exactly what the agent did. File edits show diffs, command outputs collapse, errors get highlighted.
-
-## Git & GitHub Integration
-
-Each conversation in the chat app is tied to a git branch. Start a new chat, get a new branch. The agent makes changes, they're tracked in git.
-
-When you're done:
-
-1. Type `/commit`—the agent writes a commit message
-2. Type `/pr`—a pull request opens on GitHub
-3. Merge it
-
-The whole workflow happens in the sandbox. If you don't like the result, delete the sandbox and the branch goes with it. Nothing touches your main codebase until you merge.
-
 ---
 
-The Background Agents SDK is open source. If you're building on top of AI coding agents, it might save you some time.
+The Background Agents SDK is open source. Find it on [npm](https://www.npmjs.com/package/background-agents) or [GitHub](https://github.com/jamesmurdza/upstream-agents/tree/main/packages/agents).
