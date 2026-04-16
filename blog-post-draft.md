@@ -6,7 +6,9 @@ Since the agents are running in sandboxes, they can safely execute code, run she
 
 ## Introducing the Background Agents SDK
 
-The Background Agents SDK is a TypeScript library that lets you run long-running AI coding agents from serverless applications. You create a sandbox, clone a repo, and start a task:
+The Background Agents SDK is a TypeScript library that lets you run long-running AI coding agents from serverless applications.
+
+First, create a Daytona sandbox and clone your repo:
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
@@ -15,11 +17,13 @@ import { createSession } from "background-agents"
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
 const sandbox = await daytona.create()
 
-// Clone a repo and set up a working branch
 await sandbox.git.clone("https://github.com/user/repo.git", "/home/daytona/repo")
 await sandbox.git.checkoutBranch("/home/daytona/repo", "fix-auth-bug")
+```
 
-// Start the agent in the repo directory
+Then create a session and start the agent:
+
+```typescript
 const session = await createSession("claude", {
   sandbox,
   cwd: "/home/daytona/repo",
@@ -29,7 +33,7 @@ const session = await createSession("claude", {
 await session.start("Refactor the auth module")
 ```
 
-The agent is now running in an isolated sandbox with your repo cloned into it. To use a different agent, change `"claude"` to any of the supported agents: `"codex"`, `"gemini"`, `"goose"`, `"opencode"`, or `"pi"`.
+The agent is now running in the sandbox with your repo cloned into it. To use a different agent, change `"claude"` to any of the supported agents: `"codex"`, `"gemini"`, `"goose"`, `"opencode"`, or `"pi"`.
 
 ## Long-Running Agents
 
