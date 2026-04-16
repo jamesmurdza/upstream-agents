@@ -1,10 +1,10 @@
 # Building AI Agent Interfaces with the Background Agents SDK
 
-Coding agents like Claude Code, Codex, and OpenCode were originally designed for local-first CLI usage, and integrating them into cloud applications comes with a whole set of challenges. The Background Agents SDK is a solution to those challenges—it gives you a unified interface for starting, polling, and managing long-running AI coding agents from serverless applications.
+Coding agents like Claude Code, Codex, and OpenCode were originally designed for local-first CLI usage, and integrating them into cloud applications comes with a whole set of challenges. The Background Agents SDK is a solution to those challenges—it gives you a unified interface for starting and managing long-running AI coding agents in cloud sandboxes.
 
 ## Introducing the Background Agents SDK
 
-The Background Agents SDK is a TypeScript library that lets you install and start long-running AI coding agents from serverless applications. You just create a sandbox, create a session, and start a task:
+The Background Agents SDK is a TypeScript library that lets you start long-running AI coding agents from serverless applications. You create a sandbox, clone a repo, create a session, and start a task:
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
@@ -13,6 +13,19 @@ import { createSession } from "background-agents"
 const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY })
 const sandbox = await daytona.create()
 
+// Clone a repo and set up a working branch
+await sandbox.git.clone(
+  "https://github.com/user/repo.git",
+  "/home/daytona/repo",
+  "main",
+  undefined,
+  "x-access-token",
+  githubToken
+)
+await sandbox.git.createBranch("/home/daytona/repo", "fix-auth-bug")
+await sandbox.git.checkoutBranch("/home/daytona/repo", "fix-auth-bug")
+
+// Start the agent
 const session = await createSession("claude", {
   sandbox,
   env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
@@ -20,10 +33,20 @@ const session = await createSession("claude", {
 
 await session.start("Refactor the auth module")
 
-// Remember sandbox.id and session.id
+// Save these for later
+const sandboxId = sandbox.id
+const sessionId = session.id
 ```
 
-Now, with just a few lines of code, a coding agent is running in an isolated sandbox. In order to check on our coding agent later, we use:
+The agent is now running in an isolated sandbox with your repo cloned into it. Your serverless function can return—the sandbox keeps running independently.
+
+To use a different agent, change `"claude"` to any of the supported agents: `"codex"`, `"gemini"`, `"goose"`, `"opencode"`, or `"pi"`.
+
+## Long-Running Agents
+
+Serverless functions time out. Servers restart. But coding agents can run for minutes—sometimes longer. The SDK is built around this constraint.
+
+When you start a session, save the sandbox ID and session ID. Later—from a new request, a different server, whenever—you reconnect:
 
 ```typescript
 const sandbox = await daytona.get(sandboxId)
@@ -36,15 +59,27 @@ for (const event of events) {
 }
 ```
 
-To make this work with a different agent, we could have changed `"claude"` to any of the supported agents: `"codex"`, `"gemini"`, `"goose"`, `"opencode"`, or `"pi"`.
+The SDK tracks which events you've already seen. Each call to `getEvents()` returns only the new ones.
 
-## Why Put CLI Agents in Sandboxes?
+When the agent finishes, push the changes:
 
-These agents need to execute real code—reading files, writing files, running shell commands, interacting with git. You don't want that happening on your server.
+```typescript
+if (!running) {
+  await sandbox.git.push(
+    "/home/daytona/repo",
+    "x-access-token",
+    githubToken
+  )
+}
+```
+
+## Why Sandboxes?
+
+These agents execute real code—reading files, writing files, running shell commands, interacting with git. You don't want that happening on your server.
 
 Sandboxes give you isolation. Each agent runs in its own Daytona environment, does whatever it needs to do, and can be deleted when you're done. If something goes wrong, you haven't lost anything.
 
-But for serverless applications, the bigger benefit is persistence. Your function might time out, your server might restart, but the sandbox keeps running. Save the sandbox ID and session ID, and you can reconnect from a new request and pick up where you left off.
+But for serverless applications, the bigger benefit is persistence. Your function might time out, your server might restart, but the sandbox keeps running. Save the IDs, reconnect later, pick up where you left off.
 
 ## Adding New Agents
 
