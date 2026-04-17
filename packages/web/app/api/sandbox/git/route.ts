@@ -478,21 +478,11 @@ export async function POST(req: Request) {
         // might not exist locally or might be outdated
         await fetchBranchWithAuth(sandbox.process, repoPath, githubToken, targetBranch)
 
-        // Checkout target branch, pull latest, come back, rebase
-        const coTarget2 = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git checkout ${targetBranch} 2>&1`
-        )
-        if (coTarget2.exitCode) {
-          return Response.json({ error: "Failed to checkout target: " + coTarget2.result }, { status: 500 })
-        }
-        try {
-          await sandbox.git.pull(repoPath, "x-access-token", githubToken)
-        } catch {
-          // Target may already be up to date
-        }
-        await sandbox.process.executeCommand(`cd ${repoPath} && git checkout ${currentBranch} 2>&1`)
+        // Rebase onto the freshly fetched remote branch
+        // We use origin/${targetBranch} directly instead of checking out the local
+        // branch and pulling, as the fetch already updated origin/${targetBranch}
         const rebaseResult = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git rebase ${targetBranch} 2>&1`
+          `cd ${repoPath} && git rebase origin/${targetBranch} 2>&1`
         )
         if (rebaseResult.exitCode) {
           // Check if this is a conflict (vs other errors)
