@@ -24,10 +24,11 @@ interface ChatPanelProps {
   onUpdateChat?: (updates: Partial<Chat>) => void
   onOpenSettings?: (highlightKey?: HighlightKey) => void
   onSlashCommand?: (command: SlashCommandType) => void
+  onRequireSignIn?: () => void
   isMobile?: boolean
 }
 
-export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings, onSlashCommand, isMobile = false }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, isMobile = false }: ChatPanelProps) {
   const [input, setInput] = useState("")
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
@@ -149,7 +150,13 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
   }
 
   // File handling - files can be added anytime, upload happens after sandbox is ready
+  // If user is not signed in, trigger sign-in immediately when adding files
   const addFiles = (files: FileList | File[]) => {
+    // Require sign-in before adding files (files can't persist across OAuth redirect)
+    if (onRequireSignIn) {
+      onRequireSignIn()
+      return
+    }
     const newFiles: PendingFile[] = Array.from(files).map(file => ({
       id: nanoid(),
       file,

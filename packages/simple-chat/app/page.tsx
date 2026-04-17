@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { useSession, signIn } from "next-auth/react"
+import { useSession } from "next-auth/react"
 import { Menu } from "lucide-react"
 import { Sidebar, ALL_REPOSITORIES, NO_REPOSITORY } from "@/components/Sidebar"
 import { ChatPanel } from "@/components/ChatPanel"
@@ -17,16 +17,15 @@ import { useMobile } from "@/lib/hooks/useMobile"
 import { NEW_REPOSITORY, type Message } from "@/lib/types"
 import { fetchRepos, fetchBranches, type GitHubRepo, type GitHubBranch } from "@/lib/github"
 
+// Storage key for pending message (persists across OAuth redirect)
+const PENDING_MESSAGE_KEY = "simple-chat-pending-message"
+
 // Type for pending message data stored before sign-in
-// Note: files cannot be persisted across page reloads, so they are excluded from storage
 interface PendingMessage {
   message: string
   agent: string
   model: string
 }
-
-// Storage key for pending message (persists across OAuth redirect)
-const PENDING_MESSAGE_KEY = "simple-chat-pending-message"
 
 // Helper to save pending message to sessionStorage
 function savePendingMessage(data: PendingMessage): void {
@@ -196,7 +195,7 @@ export default function HomePage() {
   const handleChangeRepo = () => {
     // Must be signed in to access GitHub repos
     if (!session) {
-      signIn("github")
+      setSignInModalOpen(true)
       return
     }
     setRepoPickerOpen(true)
@@ -410,6 +409,7 @@ export default function HomePage() {
             onUpdateChat={updateCurrentChat}
             onOpenSettings={handleOpenSettings}
             onSlashCommand={handleSlashCommand}
+            onRequireSignIn={!session ? () => setSignInModalOpen(true) : undefined}
             isMobile={isMobile}
           />
         ) : (
