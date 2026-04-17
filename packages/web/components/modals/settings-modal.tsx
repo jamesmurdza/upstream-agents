@@ -276,11 +276,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
         await onCredentialsUpdate()
       }
 
-      // Apply theme if changed
-      if (pendingTheme && pendingTheme !== initialTheme) {
-        applyTheme(pendingTheme)
-      }
-
+      // Theme is already applied via live preview, just close
       onClose()
     } catch {
       setSaveStatus({
@@ -806,7 +802,10 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
                 ] as const).map(({ value, label, icon: Icon }) => (
                   <button
                     key={value}
-                    onClick={() => setPendingTheme(value)}
+                    onClick={() => {
+                      setPendingTheme(value)
+                      applyTheme(value) // Live preview
+                    }}
                     className={cn(
                       "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
                       pendingTheme === value
