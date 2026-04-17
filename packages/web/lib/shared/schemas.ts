@@ -33,11 +33,16 @@ export const forkRepoSchema = z.object({
   name: nonEmptyString,
 })
 
+/** PR description format options */
+export const prDescriptionTypes = ["short", "long", "commits", "none"] as const
+export type PRDescriptionType = typeof prDescriptionTypes[number]
+
 export const createPRSchema = z.object({
   owner: nonEmptyString,
   repo: nonEmptyString,
   head: nonEmptyString,
   base: nonEmptyString,
+  descriptionType: z.enum(prDescriptionTypes).optional().default("short"),
 })
 
 export const compareSchema = z.object({

@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { PRDescriptionType } from "@/lib/shared/schemas"
 
 interface PRDialogProps {
   open: boolean
@@ -27,6 +28,15 @@ interface PRDialogProps {
   actionLoading: boolean
   onCreatePR: () => void
   onCancel: () => void
+  descriptionType: PRDescriptionType
+  onDescriptionTypeChange: (type: PRDescriptionType) => void
+}
+
+const DESCRIPTION_TYPE_LABELS: Record<PRDescriptionType, { label: string; description: string }> = {
+  short: { label: "Short description", description: "AI-generated summary" },
+  long: { label: "Long description", description: "AI-generated detailed description" },
+  commits: { label: "List of commits", description: "Simple commit list (no AI)" },
+  none: { label: "No description", description: "Empty description" },
 }
 
 export function PRDialog({
@@ -40,6 +50,8 @@ export function PRDialog({
   actionLoading,
   onCreatePR,
   onCancel,
+  descriptionType,
+  onDescriptionTypeChange,
 }: PRDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -78,9 +90,27 @@ export function PRDialog({
               </Select>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              PR title and description will be generated automatically from your commits.
-            </p>
+            {/* Description type selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Description format</label>
+              <Select value={descriptionType} onValueChange={(value) => onDescriptionTypeChange(value as PRDescriptionType)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select description format" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(DESCRIPTION_TYPE_LABELS) as PRDescriptionType[]).map((type) => (
+                    <SelectItem key={type} value={type}>
+                      <div className="flex flex-col items-start">
+                        <span>{DESCRIPTION_TYPE_LABELS[type].label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {DESCRIPTION_TYPE_LABELS[descriptionType].description}
+              </p>
+            </div>
           </div>
         )}
         <DialogFooter>
