@@ -22,6 +22,7 @@ interface SquashRequestBody {
  * Uses GitHub API to perform the squash merge via a temp branch, then syncs the sandbox.
  *
  * Steps:
+ * 0. Push any unpushed local commits to GitHub first
  * 1. Create a temp branch from base on GitHub
  * 2. Squash merge head into temp branch via GitHub API (using PR merge)
  * 3. Update head branch ref to point to the squashed commit
@@ -47,7 +48,75 @@ export async function POST(req: Request) {
   }
 
   try {
-    // First, verify there are commits to squash
+    // First, ensure all local commits are pushed to GitHub
+    // This is required because GitHub can only squash commits it knows about
+    const daytona = new Daytona({ apiKey: daytonaApiKey })
+    const sandbox = await daytona.get(sandboxId)
+    const repoPath = `${PATHS.SANDBOX_HOME}/project`
+
+    // Check if there are unpushed commits
+    const localHead = await sandbox.process.executeCommand(
+      `cd ${repoPath} && git rev-parse HEAD 2>/dev/null`
+    )
+    const remoteHead = await sandbox.process.executeCommand(
+      `cd ${repoPath} && git ls-remote origin refs/heads/${head} 2>/dev/null | cut -f1`
+    )
+    const localSha = localHead.result?.trim()
+    const remoteSha = remoteHead.result?.trim()
+
+    if (localSha && localSha !== remoteSha) {
+      // There are unpushed commits - we need to push them first
+      // Use the temp branch + force update pattern since we can't force push directly
+      const pushTempBranch = `_squash-push-${Date.now()}`
+
+      // Create and checkout temp branch
+      const createResult = await sandbox.process.executeCommand(
+        `cd ${repoPath} && git checkout -b ${pushTempBranch} 2>&1`
+      )
+      if (createResult.exitCode !== 0) {
+        return Response.json({ error: "Failed to create temp branch for push: " + createResult.result }, { status: 400 })
+      }
+
+      // Push temp branch to get commits on GitHub
+      try {
+        await sandbox.git.push(repoPath, "x-access-token", session.accessToken)
+      } catch (pushErr) {
+        // Restore original branch before returning error
+        await sandbox.process.executeCommand(`cd ${repoPath} && git checkout ${head} 2>&1`)
+        await sandbox.process.executeCommand(`cd ${repoPath} && git branch -D ${pushTempBranch} 2>&1`)
+        return Response.json({ error: "Failed to push commits to GitHub: " + (pushErr instanceof Error ? pushErr.message : String(pushErr)) }, { status: 400 })
+      }
+
+      // Switch back to original branch and delete temp local branch
+      await sandbox.process.executeCommand(`cd ${repoPath} && git checkout ${head} 2>&1`)
+      await sandbox.process.executeCommand(`cd ${repoPath} && git branch -D ${pushTempBranch} 2>&1`)
+
+      // Update the remote branch ref to point to our commits
+      await githubFetch(
+        `/repos/${owner}/${repo}/git/refs/heads/${head}`,
+        session.accessToken,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            sha: localSha,
+            force: true,
+          }),
+        }
+      )
+
+      // Delete the temp remote branch
+      try {
+        await githubFetch(
+          `/repos/${owner}/${repo}/git/refs/heads/${pushTempBranch}`,
+          session.accessToken,
+          { method: "DELETE" }
+        )
+      } catch {
+        // Best effort cleanup
+      }
+    }
+
+    // Now verify there are commits to squash (after push)
     const compareData = await compareBranches(session.accessToken, owner, repo, base, head)
     if (compareData.ahead_by < 2) {
       return Response.json({
@@ -143,10 +212,6 @@ export async function POST(req: Request) {
 
       // Step 5: Sync sandbox with the new squashed state
       try {
-        const daytona = new Daytona({ apiKey: daytonaApiKey })
-        const sandbox = await daytona.get(sandboxId)
-        const repoPath = `${PATHS.SANDBOX_HOME}/project`
-
         // Fetch the latest from origin
         await sandbox.process.executeCommand(
           `cd ${repoPath} && git fetch origin ${head} 2>&1`
