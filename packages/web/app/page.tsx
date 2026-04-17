@@ -390,24 +390,6 @@ export default function Home() {
     }
   }, [repos, activeRepo])
 
-  // Loading state
-  if (status === "loading" || !loaded) {
-    return (
-      <main className="flex h-dvh items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </main>
-    )
-  }
-
-  // Not authenticated - will redirect
-  if (status === "unauthenticated") {
-    return (
-      <main className="flex h-dvh items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">Redirecting to login...</div>
-      </main>
-    )
-  }
-
   // Handle palette repo/branch selection
   const handlePaletteSelectRepo = useCallback((repoId: string) => {
     selectRepo(repoId)
@@ -426,6 +408,24 @@ export default function Home() {
     // Set pending command - ChatPanel will pick it up
     setPendingCommand(command)
   }, [setPendingCommand])
+
+  // Loading state
+  if (status === "loading" || !loaded) {
+    return (
+      <main className="flex h-dvh items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </main>
+    )
+  }
+
+  // Not authenticated - will redirect
+  if (status === "unauthenticated") {
+    return (
+      <main className="flex h-dvh items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground">Redirecting to login...</div>
+      </main>
+    )
+  }
 
   return (
     <PaletteProvider
