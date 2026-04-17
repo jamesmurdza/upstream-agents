@@ -118,11 +118,35 @@ export function useRepoData({ isAuthenticated }: UseRepoDataOptions) {
   }, [error])
 
   // Initialize repos from query data on first success
+  // When refreshing (loaded was false), merge with existing state to preserve messages
   useEffect(() => {
     if (!isSuccess || !userData?.repos || loaded) return
 
     const transformedRepos = userData.repos.map(transformRepo)
-    setRepos(transformedRepos)
+
+    // Merge with existing repos to preserve messages that aren't included in /api/user/me
+    setRepos((prev) => {
+      // On initial load (no previous repos), just use the transformed data
+      if (prev.length === 0) return transformedRepos
+
+      // On refresh, merge to preserve existing messages
+      return transformedRepos.map((newRepo) => {
+        const existingRepo = prev.find((r) => r.id === newRepo.id)
+        if (!existingRepo) return newRepo
+
+        return {
+          ...newRepo,
+          branches: newRepo.branches.map((newBranch) => {
+            const existingBranch = existingRepo.branches.find((b) => b.id === newBranch.id)
+            // Preserve existing messages if the new branch has none
+            if (existingBranch && existingBranch.messages.length > 0 && newBranch.messages.length === 0) {
+              return { ...newBranch, messages: existingBranch.messages }
+            }
+            return newBranch
+          }),
+        }
+      })
+    })
     setLoaded(true)
 
     // Load message summaries for running branches
