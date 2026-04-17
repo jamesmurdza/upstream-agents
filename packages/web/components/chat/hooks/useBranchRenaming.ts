@@ -204,14 +204,10 @@ export function useBranchRenaming({
       })
 
       if (renameRes.ok) {
+        // Update branch name in state only - don't update URL since this is a
+        // background operation. The URL will be synced by page.tsx's useEffect
+        // when the user is on this branch, or remain unchanged if they switched.
         onUpdateBranch(targetBranchId, { name: suggestedName })
-        // Only update URL if this branch is still the active branch.
-        // If the user switched branches during the async rename, we shouldn't
-        // change the URL to point to this branch (that would switch them back).
-        if (branch.id === targetBranchId) {
-          const url = `/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}/${suggestedName.split("/").map(encodeURIComponent).join("/")}`
-          window.history.replaceState(null, "", url)
-        }
       }
       // Silently fail if rename doesn't work - auto-suggestion is not critical
     } catch (err) {

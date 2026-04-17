@@ -339,6 +339,18 @@ export default function Home() {
     }
   }, [loaded, activeRepo, activeBranch, repoFromUrl, updateUrlToRepo, updateUrlToRepoBranch])
 
+  // Sync URL when active branch name changes (e.g., after auto-suggest rename)
+  // This handles the case where a branch is renamed in the background while the user
+  // is still viewing it - we update the URL to reflect the new name silently.
+  useEffect(() => {
+    if (!loaded || !activeRepo || !activeBranch || !branchFromUrl) return
+    // Only update if the URL branch name doesn't match the active branch name
+    // and the repo matches (to avoid cross-repo issues)
+    if (branchFromUrl !== activeBranch.name) {
+      updateUrlToRepoBranch(activeRepo.owner, activeRepo.name, activeBranch.name)
+    }
+  }, [loaded, activeRepo, activeBranch, branchFromUrl, updateUrlToRepoBranch])
+
   // Handle URL repo that is not found in user's repos - open AddRepoModal with pre-filled URL
   useEffect(() => {
     if (!loaded || !repoFromUrl) return
