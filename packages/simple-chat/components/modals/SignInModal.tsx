@@ -66,7 +66,7 @@ export function SignInModal({ open, onClose, isMobile = false }: SignInModalProp
             <button
               onClick={handleSignIn}
               className={cn(
-                "w-full flex items-center justify-center gap-2 rounded-md bg-[#24292f] text-white hover:bg-[#24292f]/90 active:bg-[#24292f]/80 transition-colors font-medium",
+                "w-full flex items-center justify-center gap-2 rounded-md bg-[#24292f] text-white hover:bg-[#24292f]/90 active:bg-[#24292f]/80 transition-colors font-medium cursor-pointer",
                 isMobile ? "px-6 py-3 text-base" : "px-4 py-2.5 text-sm"
               )}
             >
@@ -83,7 +83,7 @@ export function SignInModal({ open, onClose, isMobile = false }: SignInModalProp
             <button
               onClick={onClose}
               className={cn(
-                "text-muted-foreground hover:text-foreground transition-colors",
+                "text-muted-foreground hover:text-foreground transition-colors cursor-pointer",
                 isMobile ? "text-sm" : "text-xs"
               )}
             >
