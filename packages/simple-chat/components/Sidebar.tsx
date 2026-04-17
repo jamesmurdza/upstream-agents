@@ -774,7 +774,7 @@ function MobileChatItem({ chat, isActive, isDeleting, onSelect, onDelete, onRena
 
   if (isEditing) {
     return (
-      <div className="flex items-center gap-2 rounded-lg px-3 py-2 bg-accent">
+      <div className="flex items-center gap-2 rounded-md px-3 py-2 bg-accent">
         <input
           ref={inputRef}
           type="text"
@@ -785,7 +785,7 @@ function MobileChatItem({ chat, isActive, isDeleting, onSelect, onDelete, onRena
             if (e.key === "Escape") cancelEdit()
           }}
           onBlur={saveEdit}
-          className="flex-1 min-w-0 bg-transparent text-base outline-none"
+          className="flex-1 min-w-0 bg-transparent text-sm outline-none"
         />
       </div>
     )
@@ -794,7 +794,7 @@ function MobileChatItem({ chat, isActive, isDeleting, onSelect, onDelete, onRena
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg transition-colors touch-target px-3 py-3",
+        "flex items-center gap-2 rounded-md transition-colors px-3 py-2",
         isDeleting
           ? "opacity-50 cursor-not-allowed"
           : "active:bg-accent",
@@ -805,7 +805,7 @@ function MobileChatItem({ chat, isActive, isDeleting, onSelect, onDelete, onRena
       onClick={isDeleting ? undefined : onSelect}
     >
       <div className="flex-1 min-w-0">
-        <div className="text-base truncate">{displayName}</div>
+        <div className="text-sm truncate">{displayName}</div>
       </div>
 
       {/* Menu button */}
@@ -816,22 +816,22 @@ function MobileChatItem({ chat, isActive, isDeleting, onSelect, onDelete, onRena
             setMenuOpen(!menuOpen)
           }}
           disabled={isDeleting}
-          className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors touch-target disabled:cursor-not-allowed"
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:cursor-not-allowed"
           aria-label="Chat options"
         >
-          <MoreHorizontal className="h-5 w-5" />
+          <MoreHorizontal className="h-4 w-4" />
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 top-full mt-1 w-36 rounded-lg border border-border bg-popover shadow-lg py-1 z-50">
+          <div className="absolute right-0 top-full mt-1 w-32 rounded-md border border-border bg-popover shadow-lg py-1 z-50">
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 startEditing()
               }}
-              className="flex items-center gap-3 w-full px-3 py-2.5 text-base hover:bg-accent text-left"
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left"
             >
-              <Pencil className="h-4 w-4" />
+              <Pencil className="h-3.5 w-3.5" />
               Rename
             </button>
             <button
@@ -841,9 +841,9 @@ function MobileChatItem({ chat, isActive, isDeleting, onSelect, onDelete, onRena
                 setMenuOpen(false)
               }}
               disabled={isDeleting}
-              className="flex items-center gap-3 w-full px-3 py-2.5 text-base hover:bg-accent text-left text-destructive disabled:cursor-not-allowed"
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left text-destructive disabled:cursor-not-allowed"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3.5 w-3.5" />
               Delete
             </button>
           </div>
