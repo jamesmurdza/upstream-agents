@@ -93,17 +93,42 @@ export async function POST(req: Request) {
       )
 
       // Merge the PR with squash
-      const mergeResult = await githubFetch<{ sha: string; merged: boolean }>(
-        `/repos/${owner}/${repo}/pulls/${pr.number}/merge`,
-        session.accessToken,
-        {
-          method: "PUT",
-          body: JSON.stringify({
-            merge_method: "squash",
-            commit_title: `Squashed ${compareData.ahead_by} commits from ${head}`,
-          }),
+      // GitHub needs time to verify mergeability after PR creation, so we retry on "Base branch was modified" error
+      let mergeResult: { sha: string; merged: boolean } | null = null
+      let lastError: Error | null = null
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          // Wait a bit before merge to let GitHub's mergeability check complete
+          if (attempt > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+          }
+
+          mergeResult = await githubFetch<{ sha: string; merged: boolean }>(
+            `/repos/${owner}/${repo}/pulls/${pr.number}/merge`,
+            session.accessToken,
+            {
+              method: "PUT",
+              body: JSON.stringify({
+                merge_method: "squash",
+                commit_title: `Squashed ${compareData.ahead_by} commits from ${head}`,
+              }),
+            }
+          )
+          break // Success, exit retry loop
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err))
+          // Only retry on "Base branch was modified" error
+          if (!lastError.message.includes("Base branch was modified")) {
+            throw err
+          }
+          console.log(`[squash] Merge attempt ${attempt + 1} failed with "Base branch was modified", retrying...`)
         }
-      )
+      }
+
+      if (!mergeResult) {
+        throw lastError || new Error("Squash merge failed after retries")
+      }
 
       if (!mergeResult.merged) {
         throw new Error("Squash merge failed")
@@ -150,6 +175,11 @@ export async function POST(req: Request) {
         // Fetch the latest from origin
         await sandbox.process.executeCommand(
           `cd ${repoPath} && git fetch origin ${head} 2>&1`
+        )
+
+        // Ensure we're on the correct branch before resetting
+        await sandbox.process.executeCommand(
+          `cd ${repoPath} && git checkout ${head} 2>&1`
         )
 
         // Reset local branch to match the squashed remote
