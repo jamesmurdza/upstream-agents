@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Loader2, GitMerge, GitBranch, GitPullRequest, ChevronDown } from "lucide-react"
+import { X, Loader2, GitMerge, GitBranch, GitPullRequest, GitCommitVertical, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat, Message } from "@/lib/types"
 import { PATHS } from "@/lib/constants"
@@ -31,6 +31,8 @@ export interface UseGitDialogsResult {
   setRebaseOpen: (open: boolean) => void
   prOpen: boolean
   setPROpen: (open: boolean) => void
+  squashOpen: boolean
+  setSquashOpen: (open: boolean) => void
 
   // Branch picker state
   remoteBranches: string[]
@@ -43,6 +45,11 @@ export interface UseGitDialogsResult {
   squashMerge: boolean
   setSquashMerge: (squash: boolean) => void
 
+  // Squash-specific state
+  commitsAhead: number
+  commitsLoading: boolean
+  baseBranch: string
+
   // Current branch info
   branchName: string
 
@@ -50,6 +57,7 @@ export interface UseGitDialogsResult {
   handleMerge: () => Promise<void>
   handleRebase: () => Promise<void>
   handleCreatePR: (descriptionType?: PRDescriptionTypeForHook) => Promise<void>
+  handleSquash: () => Promise<void>
   handleAbortConflict: () => Promise<void>
 
   // Conflict state
@@ -561,6 +569,127 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
 }
 
 // ============================================================================
+// Squash Dialog
+// ============================================================================
+
+interface SquashDialogProps {
+  open: boolean
+  onClose: () => void
+  gitDialogs: UseGitDialogsResult
+  chat: Chat | null
+  isMobile?: boolean
+}
+
+export function SquashDialog({ open, onClose, gitDialogs, chat, isMobile = false }: SquashDialogProps) {
+  const canSquash = gitDialogs.commitsAhead >= 2 && !gitDialogs.commitsLoading
+
+  return (
+    <BaseDialog
+      open={open}
+      onClose={onClose}
+      title="Squash Commits"
+      icon={<GitCommitVertical className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
+      isMobile={isMobile}
+    >
+      <div className={cn("space-y-4", isMobile && "space-y-5")}>
+        <div>
+          <label className={cn(
+            "block text-muted-foreground mb-1",
+            isMobile ? "text-sm" : "text-xs"
+          )}>Current branch</label>
+          <div className={cn(
+            "bg-muted/50 rounded-md px-3 font-medium truncate",
+            isMobile ? "py-3 text-base" : "py-2 text-sm"
+          )}>
+            {gitDialogs.branchName || "No branch"}
+          </div>
+        </div>
+
+        <div>
+          <label className={cn(
+            "block text-muted-foreground mb-1",
+            isMobile ? "text-sm" : "text-xs"
+          )}>Base branch</label>
+          <div className={cn(
+            "bg-muted/50 rounded-md px-3 font-medium truncate",
+            isMobile ? "py-3 text-base" : "py-2 text-sm"
+          )}>
+            {gitDialogs.baseBranch || "main"}
+          </div>
+        </div>
+
+        <div>
+          <label className={cn(
+            "block text-muted-foreground mb-1",
+            isMobile ? "text-sm" : "text-xs"
+          )}>Commits to squash</label>
+          {gitDialogs.commitsLoading ? (
+            <div className={cn(
+              "flex items-center gap-2 text-muted-foreground",
+              isMobile ? "py-3 text-base" : "py-2 text-sm"
+            )}>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Counting commits...
+            </div>
+          ) : (
+            <div className={cn(
+              "bg-muted/50 rounded-md px-3 font-medium",
+              isMobile ? "py-3 text-base" : "py-2 text-sm"
+            )}>
+              {gitDialogs.commitsAhead} commit{gitDialogs.commitsAhead !== 1 ? "s" : ""} ahead of {gitDialogs.baseBranch || "main"}
+            </div>
+          )}
+        </div>
+
+        {!gitDialogs.commitsLoading && gitDialogs.commitsAhead < 2 && (
+          <p className={cn(
+            "text-amber-500",
+            isMobile ? "text-sm" : "text-xs"
+          )}>
+            Need at least 2 commits to squash.
+          </p>
+        )}
+
+        {canSquash && (
+          <p className={cn(
+            "text-muted-foreground",
+            isMobile ? "text-sm" : "text-xs"
+          )}>
+            This will combine all {gitDialogs.commitsAhead} commits into a single commit.
+          </p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            onClick={onClose}
+            className={cn(
+              "rounded-md hover:bg-accent transition-colors",
+              isMobile ? "px-4 py-2.5 text-base" : "px-3 py-1.5 text-sm"
+            )}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              await gitDialogs.handleSquash()
+              onClose()
+            }}
+            disabled={!canSquash || gitDialogs.actionLoading}
+            className={cn(
+              "rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2",
+              isMobile ? "px-4 py-2.5 text-base" : "px-3 py-1.5 text-sm"
+            )}
+          >
+            {gitDialogs.actionLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Squash
+          </button>
+        </div>
+      </div>
+    </BaseDialog>
+  )
+}
+
+// ============================================================================
 // useGitDialogs Hook
 // ============================================================================
 
@@ -577,6 +706,7 @@ export function useGitDialogs({ chat, onAddMessage }: UseGitDialogsOptions): Use
   const [mergeOpen, setMergeOpen] = useState(false)
   const [rebaseOpen, setRebaseOpen] = useState(false)
   const [prOpen, setPROpen] = useState(false)
+  const [squashOpen, setSquashOpen] = useState(false)
 
   // Shared state for branch picker
   const [remoteBranches, setRemoteBranches] = useState<string[]>([])
@@ -586,6 +716,10 @@ export function useGitDialogs({ chat, onAddMessage }: UseGitDialogsOptions): Use
 
   // Merge-specific state
   const [squashMerge, setSquashMerge] = useState(false)
+
+  // Squash-specific state
+  const [commitsAhead, setCommitsAhead] = useState(0)
+  const [commitsLoading, setCommitsLoading] = useState(false)
 
   // Conflict state
   const [rebaseConflict, setRebaseConflict] = useState<RebaseConflictState>(EMPTY_CONFLICT_STATE)
@@ -815,6 +949,77 @@ export function useGitDialogs({ chat, onAddMessage }: UseGitDialogsOptions): Use
     }
   }, [sandboxId, repoName, rebaseConflict.inMerge, addSystemMessage])
 
+  // Fetch commits ahead when squash dialog opens
+  const fetchCommitsAhead = useCallback(async () => {
+    if (!repoOwner || !repoApiName || !baseBranch || !branchName) {
+      setCommitsAhead(0)
+      return
+    }
+    setCommitsLoading(true)
+    try {
+      const res = await fetch("/api/github/compare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner: repoOwner,
+          repo: repoApiName,
+          base: baseBranch,
+          head: branchName,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && typeof data.ahead_by === "number") {
+        setCommitsAhead(data.ahead_by)
+      } else {
+        setCommitsAhead(0)
+      }
+    } catch {
+      setCommitsAhead(0)
+    } finally {
+      setCommitsLoading(false)
+    }
+  }, [repoOwner, repoApiName, baseBranch, branchName])
+
+  // Fetch commits ahead when squash dialog opens
+  useEffect(() => {
+    if (squashOpen) {
+      fetchCommitsAhead()
+    }
+  }, [squashOpen, fetchCommitsAhead])
+
+  // Handle squash
+  const handleSquash = useCallback(async () => {
+    if (!branchName || !sandboxId || commitsAhead < 2) return
+    setActionLoading(true)
+
+    try {
+      const res = await fetch("/api/github/squash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner: repoOwner,
+          repo: repoApiName,
+          head: branchName,
+          base: baseBranch,
+          sandboxId,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Squash failed")
+
+      addSystemMessage(
+        `Squashed ${commitsAhead} commits into one on ${branchName}.`
+      )
+      setSquashOpen(false)
+    } catch (err: unknown) {
+      addSystemMessage(`Squash failed: ${err instanceof Error ? err.message : "Unknown error"}`, true)
+      setSquashOpen(false)
+    } finally {
+      setActionLoading(false)
+    }
+  }, [branchName, sandboxId, commitsAhead, baseBranch, repoOwner, repoApiName, addSystemMessage])
+
   // Check rebase status
   const checkRebaseStatus = useCallback(async () => {
     if (!sandboxId) return
@@ -857,6 +1062,8 @@ export function useGitDialogs({ chat, onAddMessage }: UseGitDialogsOptions): Use
     setRebaseOpen,
     prOpen,
     setPROpen,
+    squashOpen,
+    setSquashOpen,
     remoteBranches,
     selectedBranch,
     setSelectedBranch,
@@ -864,10 +1071,14 @@ export function useGitDialogs({ chat, onAddMessage }: UseGitDialogsOptions): Use
     actionLoading,
     squashMerge,
     setSquashMerge,
+    commitsAhead,
+    commitsLoading,
+    baseBranch,
     branchName,
     handleMerge,
     handleRebase,
     handleCreatePR,
+    handleSquash,
     handleAbortConflict,
     rebaseConflict,
     checkRebaseStatus,

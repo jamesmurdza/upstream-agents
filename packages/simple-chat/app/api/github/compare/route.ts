@@ -1,0 +1,37 @@
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { compareBranches, isGitHubApiError } from "@upstream/common"
+
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions)
+  if (!session?.accessToken) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const body = await req.json()
+  const { owner, repo, base, head } = body
+
+  if (!owner || !repo || !base || !head) {
+    return Response.json({ error: "Missing required fields: owner, repo, base, head" }, { status: 400 })
+  }
+
+  try {
+    const compareData = await compareBranches(session.accessToken, owner, repo, base, head)
+    return Response.json({
+      ahead_by: compareData.ahead_by,
+      behind_by: compareData.behind_by,
+      status: compareData.status,
+    })
+  } catch (error: unknown) {
+    console.error("[github/compare] Error:", error)
+    if (isGitHubApiError(error)) {
+      // For "no commits between" errors, return zero ahead
+      if (error.message.includes("No commits") || error.message.includes("nothing to compare")) {
+        return Response.json({ ahead_by: 0, behind_by: 0, status: "identical" })
+      }
+      return Response.json({ error: error.message }, { status: error.status })
+    }
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return Response.json({ error: message }, { status: 500 })
+  }
+}
