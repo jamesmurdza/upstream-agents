@@ -20,6 +20,9 @@ export interface UseGitDialogsOptions {
   onAddMessage?: (message: Message) => void
 }
 
+/** PR description format options */
+type PRDescriptionTypeForHook = "short" | "long" | "commits" | "none"
+
 export interface UseGitDialogsResult {
   // Dialog open states
   mergeOpen: boolean
@@ -46,7 +49,7 @@ export interface UseGitDialogsResult {
   // Actions
   handleMerge: () => Promise<void>
   handleRebase: () => Promise<void>
-  handleCreatePR: () => Promise<void>
+  handleCreatePR: (descriptionType?: PRDescriptionTypeForHook) => Promise<void>
   handleAbortConflict: () => Promise<void>
 
   // Conflict state
@@ -403,6 +406,17 @@ export function RebaseDialog({ open, onClose, gitDialogs, chat, isMobile = false
 // PR Dialog
 // ============================================================================
 
+/** PR description format options */
+const PR_DESCRIPTION_TYPES = ["short", "long", "commits", "none"] as const
+type PRDescriptionType = typeof PR_DESCRIPTION_TYPES[number]
+
+const DESCRIPTION_TYPE_LABELS: Record<PRDescriptionType, { label: string; description: string }> = {
+  short: { label: "Short description", description: "AI-generated summary" },
+  long: { label: "Long description", description: "AI-generated detailed description" },
+  commits: { label: "List of commits", description: "Simple commit list (no AI)" },
+  none: { label: "No description", description: "Empty description" },
+}
+
 interface PRDialogProps {
   open: boolean
   onClose: () => void
@@ -413,6 +427,8 @@ interface PRDialogProps {
 
 export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: PRDialogProps) {
   const isGitHubRepo = chat?.repo && chat.repo !== "__new__"
+  const [descriptionType, setDescriptionType] = useState<PRDescriptionType>("short")
+  const [descriptionDropdownOpen, setDescriptionDropdownOpen] = useState(false)
 
   return (
     <BaseDialog
@@ -459,12 +475,56 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
               />
             </div>
 
-            <p className={cn(
-              "text-muted-foreground",
-              isMobile ? "text-sm" : "text-xs"
-            )}>
-              PR title and description will be generated from your commits.
-            </p>
+            {/* Description type selector */}
+            <div>
+              <label className={cn(
+                "block text-muted-foreground mb-1",
+                isMobile ? "text-sm" : "text-xs"
+              )}>Description format</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDescriptionDropdownOpen(!descriptionDropdownOpen)}
+                  className={cn(
+                    "w-full flex items-center justify-between bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring",
+                    isMobile ? "px-4 py-3 text-base" : "px-3 py-2 text-sm"
+                  )}
+                >
+                  <span className="text-foreground">
+                    {DESCRIPTION_TYPE_LABELS[descriptionType].label}
+                  </span>
+                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", descriptionDropdownOpen && "rotate-180")} />
+                </button>
+
+                {descriptionDropdownOpen && (
+                  <div className="absolute z-10 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {PR_DESCRIPTION_TYPES.map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          setDescriptionType(type)
+                          setDescriptionDropdownOpen(false)
+                        }}
+                        className={cn(
+                          "w-full text-left px-3 py-2 hover:bg-accent transition-colors",
+                          isMobile ? "text-base" : "text-sm",
+                          descriptionType === type && "bg-accent"
+                        )}
+                      >
+                        {DESCRIPTION_TYPE_LABELS[type].label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p className={cn(
+                "text-muted-foreground mt-1",
+                isMobile ? "text-sm" : "text-xs"
+              )}>
+                {DESCRIPTION_TYPE_LABELS[descriptionType].description}
+              </p>
+            </div>
           </>
         )}
 
@@ -481,7 +541,7 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
           {isGitHubRepo && (
             <button
               onClick={async () => {
-                await gitDialogs.handleCreatePR()
+                await gitDialogs.handleCreatePR(descriptionType)
                 onClose()
               }}
               disabled={!gitDialogs.selectedBranch || gitDialogs.actionLoading}
@@ -687,7 +747,7 @@ export function useGitDialogs({ chat, onAddMessage }: UseGitDialogsOptions): Use
   }, [selectedBranch, branchName, sandboxId, repoName, repoOwner, repoApiName, addSystemMessage])
 
   // Handle create PR
-  const handleCreatePR = useCallback(async () => {
+  const handleCreatePR = useCallback(async (descriptionType: PRDescriptionTypeForHook = "short") => {
     if (!selectedBranch || !branchName || !repoOwner || !repoApiName) return
     setActionLoading(true)
 
@@ -700,6 +760,7 @@ export function useGitDialogs({ chat, onAddMessage }: UseGitDialogsOptions): Use
           repo: repoApiName,
           head: branchName,
           base: selectedBranch,
+          descriptionType,
         }),
       })
 

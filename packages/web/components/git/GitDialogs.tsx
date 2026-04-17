@@ -55,6 +55,8 @@ export function GitDialogs({ gitDialogs }: GitDialogsProps) {
         actionLoading={gitDialogs.actionLoading}
         onCreatePR={gitDialogs.handleCreatePR}
         onCancel={() => gitDialogs.setPROpen(false)}
+        descriptionType={gitDialogs.prDescriptionType}
+        onDescriptionTypeChange={gitDialogs.setPRDescriptionType}
       />
     </>
   )

@@ -5,9 +5,13 @@ import type { Branch, Message, PushErrorInfo } from "@/lib/shared/types"
 import { generateId } from "@/lib/shared/store"
 import { ASSISTANT_SOURCE, PATHS } from "@/lib/shared/constants"
 import { upsertPushErrorSystemMessage } from "@/lib/chat/upsert-push-error-message"
+import type { PRDescriptionType } from "@/lib/shared/schemas"
 
 // Export the return type for use in components
 export type UseGitDialogsReturn = ReturnType<typeof useGitDialogs>
+
+// Re-export the type for convenience
+export type { PRDescriptionType }
 
 // Conflict state type (rebase and/or merge in progress with conflicts)
 export interface RebaseConflictState {
@@ -75,6 +79,9 @@ export function useGitDialogs({
   // Merge-specific state
   const [mergeDirection, setMergeDirection] = useState<"into-current" | "from-current">("from-current")
   const [squashMerge, setSquashMerge] = useState(defaultSquashOnMerge)
+
+  // PR-specific state
+  const [prDescriptionType, setPRDescriptionType] = useState<PRDescriptionType>("short")
 
   // Reset squash default when merge dialog opens
   useEffect(() => {
@@ -146,6 +153,7 @@ export function useGitDialogs({
       setSelectedBranch("")
       setMergeDirection("from-current")
       setSquashMerge(false)
+      setPRDescriptionType("short")
     }
   }, [mergeOpen, rebaseOpen, prOpen])
 
@@ -330,6 +338,7 @@ export function useGitDialogs({
           repo: repoName,
           head: branchName,
           base: selectedBranch,
+          descriptionType: prDescriptionType,
         }),
       })
       const data = await res.json()
@@ -345,7 +354,7 @@ export function useGitDialogs({
     } finally {
       setActionLoading(false)
     }
-  }, [selectedBranch, branch, repoOwner, repoName, branchName, addSystemMessage])
+  }, [selectedBranch, branch, repoOwner, repoName, branchName, addSystemMessage, prDescriptionType])
 
   const handleAbortConflict = useCallback(async () => {
     if (!sandboxId) return
@@ -470,6 +479,10 @@ export function useGitDialogs({
     toggleMergeDirection,
     squashMerge,
     setSquashMerge,
+
+    // PR state
+    prDescriptionType,
+    setPRDescriptionType,
 
     // Current branch info (for display)
     branchName,

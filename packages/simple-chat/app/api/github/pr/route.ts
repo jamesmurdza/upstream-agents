@@ -8,6 +8,32 @@ import {
   formatPRBodyFromCommits,
 } from "@upstream/common"
 
+/** PR description format options */
+type PRDescriptionType = "short" | "long" | "commits" | "none"
+
+/**
+ * Generate PR body based on description type
+ * For simple-chat, we don't use AI - just simple formatting
+ */
+function generatePRBodyByType(commits: string[], descriptionType: PRDescriptionType): string {
+  switch (descriptionType) {
+    case "none":
+      return ""
+    case "commits":
+      return formatPRBodyFromCommits(commits)
+    case "short":
+      // For short, use first line of first commit or simple summary
+      if (commits.length === 0) return "Automated PR"
+      const firstCommit = commits[0].split("\n")[0]
+      return firstCommit || "Automated PR"
+    case "long":
+    default:
+      // For long, use full commit list with header
+      if (commits.length === 0) return "Automated PR"
+      return `## Changes\n\n${formatPRBodyFromCommits(commits)}`
+  }
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.accessToken) {
@@ -15,7 +41,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const { owner, repo, head, base } = body
+  const { owner, repo, head, base, descriptionType = "short" } = body
 
   if (!owner || !repo || !head || !base) {
     return Response.json({ error: "Missing required fields: owner, repo, head, base" }, { status: 400 })
@@ -34,9 +60,9 @@ export async function POST(req: Request) {
       // Ignore compare errors, just use empty commits
     }
 
-    // Generate PR title and body using shared utilities
+    // Generate PR title and body
     const title = formatPRTitleFromBranch(head)
-    const prBody = formatPRBodyFromCommits(commitMessages)
+    const prBody = generatePRBodyByType(commitMessages, descriptionType as PRDescriptionType)
 
     // Create the PR
     const prData = await createPullRequest(session.accessToken, owner, repo, {

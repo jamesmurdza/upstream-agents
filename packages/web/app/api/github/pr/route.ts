@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db/prisma"
 import { requireGitHubAuth, isGitHubAuthError, badRequest, internalError } from "@/lib/shared/api-helpers"
 import { compareBranches, createPullRequest, isGitHubApiError } from "@upstream/common"
-import { createPRSchema, validateBody, isValidationError } from "@/lib/shared/schemas"
+import { createPRSchema, validateBody, isValidationError, type PRDescriptionType } from "@/lib/shared/schemas"
 import { generateWithUserLLM } from "@/lib/llm/llm"
 
 const PR_TITLE_PROMPT = `Based on the branch name and commit messages below, generate a concise pull request title.
@@ -24,12 +24,26 @@ Add dark mode toggle to settings page
 Fix authentication timeout on slow connections
 Refactor API client for better error handling`
 
-const PR_BODY_PROMPT = `Based on the commit messages below, generate a clear and helpful pull request description.
+const PR_BODY_SHORT_PROMPT = `Based on the commit messages below, generate a brief pull request description.
+
+Requirements:
+- Write 1-2 sentences summarizing what this PR accomplishes
+- Be concise and direct
+- Use markdown formatting if needed
+- Do not include a title, PR number, or section headers
+- Do not make up details not evident from the commits
+
+Commit messages:
+{commits}
+
+Reply with ONLY the PR description, nothing else.`
+
+const PR_BODY_LONG_PROMPT = `Based on the commit messages below, generate a clear and helpful pull request description.
 
 Requirements:
 - Start with a brief summary (1-2 sentences) of what this PR accomplishes
 - Include a "## Changes" section with bullet points summarizing the key changes
-- Keep it concise but informative
+- Keep it informative but not overly verbose
 - Use markdown formatting
 - Do not include a title or PR number
 - Do not make up details not evident from the commits
@@ -86,12 +100,26 @@ async function generatePRTitle(
 }
 
 /**
- * Generate a PR body/description using AI, with fallback to simple commit list
+ * Generate a PR body/description based on the selected type
  */
 async function generatePRBody(
   userId: string,
-  commits: string[]
+  commits: string[],
+  descriptionType: PRDescriptionType
 ): Promise<string> {
+  // Handle "none" type - return empty description
+  if (descriptionType === "none") {
+    return ""
+  }
+
+  // Handle "commits" type - simple list without AI
+  if (descriptionType === "commits") {
+    return commits.length > 0
+      ? commits.map((c) => `- ${c}`).join("\n")
+      : "No commits"
+  }
+
+  // For AI-generated descriptions (short or long)
   // Always have a fallback body from commit messages
   const fallbackBody = commits.length > 0
     ? commits.map((c) => `- ${c}`).join("\n")
@@ -102,8 +130,9 @@ async function generatePRBody(
     return fallbackBody
   }
 
-  const prompt = PR_BODY_PROMPT
-    .replace("{commits}", commits.map((c) => `- ${c}`).join("\n"))
+  // Select the appropriate prompt based on description type
+  const promptTemplate = descriptionType === "long" ? PR_BODY_LONG_PROMPT : PR_BODY_SHORT_PROMPT
+  const prompt = promptTemplate.replace("{commits}", commits.map((c) => `- ${c}`).join("\n"))
 
   try {
     const result = await generateWithUserLLM({ userId, prompt })
@@ -133,7 +162,7 @@ export async function POST(req: Request) {
     return badRequest(validation.error)
   }
 
-  const { owner, repo, head, base } = validation.data
+  const { owner, repo, head, base, descriptionType } = validation.data
 
   try {
     // Get commits between base and head for PR body and title generation
@@ -152,7 +181,7 @@ export async function POST(req: Request) {
     // Run both in parallel for better performance
     const [title, prBody] = await Promise.all([
       generatePRTitle(auth.userId, head, commitMessages),
-      generatePRBody(auth.userId, commitMessages),
+      generatePRBody(auth.userId, commitMessages, descriptionType ?? "short"),
     ])
 
     // Create the PR
