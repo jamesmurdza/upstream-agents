@@ -477,6 +477,7 @@ export function useGitDialogs({
           repo: repoName,
           base: branchBaseName,
           head: branchName,
+          includeStats: true,
         }),
       })
       const data = await res.json()
