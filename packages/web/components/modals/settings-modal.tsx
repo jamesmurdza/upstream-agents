@@ -36,7 +36,12 @@ type ClearableKey = "anthropicApiKey" | "anthropicAuthToken" | "openaiApiKey" | 
 export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate, highlightField, onClearHighlight }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("agents")
   const { theme, setTheme: setThemeRaw } = useTheme()
-  const setTheme = (value: string) => {
+
+  // Theme state - track initial and pending values
+  const [initialTheme, setInitialTheme] = useState<string | undefined>(theme)
+  const [pendingTheme, setPendingTheme] = useState<string | undefined>(theme)
+
+  const applyTheme = (value: string) => {
     document.documentElement.classList.add("transitioning")
     setThemeRaw(value)
     setTimeout(() => document.documentElement.classList.remove("transitioning"), 350)
@@ -70,6 +75,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
   const [copiedCredentials, setCopiedCredentials] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<{ message: string; isError: boolean } | null>(null)
+  const themeChanged = pendingTheme !== initialTheme
   const hasChanges = !!(
     anthropicApiKey.trim() ||
     anthropicAuthToken.trim() ||
@@ -80,7 +86,8 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
     keysToClear.size > 0 ||
     sandboxAutoStopInterval !== initialAutoStopInterval ||
     squashOnMerge !== initialSquashOnMerge ||
-    prDescriptionMode !== initialPrDescriptionMode
+    prDescriptionMode !== initialPrDescriptionMode ||
+    themeChanged
   )
 
   const [showDaytonaWarning, setShowDaytonaWarning] = useState(false)
@@ -105,11 +112,14 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       setInitialSquashOnMerge(sq)
       setPrDescriptionMode(pr)
       setInitialPrDescriptionMode(pr)
+      // Track initial theme for cancel/revert
+      setInitialTheme(theme)
+      setPendingTheme(theme)
       setSaveStatus(null)
       setShowDaytonaWarning(false)
       setDaytonaWarningConfirmed(false)
     }
-  }, [open, credentials])
+  }, [open, credentials, theme])
 
   // Handle highlight field - switch tab and scroll to field
   useEffect(() => {
@@ -265,6 +275,12 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
       if (credentialsChanged) {
         await onCredentialsUpdate()
       }
+
+      // Apply theme if changed
+      if (pendingTheme && pendingTheme !== initialTheme) {
+        applyTheme(pendingTheme)
+      }
+
       onClose()
     } catch {
       setSaveStatus({
@@ -317,15 +333,23 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
     )
   }
 
+  // Handle cancel - revert theme if changed and close
+  function handleCancel() {
+    if (pendingTheme !== initialTheme && initialTheme) {
+      applyTheme(initialTheme)
+    }
+    onClose()
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={handleCancel} />
       <div className="relative z-10 flex w-full max-w-lg flex-col rounded-xl border border-border bg-card shadow-2xl overflow-hidden max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold text-foreground">Settings</h2>
           <button
-            onClick={onClose}
+            onClick={handleCancel}
             className="flex cursor-pointer h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="h-4 w-4" />
@@ -782,10 +806,10 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
                 ] as const).map(({ value, label, icon: Icon }) => (
                   <button
                     key={value}
-                    onClick={() => setTheme(value)}
+                    onClick={() => setPendingTheme(value)}
                     className={cn(
                       "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer",
-                      theme === value
+                      pendingTheme === value
                         ? "border-primary bg-primary/10 text-foreground"
                         : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
                     )}
@@ -817,7 +841,7 @@ export function SettingsModal({ open, onClose, credentials, onCredentialsUpdate,
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={onClose}
+              onClick={handleCancel}
               disabled={isSaving}
               className="cursor-pointer rounded-md px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
