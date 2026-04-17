@@ -19,6 +19,7 @@ import { apiFetch } from "@/lib/api/fetcher"
 import { ApiError } from "@/lib/api/errors"
 import { isBranchPolling, hasActiveExecutions } from "@/hooks/use-execution-poller"
 import { useRepoStore } from "@/lib/stores"
+import { mergeReposPreservingMessages } from "@/lib/shared/state-utils"
 
 /**
  * Response shape from /api/user/me
@@ -123,30 +124,7 @@ export function useRepoData({ isAuthenticated }: UseRepoDataOptions) {
     if (!isSuccess || !userData?.repos || loaded) return
 
     const transformedRepos = userData.repos.map(transformRepo)
-
-    // Merge with existing repos to preserve messages that aren't included in /api/user/me
-    setRepos((prev) => {
-      // On initial load (no previous repos), just use the transformed data
-      if (prev.length === 0) return transformedRepos
-
-      // On refresh, merge to preserve existing messages
-      return transformedRepos.map((newRepo) => {
-        const existingRepo = prev.find((r) => r.id === newRepo.id)
-        if (!existingRepo) return newRepo
-
-        return {
-          ...newRepo,
-          branches: newRepo.branches.map((newBranch) => {
-            const existingBranch = existingRepo.branches.find((b) => b.id === newBranch.id)
-            // Preserve existing messages if the new branch has none
-            if (existingBranch && existingBranch.messages.length > 0 && newBranch.messages.length === 0) {
-              return { ...newBranch, messages: existingBranch.messages }
-            }
-            return newBranch
-          }),
-        }
-      })
-    })
+    setRepos((prev) => mergeReposPreservingMessages(prev, transformedRepos))
     setLoaded(true)
 
     // Load message summaries for running branches

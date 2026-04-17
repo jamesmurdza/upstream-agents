@@ -204,3 +204,39 @@ export function reorderRepos(
   result.splice(toIndex, 0, moved)
   return result
 }
+
+// =============================================================================
+// Repo Merge Utilities
+// =============================================================================
+
+/**
+ * Merges new repos with existing ones, preserving messages that aren't in the new data.
+ * Used when refreshing from server which doesn't include message content in /api/user/me.
+ */
+export function mergeReposPreservingMessages(
+  existingRepos: TransformedRepo[],
+  newRepos: TransformedRepo[]
+): TransformedRepo[] {
+  if (existingRepos.length === 0) return newRepos
+
+  const existingRepoMap = new Map(existingRepos.map((r) => [r.id, r]))
+
+  return newRepos.map((newRepo) => {
+    const existingRepo = existingRepoMap.get(newRepo.id)
+    if (!existingRepo) return newRepo
+
+    const existingBranchMap = new Map(existingRepo.branches.map((b) => [b.id, b]))
+
+    return {
+      ...newRepo,
+      branches: newRepo.branches.map((newBranch) => {
+        const existingBranch = existingBranchMap.get(newBranch.id)
+        // Preserve existing messages if the new branch has none
+        if (existingBranch?.messages.length && newBranch.messages.length === 0) {
+          return { ...newBranch, messages: existingBranch.messages }
+        }
+        return newBranch
+      }),
+    }
+  })
+}
