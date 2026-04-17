@@ -175,10 +175,11 @@ export function useRepoData({ isAuthenticated }: UseRepoDataOptions) {
 
   // Refresh user data from server - refetches and resets local state
   // Skip refresh while streaming to prevent wiping in-memory content that hasn't been persisted to DB yet
-  const refresh = useCallback(() => {
+  // Returns a promise that resolves when the refetch completes
+  const refresh = useCallback(async () => {
     if (hasActiveExecutions()) return
     setLoaded(false) // Allow re-initialization from query
-    queryClient.invalidateQueries({ queryKey: queryKeys.user.me() })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.user.me() })
   }, [queryClient])
 
   // Refresh just quota without resetting repos (uses lightweight endpoint)
