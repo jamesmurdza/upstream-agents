@@ -197,12 +197,56 @@ async function runEliza(prompt: string): Promise<void> {
 
   if (isFromFallback && hasMemories()) {
     // Pop from memory using visible Bash tool calls
+    // Step 1: List memory files to find the newest one
+    const listToolId = `toolu_${generateId()}`
+    await emit(
+      {
+        type: "assistant",
+        message: {
+          id: `msg_${generateId()}`,
+          type: "message",
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              id: listToolId,
+              name: "Bash",
+              input: {
+                command: `ls -t ${MEMORY_PREFIX}*.txt 2>/dev/null | head -1`,
+                description: "Check for stored memories",
+              },
+            },
+          ],
+        },
+        session_id: sessionId,
+      },
+      interEventDelay
+    )
+
+    // Actually get the newest file (using fs)
     const memoryFilename = getNewestMemoryFile()
+    await emit(
+      {
+        type: "user",
+        message: {
+          content: [
+            {
+              tool_use_id: listToolId,
+              type: "tool_result",
+              content: memoryFilename || "(no memories found)",
+            },
+          ],
+        },
+        session_id: sessionId,
+      },
+      interEventDelay
+    )
+
     if (memoryFilename) {
       const memoryFilePath = path.join(cwd, memoryFilename)
-      const toolId = `toolu_${generateId()}`
 
-      // Emit Bash tool_use to read the memory file
+      // Step 2: Read the memory file
+      const catToolId = `toolu_${generateId()}`
       await emit(
         {
           type: "assistant",
@@ -213,7 +257,7 @@ async function runEliza(prompt: string): Promise<void> {
             content: [
               {
                 type: "tool_use",
-                id: toolId,
+                id: catToolId,
                 name: "Bash",
                 input: {
                   command: `cat "${memoryFilename}"`,
@@ -227,19 +271,17 @@ async function runEliza(prompt: string): Promise<void> {
         interEventDelay
       )
 
-      // Actually read the memory
-      await sleep(100)
+      // Actually read the memory (using fs)
       try {
         const memoryContent = fs.readFileSync(memoryFilePath, "utf-8").trim()
 
-        // Emit tool result with the memory content
         await emit(
           {
             type: "user",
             message: {
               content: [
                 {
-                  tool_use_id: toolId,
+                  tool_use_id: catToolId,
                   type: "tool_result",
                   content: memoryContent,
                 },
@@ -250,8 +292,8 @@ async function runEliza(prompt: string): Promise<void> {
           interEventDelay
         )
 
-        // Delete the memory file (pop from stack)
-        const deleteToolId = `toolu_${generateId()}`
+        // Step 3: Delete the memory file (pop from stack)
+        const rmToolId = `toolu_${generateId()}`
         await emit(
           {
             type: "assistant",
@@ -262,7 +304,7 @@ async function runEliza(prompt: string): Promise<void> {
               content: [
                 {
                   type: "tool_use",
-                  id: deleteToolId,
+                  id: rmToolId,
                   name: "Bash",
                   input: {
                     command: `rm "${memoryFilename}"`,
@@ -276,7 +318,7 @@ async function runEliza(prompt: string): Promise<void> {
           interEventDelay
         )
 
-        // Actually delete it
+        // Actually delete it (using fs)
         fs.unlinkSync(memoryFilePath)
 
         await emit(
@@ -285,7 +327,7 @@ async function runEliza(prompt: string): Promise<void> {
             message: {
               content: [
                 {
-                  tool_use_id: deleteToolId,
+                  tool_use_id: rmToolId,
                   type: "tool_result",
                   content: "Memory cleared",
                 },
