@@ -68,36 +68,41 @@ export function useChat() {
   useEffect(() => {
     if (!isHydrated) return
 
+    // Compute transitions against the ref BEFORE updating it, and update the
+    // ref outside the state updater (state updaters are double-invoked in
+    // StrictMode, which would corrupt the ref).
+    const currentIds = new Set<string>()
+    const newlyUnseen: string[] = []
+    for (const chat of state.chats) {
+      currentIds.add(chat.id)
+      const prevStatus = prevStatuses.current.get(chat.id)
+      if (
+        prevStatus === "running" &&
+        chat.status !== "running" &&
+        chat.id !== state.currentChatId
+      ) {
+        newlyUnseen.push(chat.id)
+      }
+      prevStatuses.current.set(chat.id, chat.status)
+    }
+    for (const id of Array.from(prevStatuses.current.keys())) {
+      if (!currentIds.has(id)) prevStatuses.current.delete(id)
+    }
+
     setUnseenChatIds((prev) => {
       let next = prev
-      const currentIds = new Set<string>()
-
-      for (const chat of state.chats) {
-        currentIds.add(chat.id)
-        const prevStatus = prevStatuses.current.get(chat.id)
-        if (
-          prevStatus === "running" &&
-          chat.status !== "running" &&
-          chat.id !== state.currentChatId &&
-          !prev.has(chat.id)
-        ) {
+      for (const id of newlyUnseen) {
+        if (!prev.has(id)) {
           if (next === prev) next = new Set(prev)
-          next.add(chat.id)
+          next.add(id)
         }
-        prevStatuses.current.set(chat.id, chat.status)
       }
-
-      // Drop deleted chats from unseen and prevStatuses
       for (const id of prev) {
         if (!currentIds.has(id)) {
           if (next === prev) next = new Set(prev)
           next.delete(id)
         }
       }
-      for (const id of prevStatuses.current.keys()) {
-        if (!currentIds.has(id)) prevStatuses.current.delete(id)
-      }
-
       return next
     })
   }, [state.chats, state.currentChatId, isHydrated])
