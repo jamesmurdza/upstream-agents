@@ -9,7 +9,7 @@
  * Memory system (like original ELIZA):
  * - Certain patterns store a "memory response" for later recall
  * - When the fallback pattern would trigger, ELIZA recalls from memory instead
- * - Both push and pop use visible Bash tool calls
+ * - Uses Write/Read tool calls for memory files, Bash for ls/rm
  */
 
 import { randomUUID } from "node:crypto"
@@ -41,7 +41,7 @@ function generateId(): string {
 }
 
 /**
- * Push a memory response to the memory stack using Bash tool calls.
+ * Push a memory response to the memory stack using Write tool call.
  * Creates a timestamped memory_xxxxx.txt file in the current directory.
  */
 async function pushMemory(
@@ -52,11 +52,7 @@ async function pushMemory(
   const filename = `${MEMORY_PREFIX}${Date.now()}.txt`
   const memoryFile = path.join(cwd, filename)
 
-  // Escape single quotes for shell
-  const escapedResponse = memoryResponse.replace(/'/g, "'\\''")
-  const command = `echo '${escapedResponse}' > "${filename}"`
-
-  // Emit Bash tool_use
+  // Emit Write tool_use
   await emit(
     {
       type: "assistant",
@@ -68,10 +64,10 @@ async function pushMemory(
           {
             type: "tool_use",
             id: toolId,
-            name: "Bash",
+            name: "Write",
             input: {
-              command,
-              description: "Store thought for later",
+              file_path: memoryFile,
+              content: memoryResponse,
             },
           },
         ],
@@ -94,7 +90,7 @@ async function pushMemory(
             {
               tool_use_id: toolId,
               type: "tool_result",
-              content: "Stored for later",
+              content: `File written: ${memoryFile}`,
             },
           ],
         },
@@ -246,7 +242,8 @@ async function runEliza(prompt: string): Promise<void> {
       const memoryFilePath = path.join(cwd, memoryFilename)
 
       // Step 2: Read the memory file
-      const catToolId = `toolu_${generateId()}`
+      // Step 2: Read the memory file
+      const readToolId = `toolu_${generateId()}`
       await emit(
         {
           type: "assistant",
@@ -257,11 +254,10 @@ async function runEliza(prompt: string): Promise<void> {
             content: [
               {
                 type: "tool_use",
-                id: catToolId,
-                name: "Bash",
+                id: readToolId,
+                name: "Read",
                 input: {
-                  command: `cat "${memoryFilename}"`,
-                  description: "Recall from memory",
+                  file_path: memoryFilePath,
                 },
               },
             ],
@@ -281,7 +277,7 @@ async function runEliza(prompt: string): Promise<void> {
             message: {
               content: [
                 {
-                  tool_use_id: catToolId,
+                  tool_use_id: readToolId,
                   type: "tool_result",
                   content: memoryContent,
                 },
