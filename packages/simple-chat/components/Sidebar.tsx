@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, Code2, X, ChevronDown, FolderGit2, Check } from "lucide-react"
+import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, Code2, X, ChevronDown, FolderGit2, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat } from "@/lib/types"
 import { NEW_REPOSITORY } from "@/lib/types"
@@ -807,6 +807,9 @@ function MobileChatItem({ chat, isActive, isDeleting, onSelect, onDelete, onRena
       <div className="flex-1 min-w-0">
         <div className="text-sm truncate">{displayName}</div>
       </div>
+      {chat.status === "running" && (
+        <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin text-muted-foreground" />
+      )}
 
       {/* Menu button */}
       <div className="relative" ref={menuRef}>
@@ -1028,6 +1031,11 @@ function ChatItem({ chat, isActive, collapsed, isDeleting, onSelect, onDelete, o
           </div>
 
           <div className="relative" ref={menuRef}>
+            {chat.status === "running" && (
+              <div className="absolute inset-0 flex items-center justify-center group-hover:opacity-0 transition-opacity pointer-events-none">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              </div>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation()
