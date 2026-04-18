@@ -28,7 +28,7 @@ export const agentLabels: Record<Agent, string> = {
   "claude-code": "Claude Code",
   "opencode": "OpenCode",
   "codex": "Codex",
-  "eliza": "ELIZA",
+  "eliza": "Eliza",
   "gemini": "Gemini",
   "goose": "Goose",
   "pi": "Pi",
@@ -82,7 +82,7 @@ export const agentModels: Record<Agent, ModelOption[]> = {
     { value: "haiku", label: "Haiku", requiresKey: "anthropic" },
   ],
   "eliza": [
-    { value: "eliza-classic-1.0", label: "ELIZA Classic", requiresKey: "none" },
+    { value: "eliza-classic-1.0", label: "Eliza Classic", requiresKey: "none" },
   ],
   "opencode": [
     // Free models (opencode/) - no API key needed
