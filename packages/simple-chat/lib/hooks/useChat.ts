@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { nanoid } from "nanoid"
 import { useSession } from "next-auth/react"
 import type { AppState, Chat, Message, Settings, SSEUpdateEvent, SSECompleteEvent } from "@/lib/types"
@@ -18,6 +18,7 @@ import {
   updateSettings as updateStoredSettings,
 } from "@/lib/storage"
 import { generateBranchName } from "@/lib/utils"
+import { useStreamStore } from "@/lib/stores/stream-store"
 
 // SSE reconnection settings
 const SSE_RECONNECT_DELAY = 1000 // 1 second delay before reconnecting
@@ -51,27 +52,8 @@ export function useChat() {
     setIsHydrated(true)
   }, [])
 
-  // SSE connection ref
-  const eventSourceRef = useRef<EventSource | null>(null)
-  const isStreamingRef = useRef(false)
-  // Track cursor for reconnection
-  const cursorRef = useRef(0)
-  // Track reconnection attempts
-  const reconnectAttemptsRef = useRef(0)
-  // Store connection params for reconnection
-  const connectionParamsRef = useRef<{
-    chatId: string
-    sandboxId: string
-    repoName: string
-    backgroundSessionId: string
-    previewUrlPattern?: string
-  } | null>(null)
-  // Accumulated content for current streaming session (resets when new agent run starts)
-  const accumulatedContentRef = useRef<{
-    content: string
-    toolCalls: Message["toolCalls"]
-    contentBlocks: Message["contentBlocks"]
-  }>({ content: "", toolCalls: [], contentBlocks: [] })
+  // Stream state is now managed by useStreamStore (per-chat isolation)
+  // This eliminates race conditions from shared refs
 
   // Sync state to localStorage (only after hydration)
   useEffect(() => {
@@ -136,13 +118,8 @@ export function useChat() {
     // Get the chat before deleting to access sandboxId
     const chat = state.chats.find((c) => c.id === chatId)
 
-    // Stop SSE stream if this is the current chat
-    if (eventSourceRef.current && state.currentChatId === chatId) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
-      isStreamingRef.current = false
-      connectionParamsRef.current = null
-    }
+    // Stop SSE stream for this chat (works even if not current chat)
+    useStreamStore.getState().stopStream(chatId)
 
     // Mark as deleting (grays out the item)
     setDeletingChatIds((prev) => new Set([...prev, chatId]))
@@ -218,6 +195,12 @@ export function useChat() {
 
   const sendMessage = useCallback(async (content: string, agent?: string, model?: string, files?: File[]) => {
     if (!currentChat) return
+
+    // Guard: prevent concurrent sends to same chat
+    if (useStreamStore.getState().isStreaming(currentChat.id)) {
+      console.warn("Already streaming for this chat")
+      return
+    }
 
     // For GitHub repos, we need auth. For NEW_REPOSITORY, we don't.
     const isNewRepo = currentChat.repo === NEW_REPOSITORY
@@ -451,28 +434,27 @@ export function useChat() {
     backgroundSessionId: string,
     previewUrlPattern?: string
   ) => {
-    // Close existing connection if any
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
+    const streamStore = useStreamStore.getState()
+
+    // Close existing stream for THIS chat only (not all streams)
+    // This allows multiple chats to stream concurrently
+    if (streamStore.isStreaming(chatId)) {
+      streamStore.stopStream(chatId)
     }
 
-    isStreamingRef.current = true
-    // Reset for new streaming session
-    cursorRef.current = 0
-    reconnectAttemptsRef.current = 0
-    accumulatedContentRef.current = { content: "", toolCalls: [], contentBlocks: [] }
-
-    // Store params for reconnection
-    connectionParamsRef.current = {
-      chatId,
+    // Initialize stream state in store
+    streamStore.startStream(chatId, {
       sandboxId,
       repoName,
       backgroundSessionId,
       previewUrlPattern,
-    }
+    })
 
     const connect = (cursor: number = 0) => {
-      if (!isStreamingRef.current) return
+      // Always read fresh state from store (no stale closures)
+      const currentStore = useStreamStore.getState()
+      const streamState = currentStore.getStream(chatId)
+      if (!streamState) return // Stream was stopped
 
       const params = new URLSearchParams({
         sandboxId,
@@ -487,30 +469,39 @@ export function useChat() {
       }
 
       const eventSource = new EventSource(`/api/agent/stream?${params}`)
-      eventSourceRef.current = eventSource
+
+      // Store the EventSource in the store
+      currentStore.updateStream(chatId, { eventSource })
 
       eventSource.addEventListener("update", (event) => {
         try {
           const data: SSEUpdateEvent = JSON.parse(event.data)
 
-          // Update cursor for reconnection
-          cursorRef.current = data.cursor
-          // Reset reconnect attempts on successful message
-          reconnectAttemptsRef.current = 0
+          // Always read fresh state from store
+          const store = useStreamStore.getState()
+          if (!store.isStreaming(chatId)) return // Stream was stopped
 
-          // Accumulate content (server sends incremental updates)
-          const acc = accumulatedContentRef.current
-          acc.content += data.content
-          acc.toolCalls = [...(acc.toolCalls || []), ...(data.toolCalls || [])]
-          acc.contentBlocks = [...(acc.contentBlocks || []), ...(data.contentBlocks || [])]
-
-          // Update message with accumulated content
-          const newState = updateLastMessage(chatId, {
-            content: acc.content,
-            toolCalls: acc.toolCalls,
-            contentBlocks: acc.contentBlocks,
+          // Update cursor and reset reconnect attempts in store
+          store.updateStream(chatId, {
+            cursor: data.cursor,
+            reconnectAttempts: 0,
           })
-          setState(newState)
+
+          // Accumulate in store (not in closure-captured ref)
+          store.appendContent(chatId, data.content)
+          store.appendToolCalls(chatId, data.toolCalls)
+          store.appendContentBlocks(chatId, data.contentBlocks)
+
+          // Get accumulated and update React state
+          const accumulated = store.getAccumulated(chatId)
+          if (accumulated) {
+            const newState = updateLastMessage(chatId, {
+              content: accumulated.content,
+              toolCalls: accumulated.toolCalls,
+              contentBlocks: accumulated.contentBlocks,
+            })
+            setState(newState)
+          }
         } catch (err) {
           console.error("Failed to parse SSE update event:", err)
         }
@@ -520,11 +511,8 @@ export function useChat() {
         try {
           const data: SSECompleteEvent = JSON.parse(event.data)
 
-          // Clean up
-          isStreamingRef.current = false
-          eventSource.close()
-          eventSourceRef.current = null
-          connectionParamsRef.current = null
+          // Clean up stream from store
+          useStreamStore.getState().stopStream(chatId)
 
           // Store sessionId for conversation continuity
           const updates: Partial<Chat> = { status: data.status === "error" ? "error" : "ready" }
@@ -561,10 +549,14 @@ export function useChat() {
       eventSource.addEventListener("heartbeat", (event) => {
         try {
           const data = JSON.parse(event.data)
-          // Update cursor from heartbeat
-          cursorRef.current = data.cursor
-          // Reset reconnect attempts on heartbeat
-          reconnectAttemptsRef.current = 0
+          // Update cursor in store
+          const store = useStreamStore.getState()
+          if (store.isStreaming(chatId)) {
+            store.updateStream(chatId, {
+              cursor: data.cursor,
+              reconnectAttempts: 0,
+            })
+          }
         } catch (err) {
           console.error("Failed to parse SSE heartbeat:", err)
         }
@@ -576,44 +568,45 @@ export function useChat() {
           console.error("SSE error event:", data.error)
 
           // Clean up and update status
-          isStreamingRef.current = false
-          eventSource.close()
-          eventSourceRef.current = null
-          connectionParamsRef.current = null
+          useStreamStore.getState().stopStream(chatId)
 
           const newState = updateChat(chatId, { status: "error" })
           setState(newState)
         } catch {
           // This is a connection error, not a server-sent error event
-          // Attempt reconnection
+          // Attempt reconnection (handled by onerror)
         }
       })
 
       eventSource.onerror = () => {
         // Connection error - attempt reconnection
         eventSource.close()
-        eventSourceRef.current = null
 
-        if (!isStreamingRef.current) return
+        const store = useStreamStore.getState()
+        const stream = store.getStream(chatId)
+        if (!stream) return // Stream was intentionally stopped
 
-        reconnectAttemptsRef.current += 1
+        const attempts = (stream.reconnectAttempts || 0) + 1
 
-        if (reconnectAttemptsRef.current <= SSE_MAX_RECONNECT_ATTEMPTS) {
-          console.log(`SSE connection lost, reconnecting (attempt ${reconnectAttemptsRef.current})...`)
+        if (attempts <= SSE_MAX_RECONNECT_ATTEMPTS) {
+          console.log(`SSE reconnecting for chat ${chatId} (attempt ${attempts})`)
+          store.updateStream(chatId, {
+            reconnectAttempts: attempts,
+            eventSource: null,
+          })
           setTimeout(() => {
-            if (isStreamingRef.current && connectionParamsRef.current) {
-              connect(cursorRef.current)
+            // Check if stream still exists before reconnecting
+            if (useStreamStore.getState().isStreaming(chatId)) {
+              connect(stream.cursor)
             }
           }, SSE_RECONNECT_DELAY)
         } else {
-          console.error("SSE max reconnection attempts reached")
-          isStreamingRef.current = false
-          connectionParamsRef.current = null
+          console.error(`SSE max reconnects reached for chat ${chatId}`)
+          store.stopStream(chatId)
 
           // Update chat status
-          const currentState = loadState()
-          const existingChat = currentState.chats.find((c) => c.id === chatId)
-          if (existingChat && existingChat.status === "running") {
+          const chatState = loadState().chats.find((c) => c.id === chatId)
+          if (chatState?.status === "running") {
             const newState = updateChat(chatId, { status: "ready" })
             setState(newState)
           }
@@ -627,24 +620,19 @@ export function useChat() {
 
   const stopAgent = useCallback(() => {
     // Close SSE connection - the agent will continue in background but we won't show updates
-    isStreamingRef.current = false
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
-    }
-    connectionParamsRef.current = null
-
     if (currentChat) {
+      useStreamStore.getState().stopStream(currentChat.id)
       const newState = updateChat(currentChat.id, { status: "ready" })
       setState(newState)
     }
   }, [currentChat])
 
-  // Cleanup on unmount
+  // Cleanup on unmount - stop all streams
   useEffect(() => {
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
+      const store = useStreamStore.getState()
+      for (const chatId of store.streams.keys()) {
+        store.stopStream(chatId)
       }
     }
   }, [])
