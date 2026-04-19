@@ -926,7 +926,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
         onScroll={handleScroll}
         className={cn(
           "flex-1 overflow-y-auto mobile-scroll",
-          isMobile ? "p-3" : "p-4"
+          isMobile ? "py-3 px-[22px]" : "py-4 px-[26px]"
         )}
       >
         <div className={cn(
@@ -988,8 +988,8 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
       <div className={cn(
         "bg-background",
         isMobile
-          ? (hasQueued ? "px-3 pt-0 pb-3 pb-safe" : "px-3 py-3 pb-safe")
-          : (hasQueued ? "px-4 pt-0 pb-4" : "px-4 pb-4 pt-2")
+          ? (hasQueued ? "px-[22px] pt-0 pb-3 pb-safe" : "px-[22px] py-3 pb-safe")
+          : (hasQueued ? "px-[26px] pt-0 pb-4" : "px-[26px] pb-4 pt-2")
       )}>
         {chatInput}
       </div>

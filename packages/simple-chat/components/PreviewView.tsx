@@ -11,10 +11,10 @@ interface PreviewViewProps {
 
 export function PreviewView({ fileName = "hello.ts", className, style }: PreviewViewProps) {
   return (
-    <div className={cn("flex flex-col p-3 pl-0 min-h-0", className)} style={style}>
-      <div className="flex-1 min-h-0 rounded-2xl border border-border bg-card shadow-sm flex flex-col overflow-hidden">
+    <div className={cn("flex flex-col min-h-0 bg-card", className)} style={style}>
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Titlebar */}
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
           <FileCode2 className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium truncate">{fileName}</span>
         </div>
