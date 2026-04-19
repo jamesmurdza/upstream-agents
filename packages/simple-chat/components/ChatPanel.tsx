@@ -147,6 +147,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
     onSendMessage(input.trim(), currentAgent, currentModel, files)
     setInput("")
     setPendingFiles([])
+    textareaRef.current?.focus()
   }
 
   // File handling - files can be added anytime, upload happens after sandbox is ready
