@@ -32,6 +32,7 @@ const DEFAULT_STATE: AppState = {
   chats: [],
   settings: {
     anthropicApiKey: "",
+    anthropicAuthToken: "",
     openaiApiKey: "",
     opencodeApiKey: "",
     geminiApiKey: "",
@@ -274,7 +275,7 @@ export function useChat() {
     const isFirstMessage = chat.messages.length === 0
 
     // Get API keys from settings
-    const { anthropicApiKey, openaiApiKey, opencodeApiKey, geminiApiKey } = state.settings
+    const { anthropicApiKey, anthropicAuthToken, openaiApiKey, opencodeApiKey, geminiApiKey } = state.settings
 
     // Use provided agent/model or fall back to chat/settings defaults
     const selectedAgent = agent || chat.agent || state.settings.defaultAgent
@@ -431,6 +432,7 @@ export function useChat() {
           model: selectedModel,
           // Pass API keys
           ...(anthropicApiKey && { anthropicApiKey }),
+          ...(anthropicAuthToken && { anthropicAuthToken }),
           ...(openaiApiKey && { openaiApiKey }),
           ...(opencodeApiKey && { opencodeApiKey }),
           ...(geminiApiKey && { geminiApiKey }),

@@ -7,7 +7,7 @@ export const maxDuration = 60
 export async function POST(req: Request) {
   // 1. Parse request body
   const body = await req.json()
-  const { sandboxId, sessionId, prompt, repoName, previewUrlPattern, agent, model, anthropicApiKey, openaiApiKey, opencodeApiKey, geminiApiKey } = body
+  const { sandboxId, sessionId, prompt, repoName, previewUrlPattern, agent, model, anthropicApiKey, anthropicAuthToken, openaiApiKey, opencodeApiKey, geminiApiKey } = body
 
   if (!sandboxId || !prompt || !repoName) {
     return Response.json({ error: "Missing required fields: sandboxId, prompt, repoName" }, { status: 400 })
@@ -44,7 +44,11 @@ export async function POST(req: Request) {
 
     // 5. Build env vars for the agent (API keys passed at execution time override sandbox env)
     const env: Record<string, string> = {}
-    if (anthropicApiKey) {
+    // Claude subscription token takes precedence over API key for claude-code
+    if (anthropicAuthToken) {
+      env.CLAUDE_CODE_CREDENTIALS = anthropicAuthToken
+    }
+    if (anthropicApiKey && !(anthropicAuthToken && (agent === "claude-code" || !agent))) {
       env.ANTHROPIC_API_KEY = anthropicApiKey
     }
     if (openaiApiKey) {

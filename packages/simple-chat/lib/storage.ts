@@ -11,6 +11,7 @@ const UNSEEN_KEY = "simple-chat-unseen-completions"
 
 const DEFAULT_SETTINGS: Settings = {
   anthropicApiKey: "",
+  anthropicAuthToken: "",
   openaiApiKey: "",
   opencodeApiKey: "",
   geminiApiKey: "",
@@ -31,6 +32,7 @@ const DEFAULT_STATE: AppState = {
 export function getCredentialFlags(settings: Settings): UserCredentialFlags {
   return {
     hasAnthropicApiKey: !!settings.anthropicApiKey,
+    hasAnthropicAuthToken: !!settings.anthropicAuthToken,
     hasOpenaiApiKey: !!settings.openaiApiKey,
     hasOpencodeApiKey: !!settings.opencodeApiKey,
     hasGeminiApiKey: !!settings.geminiApiKey,

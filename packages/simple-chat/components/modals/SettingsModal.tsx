@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useTheme } from "next-themes"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Eye, EyeOff, Key, Sun, Moon, Monitor, Bot, ChevronDown, Settings as SettingsIcon } from "lucide-react"
+import { X, Eye, EyeOff, Key, Sun, Moon, Monitor, Bot, ChevronDown, Settings as SettingsIcon, Terminal, Copy, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Settings, Theme, Agent, ModelOption } from "@/lib/types"
 import { agentModels, agentLabels, hasCredentialsForModel } from "@/lib/types"
@@ -130,6 +130,81 @@ function ApiKeyField({
   )
 }
 
+// Claude subscription (claude-max) token field — paste the JSON blob from
+// `security find-generic-password -s "Claude Code-credentials" -w`
+function ClaudeSubscriptionField({
+  value,
+  onChange,
+  isMobile,
+}: {
+  value: string
+  onChange: (value: string) => void
+  isMobile?: boolean
+}) {
+  const [copiedLogin, setCopiedLogin] = useState(false)
+  const [copiedDump, setCopiedDump] = useState(false)
+
+  const copy = (text: string, setCopied: (v: boolean) => void) => {
+    navigator.clipboard.writeText(text).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <div>
+      <label className={cn(
+        "flex items-center gap-2 font-medium mb-1",
+        isMobile ? "text-base" : "text-sm"
+      )}>
+        <Terminal className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+        Claude Subscription
+      </label>
+      <p className={cn(
+        "text-muted-foreground mb-2",
+        isMobile ? "text-sm" : "text-xs"
+      )}>
+        Use your Claude Max/Pro subscription with the Claude Code agent instead of an API key.
+      </p>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder='{"claudeAiOauth":{"token_type":"bearer",...}}'
+        rows={3}
+        className={cn(
+          "w-full bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring font-mono resize-none",
+          isMobile ? "px-4 py-3 text-sm" : "px-3 py-1.5 text-xs"
+        )}
+      />
+      <div className={cn(
+        "mt-2 space-y-1 text-muted-foreground",
+        isMobile ? "text-xs" : "text-[11px]"
+      )}>
+        <p>
+          First sign in with{" "}
+          <code
+            onClick={() => copy("claude auth login", setCopiedLogin)}
+            className="cursor-pointer inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] hover:bg-accent"
+          >
+            {copiedLogin ? <Check className="h-2.5 w-2.5 text-green-500" /> : <Copy className="h-2.5 w-2.5" />}
+            claude auth login
+          </code>
+        </p>
+        <p>
+          Then paste the output of{" "}
+          <code
+            onClick={() => copy('security find-generic-password -s "Claude Code-credentials" -w', setCopiedDump)}
+            className="cursor-pointer inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] hover:bg-accent"
+          >
+            {copiedDump ? <Check className="h-2.5 w-2.5 text-green-500" /> : <Copy className="h-2.5 w-2.5" />}
+            security find-generic-password -s &quot;Claude Code-credentials&quot; -w
+          </code>
+        </p>
+        <p className="opacity-70">Claude Code agent only — not used by other agents.</p>
+      </div>
+    </div>
+  )
+}
+
 export function SettingsModal({ open, onClose, settings, onSave, highlightKey, isMobile = false }: SettingsModalProps) {
   const { setTheme } = useTheme()
 
@@ -142,6 +217,7 @@ export function SettingsModal({ open, onClose, settings, onSave, highlightKey, i
 
   // Form state
   const [anthropicApiKey, setAnthropicApiKey] = useState(settings.anthropicApiKey)
+  const [anthropicAuthToken, setAnthropicAuthToken] = useState(settings.anthropicAuthToken)
   const [openaiApiKey, setOpenaiApiKey] = useState(settings.openaiApiKey)
   const [opencodeApiKey, setOpencodeApiKey] = useState(settings.opencodeApiKey)
   const [geminiApiKey, setGeminiApiKey] = useState(settings.geminiApiKey)
@@ -161,11 +237,12 @@ export function SettingsModal({ open, onClose, settings, onSave, highlightKey, i
     return getCredentialFlags({
       ...settings,
       anthropicApiKey,
+      anthropicAuthToken,
       openaiApiKey,
       opencodeApiKey,
       geminiApiKey,
     })
-  }, [anthropicApiKey, openaiApiKey, opencodeApiKey, geminiApiKey, settings])
+  }, [anthropicApiKey, anthropicAuthToken, openaiApiKey, opencodeApiKey, geminiApiKey, settings])
 
   // Get available models for the selected agent
   const availableModels = useMemo(() => {
@@ -176,6 +253,7 @@ export function SettingsModal({ open, onClose, settings, onSave, highlightKey, i
   useEffect(() => {
     if (open) {
       setAnthropicApiKey(settings.anthropicApiKey)
+      setAnthropicAuthToken(settings.anthropicAuthToken)
       setOpenaiApiKey(settings.openaiApiKey)
       setOpencodeApiKey(settings.opencodeApiKey)
       setGeminiApiKey(settings.geminiApiKey)
@@ -275,6 +353,7 @@ export function SettingsModal({ open, onClose, settings, onSave, highlightKey, i
   const handleSave = () => {
     onSave({
       anthropicApiKey,
+      anthropicAuthToken,
       openaiApiKey,
       opencodeApiKey,
       geminiApiKey,
@@ -287,6 +366,7 @@ export function SettingsModal({ open, onClose, settings, onSave, highlightKey, i
 
   const hasChanges =
     anthropicApiKey !== settings.anthropicApiKey ||
+    anthropicAuthToken !== settings.anthropicAuthToken ||
     openaiApiKey !== settings.openaiApiKey ||
     opencodeApiKey !== settings.opencodeApiKey ||
     geminiApiKey !== settings.geminiApiKey ||
@@ -389,6 +469,12 @@ export function SettingsModal({ open, onClose, settings, onSave, highlightKey, i
         helpText="Get key"
         highlight={highlightKey === "anthropic"}
         inputRef={anthropicInputRef}
+        isMobile={isMobile}
+      />
+
+      <ClaudeSubscriptionField
+        value={anthropicAuthToken}
+        onChange={setAnthropicAuthToken}
         isMobile={isMobile}
       />
 

@@ -94,6 +94,8 @@ export type Theme = "light" | "dark" | "system"
 export interface Settings {
   // API keys for various providers
   anthropicApiKey: string
+  /** Claude subscription OAuth token (the JSON blob printed by `security find-generic-password -s "Claude Code-credentials" -w`). Takes precedence over anthropicApiKey for the claude-code agent. */
+  anthropicAuthToken: string
   openaiApiKey: string
   opencodeApiKey: string
   geminiApiKey: string
