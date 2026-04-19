@@ -69,7 +69,9 @@ export function loadState(): AppState {
 }
 
 /**
- * Save app state to localStorage
+ * Save app state to localStorage.
+ * Unstarted chats (no messages) are dropped so they don't survive reloads —
+ * the app will auto-create a fresh empty chat on next load if needed.
  */
 export function saveState(state: AppState): void {
   if (typeof window === "undefined") {
@@ -77,7 +79,15 @@ export function saveState(state: AppState): void {
   }
 
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    const nonEmptyChats = state.chats.filter((c) => c.messages.length > 0)
+    const currentStillExists =
+      !!state.currentChatId && nonEmptyChats.some((c) => c.id === state.currentChatId)
+    const toSave: AppState = {
+      ...state,
+      chats: nonEmptyChats,
+      currentChatId: currentStillExists ? state.currentChatId : null,
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave))
   } catch (error) {
     console.error("Failed to save state to localStorage:", error)
   }
