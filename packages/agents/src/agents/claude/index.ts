@@ -85,8 +85,9 @@ export const claudeAgent: AgentDefinition = {
       args.push("--resume", options.sessionId)
     }
 
-    // Add the prompt if provided
+    // The "--" sentinel signals end-of-options to the Claude CLI's argument parser
     if (options.prompt) {
+      args.push("--")
       args.push(options.prompt)
     }
 
