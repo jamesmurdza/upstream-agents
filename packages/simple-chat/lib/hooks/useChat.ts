@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { nanoid } from "nanoid"
 import { useSession } from "next-auth/react"
-import type { AppState, Chat, ChatStatus, Message, Settings, SSEUpdateEvent, SSECompleteEvent } from "@/lib/types"
+import type { AppState, Chat, ChatStatus, Message, QueuedMessage, Settings, SSEUpdateEvent, SSECompleteEvent } from "@/lib/types"
 import { NEW_REPOSITORY } from "@/lib/types"
 import {
   loadState,
@@ -746,6 +746,116 @@ export function useChat() {
     setState(newState)
   }, [])
 
+  // Queue a message for the current chat (used when agent is running)
+  const enqueueMessage = useCallback((content: string, agent?: string, model?: string) => {
+    if (!currentChat) return
+    const queued: QueuedMessage = { id: nanoid(), content, agent, model }
+    const existing = currentChat.queuedMessages ?? []
+    const newState = updateChat(currentChat.id, { queuedMessages: [...existing, queued] })
+    setState(newState)
+  }, [currentChat])
+
+  // Remove a queued message by id from the current chat
+  const removeQueuedMessage = useCallback((id: string) => {
+    if (!currentChat) return
+    const existing = currentChat.queuedMessages ?? []
+    const next = existing.filter((m) => m.id !== id)
+    const newState = updateChat(currentChat.id, { queuedMessages: next })
+    setState(newState)
+  }, [currentChat])
+
+  // Dispatch the next queued message for a chat whose agent just finished.
+  // Mirrors the execute-and-stream portion of sendMessage, but keyed on chatId.
+  const dispatchQueued = useCallback(async (chatId: string) => {
+    const fresh = loadState().chats.find((c) => c.id === chatId)
+    if (!fresh || !fresh.sandboxId) return
+    if (useStreamStore.getState().isStreaming(chatId)) return
+    if (!fresh.queuedMessages || fresh.queuedMessages.length === 0) return
+
+    const [next, ...rest] = fresh.queuedMessages
+    const { anthropicApiKey, anthropicAuthToken, openaiApiKey, opencodeApiKey, geminiApiKey } = state.settings
+    const selectedAgent = next.agent || fresh.agent || state.settings.defaultAgent
+    const selectedModel = next.model || fresh.model || state.settings.defaultModel
+
+    // Pop queued, append user message, mark running, insert placeholder assistant
+    const userMessage: Message = {
+      id: nanoid(),
+      role: "user",
+      content: next.content,
+      timestamp: Date.now(),
+    }
+    let newState = addMessage(chatId, userMessage)
+    newState = updateChat(chatId, {
+      queuedMessages: rest,
+      lastActiveAt: Date.now(),
+      status: "running",
+    })
+    setState(newState)
+
+    const assistantMessage: Message = {
+      id: nanoid(),
+      role: "assistant",
+      content: "",
+      timestamp: Date.now(),
+      toolCalls: [],
+    }
+    newState = addMessage(chatId, assistantMessage)
+    setState(newState)
+
+    try {
+      const response = await fetch("/api/agent/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sandboxId: fresh.sandboxId,
+          sessionId: fresh.sessionId,
+          prompt: next.content,
+          repoName: "project",
+          previewUrlPattern: fresh.previewUrlPattern,
+          agent: selectedAgent,
+          model: selectedModel,
+          ...(anthropicApiKey && { anthropicApiKey }),
+          ...(anthropicAuthToken && { anthropicAuthToken }),
+          ...(openaiApiKey && { openaiApiKey }),
+          ...(opencodeApiKey && { opencodeApiKey }),
+          ...(geminiApiKey && { geminiApiKey }),
+        }),
+      })
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Execute failed" }))
+        throw new Error(error.error || "Failed to execute queued message")
+      }
+      const data = await response.json()
+      const { backgroundSessionId } = data
+      newState = updateChat(chatId, { backgroundSessionId })
+      setState(newState)
+      startStreaming(chatId, fresh.sandboxId, "project", backgroundSessionId, fresh.previewUrlPattern)
+    } catch (error) {
+      console.error("Failed to dispatch queued message:", error)
+      newState = updateLastMessage(chatId, {
+        content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      })
+      newState = updateChat(chatId, { status: "error" })
+      setState(newState)
+    }
+  }, [state.settings, startStreaming])
+
+  // Auto-dispatch queued messages when a chat's agent becomes idle
+  useEffect(() => {
+    if (!isHydrated) return
+    const candidate = state.chats.find(
+      (c) =>
+        c.sandboxId &&
+        c.status !== "running" &&
+        c.status !== "creating" &&
+        c.queuedMessages &&
+        c.queuedMessages.length > 0
+    )
+    if (candidate && !useStreamStore.getState().isStreaming(candidate.id)) {
+      dispatchQueued(candidate.id)
+    }
+  }, [state.chats, isHydrated, dispatchQueued])
+
   return {
     // State
     chats: state.chats,
@@ -767,5 +877,7 @@ export function useChat() {
     stopAgent,
     updateSettings,
     addMessage: addMessageToChat,
+    enqueueMessage,
+    removeQueuedMessage,
   }
 }

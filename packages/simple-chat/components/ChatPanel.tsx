@@ -19,6 +19,8 @@ interface ChatPanelProps {
   chat: Chat | null
   settings: Settings
   onSendMessage: (message: string, agent: string, model: string, files?: File[]) => void
+  onEnqueueMessage?: (message: string, agent?: string, model?: string) => void
+  onRemoveQueuedMessage?: (id: string) => void
   onStopAgent: () => void
   onChangeRepo?: () => void
   onUpdateChat?: (updates: Partial<Chat>) => void
@@ -28,7 +30,7 @@ interface ChatPanelProps {
   isMobile?: boolean
 }
 
-export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, isMobile = false }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, isMobile = false }: ChatPanelProps) {
   const [input, setInput] = useState("")
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
@@ -70,7 +72,9 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
   const isRunning = chat?.status === "running"
   const isCreating = chat?.status === "creating"
   const hasContent = input.trim() || pendingFiles.length > 0
-  const canSend = hasContent && !isRunning && !isCreating
+  // When the agent is running, text-only messages are queued for later dispatch.
+  const canQueue = !!onEnqueueMessage && !!input.trim() && pendingFiles.length === 0
+  const canSend = (hasContent && !isRunning && !isCreating) || (isRunning && canQueue)
 
   // Track if user has scrolled up from bottom
   const handleScroll = () => {
@@ -155,6 +159,14 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
     if (!canSend) return
     // Don't send if credentials are missing - the UI shows a warning instead
     if (!hasRequiredCredentials) return
+
+    // If the agent is running, queue the message instead of sending.
+    if (isRunning && onEnqueueMessage) {
+      onEnqueueMessage(input.trim(), currentAgent, currentModel)
+      setInput("")
+      textareaRef.current?.focus()
+      return
+    }
 
     // Pass files to sendMessage - upload will happen after sandbox is ready
     const files = pendingFiles.length > 0 ? pendingFiles.map(pf => pf.file) : undefined
@@ -373,6 +385,35 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
             }
           }}
         />
+        {/* Queued messages drawer (shown when agent is running and user has queued prompts) */}
+        {chat.queuedMessages && chat.queuedMessages.length > 0 && (
+          <div className={cn(
+            "border-b border-border flex flex-col gap-1.5",
+            isMobile ? "px-3 py-2" : "px-4 py-2"
+          )}>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Queued · {chat.queuedMessages.length}
+            </div>
+            {chat.queuedMessages.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-1.5"
+              >
+                <span className="flex-1 min-w-0 truncate text-sm text-foreground">{m.content}</span>
+                {onRemoveQueuedMessage && (
+                  <button
+                    onClick={() => onRemoveQueuedMessage(m.id)}
+                    className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                    aria-label="Remove queued message"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Text input area */}
         <div className={cn(
           "flex items-end gap-2",
@@ -422,7 +463,18 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
             "shrink-0 flex items-center justify-center",
             isMobile ? "h-9 w-9" : "h-7 w-7"
           )}>
-            {isRunning ? (
+            {isRunning && canQueue ? (
+              <button
+                onClick={handleSend}
+                title="Queue message (sent after current response)"
+                className={cn(
+                  "flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 transition-colors",
+                  isMobile ? "h-9 w-9" : "h-7 w-7"
+                )}
+              >
+                <ArrowUp className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+              </button>
+            ) : isRunning ? (
               <button
                 onClick={onStopAgent}
                 className={cn(

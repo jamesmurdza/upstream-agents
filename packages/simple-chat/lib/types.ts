@@ -80,6 +80,9 @@ export interface Chat {
   /** Timestamp of last activity: user message sent, agent content received, or agent completion. Used for sort order. */
   lastActiveAt?: number
 
+  /** Messages queued while the agent was running. The next one is dispatched automatically on completion. */
+  queuedMessages?: QueuedMessage[]
+
   // Display name (auto-generated from first prompt)
   displayName: string | null
 
@@ -88,6 +91,14 @@ export interface Chat {
 }
 
 export type ChatStatus = "pending" | "creating" | "ready" | "running" | "error"
+
+/** A message that the user submitted while the agent was busy. Files are not persisted. */
+export interface QueuedMessage {
+  id: string
+  content: string
+  agent?: string
+  model?: string
+}
 
 export type Theme = "light" | "dark" | "system"
 
