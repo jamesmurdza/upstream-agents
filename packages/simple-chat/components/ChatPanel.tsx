@@ -754,7 +754,16 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
           "text-muted-foreground mt-4 text-center",
           isMobile ? "text-sm px-4" : "text-sm"
         )}>
-          Agents are isolated in Daytona sandboxes and tied to Git branches.
+          Agents are isolated in{" "}
+          <a
+            href="https://www.daytona.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-foreground transition-colors"
+          >
+            Daytona sandboxes
+          </a>
+          {" "}and tied to Git branches.
         </p>
       </div>
     )

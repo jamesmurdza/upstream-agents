@@ -649,51 +649,11 @@ export function Sidebar({
       {/* Footer - User & Settings */}
       <div className={cn("p-3", !collapsed && "border-t border-sidebar-border")}>
         {session?.user ? (
-          collapsed ? (
-            <CollapsedUserMenu
-              user={session.user}
-              onOpenSettings={onOpenSettings}
-            />
-          ) : (
-            <div className="flex items-center gap-2">
-              {/* User Avatar & Name */}
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                {session.user.image && (
-                  <img
-                    src={session.user.image}
-                    alt={session.user.name || "User"}
-                    className="h-8 w-8 rounded-full"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {session.user.name}
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {session.user.email}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-1">
-                <button
-                  onClick={onOpenSettings}
-                  className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  title="Settings"
-                >
-                  <Settings className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => signOut()}
-                  className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  title="Sign out"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          )
+          <UserMenu
+            user={session.user}
+            onOpenSettings={onOpenSettings}
+            collapsed={collapsed}
+          />
         ) : (
           <button
             onClick={() => signIn("github")}
@@ -869,20 +829,20 @@ function MobileChatItem({ chat, isActive, isDeleting, isUnseen, onSelect, onDele
 // Collapsed User Menu Component
 // =============================================================================
 
-interface CollapsedUserMenuProps {
+interface UserMenuProps {
   user: {
     name?: string | null
     email?: string | null
     image?: string | null
   }
   onOpenSettings: () => void
+  collapsed: boolean
 }
 
-function CollapsedUserMenu({ user, onOpenSettings }: CollapsedUserMenuProps) {
+function UserMenu({ user, onOpenSettings, collapsed }: UserMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -895,27 +855,48 @@ function CollapsedUserMenu({ user, onOpenSettings }: CollapsedUserMenuProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [menuOpen])
 
+  const avatar = user.image ? (
+    <img
+      src={user.image}
+      alt={user.name || "User"}
+      className="h-8 w-8 flex-shrink-0 rounded-full"
+    />
+  ) : (
+    <div className="h-8 w-8 flex-shrink-0 rounded-full bg-muted flex items-center justify-center text-xs">
+      {user.name?.[0] || "?"}
+    </div>
+  )
+
   return (
-    <div className="relative flex justify-center" ref={menuRef}>
+    <div className={cn("relative", collapsed ? "flex justify-center" : "")} ref={menuRef}>
       <button
-        onClick={() => setMenuOpen(!menuOpen)}
-        className="cursor-pointer"
+        onClick={() => setMenuOpen((v) => !v)}
+        className={cn(
+          "flex items-center gap-2 cursor-pointer rounded-md transition-colors",
+          collapsed
+            ? "p-0"
+            : "w-full min-w-0 px-2 py-1.5 hover:bg-accent text-left"
+        )}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
       >
-        {user.image ? (
-          <img
-            src={user.image}
-            alt={user.name || "User"}
-            className="h-8 w-8 rounded-full"
-          />
-        ) : (
-          <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs">
-            {user.name?.[0] || "?"}
+        {avatar}
+        {!collapsed && (
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate">{user.name}</div>
+            <div className="text-xs text-muted-foreground truncate">{user.email}</div>
           </div>
         )}
       </button>
 
       {menuOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-40 rounded-md border border-border bg-popover shadow-md py-1 z-50">
+        <div
+          className={cn(
+            "absolute bottom-full mb-2 w-44 rounded-md border border-border bg-popover shadow-md py-1 z-50",
+            collapsed ? "left-0" : "left-0 right-0 w-auto"
+          )}
+          role="menu"
+        >
           <button
             onClick={() => {
               onOpenSettings()
