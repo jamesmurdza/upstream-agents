@@ -780,14 +780,20 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
               className="text-sm font-medium text-foreground bg-transparent outline-none border-b border-primary"
             />
           ) : (
-            <div className="relative" ref={titleMenuRef}>
+            <div className="relative flex items-center" ref={titleMenuRef}>
+              <button
+                onClick={startEditingTitle}
+                className="text-sm font-medium text-foreground px-2 py-1 rounded-l-md hover:bg-accent transition-colors cursor-pointer"
+                title="Click to rename"
+              >
+                {chatTitle}
+              </button>
               <button
                 onClick={() => setTitleMenuOpen((v) => !v)}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-foreground hover:bg-accent transition-colors cursor-pointer"
+                className="px-1 py-1 rounded-r-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
                 aria-label="Chat menu"
               >
-                <span>{chatTitle}</span>
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {titleMenuOpen && (
                 <div className="absolute left-0 top-full mt-1 min-w-[180px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
