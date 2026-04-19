@@ -5,6 +5,7 @@ import { useSession, signIn, signOut } from "next-auth/react"
 import { Menu } from "lucide-react"
 import { Sidebar, ALL_REPOSITORIES, NO_REPOSITORY } from "@/components/Sidebar"
 import { ChatPanel } from "@/components/ChatPanel"
+import { PreviewView } from "@/components/PreviewView"
 import { SDKContent } from "@/components/SDKContent"
 import { RepoPickerModal } from "@/components/modals/RepoPickerModal"
 import { SettingsModal, type HighlightKey } from "@/components/modals/SettingsModal"
@@ -578,23 +579,30 @@ export default function HomePage() {
         )}
 
         {currentPage === "chat" ? (
-          <ChatPanel
-            chat={displayCurrentChat}
-            settings={settings}
-            onSendMessage={handleSendMessage}
-            onEnqueueMessage={enqueueMessage}
-            onRemoveQueuedMessage={removeQueuedMessage}
-            onResumeQueue={resumeQueue}
-            onStopAgent={stopAgent}
-            onChangeRepo={handleChangeRepo}
-            onUpdateChat={updateCurrentChat}
-            onOpenSettings={handleOpenSettings}
-            onSlashCommand={handleSlashCommand}
-            onRequireSignIn={!session ? () => setSignInModalOpen(true) : undefined}
-            onDeleteChat={displayCurrentChatId ? () => removeChat(displayCurrentChatId) : undefined}
-            onOpenHelp={() => setHelpOpen(true)}
-            isMobile={isMobile}
-          />
+          <div className="flex-1 flex min-h-0">
+            <div className="flex-1 flex flex-col min-w-0">
+              <ChatPanel
+                chat={displayCurrentChat}
+                settings={settings}
+                onSendMessage={handleSendMessage}
+                onEnqueueMessage={enqueueMessage}
+                onRemoveQueuedMessage={removeQueuedMessage}
+                onResumeQueue={resumeQueue}
+                onStopAgent={stopAgent}
+                onChangeRepo={handleChangeRepo}
+                onUpdateChat={updateCurrentChat}
+                onOpenSettings={handleOpenSettings}
+                onSlashCommand={handleSlashCommand}
+                onRequireSignIn={!session ? () => setSignInModalOpen(true) : undefined}
+                onDeleteChat={displayCurrentChatId ? () => removeChat(displayCurrentChatId) : undefined}
+                onOpenHelp={() => setHelpOpen(true)}
+                isMobile={isMobile}
+              />
+            </div>
+            {!isMobile && (
+              <PreviewView className="w-[44%] max-w-[640px] flex-shrink-0" />
+            )}
+          </div>
         ) : (
           <SDKContent isMobile={isMobile} />
         )}
