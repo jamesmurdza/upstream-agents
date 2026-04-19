@@ -355,6 +355,7 @@ export default function HomePage() {
       onBranchChat={canBranch ? handleBranchChat : undefined}
       onOpenInGitHub={githubBranchUrl ? handleOpenInGitHub : undefined}
       onOpenSettings={() => handleOpenSettings()}
+      onToggleSidebar={!isMobile ? () => setSidebarCollapsed((v) => !v) : undefined}
       chatIds={displayChats.map((c) => c.id)}
       currentChatId={displayCurrentChatId}
       onSelectChat={handleSelectChat}

@@ -1,6 +1,6 @@
 "use client"
 
-import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, Plus, GitBranchPlus, Settings, Github } from "lucide-react"
+import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, Plus, GitBranchPlus, Settings, Github, PanelLeft } from "lucide-react"
 import {
   CommandDialog,
   CommandInput,
@@ -29,6 +29,7 @@ interface CommandPaletteProps {
   /** Omitted when the current chat has no pushed branch on GitHub. */
   onOpenInGitHub?: () => void
   onOpenSettings: () => void
+  onToggleSidebar?: () => void
 }
 
 export function CommandPalette({
@@ -39,6 +40,7 @@ export function CommandPalette({
   onBranchChat,
   onOpenInGitHub,
   onOpenSettings,
+  onToggleSidebar,
 }: CommandPaletteProps) {
   const handleSelect = (command: string) => {
     onRunCommand(command)
@@ -95,6 +97,12 @@ export function CommandPalette({
           })}
         </CommandGroup>
         <CommandGroup heading="Application">
+          {onToggleSidebar && (
+            <CommandItem value="toggle sidebar" onSelect={() => run(onToggleSidebar)}>
+              <PanelLeft className="mr-2 h-4 w-4 text-muted-foreground" />
+              <span>Toggle Sidebar</span>
+            </CommandItem>
+          )}
           <CommandItem value="settings" onSelect={() => run(onOpenSettings)}>
             <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
             <span>Settings</span>

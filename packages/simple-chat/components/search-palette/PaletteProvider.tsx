@@ -39,6 +39,7 @@ interface PaletteProviderProps {
   onBranchChat?: () => void
   onOpenInGitHub?: () => void
   onOpenSettings: () => void
+  onToggleSidebar?: () => void
   // For Alt+Up/Down chat navigation
   chatIds: string[]
   currentChatId: string | null
@@ -58,6 +59,7 @@ export function PaletteProvider({
   onBranchChat,
   onOpenInGitHub,
   onOpenSettings,
+  onToggleSidebar,
   chatIds,
   currentChatId,
   onSelectChat,
@@ -155,6 +157,7 @@ export function PaletteProvider({
         onBranchChat={onBranchChat}
         onOpenInGitHub={onOpenInGitHub}
         onOpenSettings={onOpenSettings}
+        onToggleSidebar={onToggleSidebar}
       />
     </PaletteContext.Provider>
   )
