@@ -58,6 +58,8 @@ export interface UseGitDialogsResult {
 
   // Current branch info
   branchName: string
+  /** Resolve a branch → chat display name, for use in the dialog UI. */
+  branchLabel: (branch: string) => string
 
   // Actions
   handleMerge: () => Promise<void>
@@ -178,9 +180,12 @@ interface BranchSelectorProps {
   loading: boolean
   placeholder?: string
   isMobile?: boolean
+  /** Transform a branch name into a display label (e.g. resolve to chat name). */
+  getLabel?: (branch: string) => string
 }
 
-function BranchSelector({ value, onChange, branches, loading, placeholder = "Select branch", isMobile = false }: BranchSelectorProps) {
+function BranchSelector({ value, onChange, branches, loading, placeholder = "Select chat", isMobile = false, getLabel }: BranchSelectorProps) {
+  const label = (b: string) => (getLabel ? getLabel(b) : b)
   const [open, setOpen] = useState(false)
 
   if (loading) {
@@ -206,7 +211,7 @@ function BranchSelector({ value, onChange, branches, loading, placeholder = "Sel
         )}
       >
         <span className={value ? "text-foreground" : "text-muted-foreground"}>
-          {value || placeholder}
+          {value ? label(value) : placeholder}
         </span>
         <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
@@ -227,7 +232,7 @@ function BranchSelector({ value, onChange, branches, loading, placeholder = "Sel
                 value === branch && "bg-accent"
               )}
             >
-              {branch}
+              {label(branch)}
             </button>
           ))}
         </div>
@@ -262,12 +267,12 @@ export function MergeDialog({ open, onClose, gitDialogs, chat, isMobile = false 
           <label className={cn(
             "block text-muted-foreground mb-1",
             isMobile ? "text-sm" : "text-xs"
-          )}>From branch</label>
+          )}>From chat</label>
           <div className={cn(
             "bg-muted/50 rounded-md px-3 font-medium truncate",
             isMobile ? "py-3 text-base" : "py-2 text-sm"
           )}>
-            {gitDialogs.branchName || "No branch"}
+            {gitDialogs.branchName ? gitDialogs.branchLabel(gitDialogs.branchName) : "No chat"}
           </div>
         </div>
 
@@ -275,13 +280,14 @@ export function MergeDialog({ open, onClose, gitDialogs, chat, isMobile = false 
           <label className={cn(
             "block text-muted-foreground mb-1",
             isMobile ? "text-sm" : "text-xs"
-          )}>Into branch</label>
+          )}>Into chat</label>
           <BranchSelector
             value={gitDialogs.selectedBranch}
             onChange={gitDialogs.setSelectedBranch}
             branches={gitDialogs.remoteBranches}
             loading={gitDialogs.branchesLoading}
             isMobile={isMobile}
+            getLabel={gitDialogs.branchLabel}
           />
         </div>
 
@@ -359,7 +365,7 @@ export function RebaseDialog({ open, onClose, gitDialogs, chat, isMobile = false
             "bg-muted/50 rounded-md px-3 font-medium truncate",
             isMobile ? "py-3 text-base" : "py-2 text-sm"
           )}>
-            {gitDialogs.branchName || "No branch"}
+            {gitDialogs.branchName ? gitDialogs.branchLabel(gitDialogs.branchName) : "No chat"}
           </div>
         </div>
 
@@ -374,6 +380,7 @@ export function RebaseDialog({ open, onClose, gitDialogs, chat, isMobile = false
             branches={gitDialogs.remoteBranches}
             loading={gitDialogs.branchesLoading}
             isMobile={isMobile}
+            getLabel={gitDialogs.branchLabel}
           />
         </div>
 
@@ -457,12 +464,12 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
               <label className={cn(
                 "block text-muted-foreground mb-1",
                 isMobile ? "text-sm" : "text-xs"
-              )}>From branch</label>
+              )}>From chat</label>
               <div className={cn(
                 "bg-muted/50 rounded-md px-3 font-medium truncate",
                 isMobile ? "py-3 text-base" : "py-2 text-sm"
               )}>
-                {gitDialogs.branchName || "No branch"}
+                {gitDialogs.branchName ? gitDialogs.branchLabel(gitDialogs.branchName) : "No chat"}
               </div>
             </div>
 
@@ -470,7 +477,7 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
               <label className={cn(
                 "block text-muted-foreground mb-1",
                 isMobile ? "text-sm" : "text-xs"
-              )}>Into branch</label>
+              )}>Into chat</label>
               <BranchSelector
                 value={gitDialogs.selectedBranch}
                 onChange={gitDialogs.setSelectedBranch}
@@ -598,7 +605,7 @@ export function SquashDialog({ open, onClose, gitDialogs, chat, isMobile = false
             "bg-muted/50 rounded-md px-3 font-medium truncate",
             isMobile ? "py-3 text-base" : "py-2 text-sm"
           )}>
-            {gitDialogs.branchName || "No branch"}
+            {gitDialogs.branchName ? gitDialogs.branchLabel(gitDialogs.branchName) : "No chat"}
           </div>
         </div>
 
@@ -1087,6 +1094,7 @@ export function useGitDialogs({ chat, onAddMessage, onAddMessageToBranch, resolv
     commitsLoading,
     baseBranch,
     branchName,
+    branchLabel: (branch: string) => resolveChatName?.(branch) || branch,
     handleMerge,
     handleRebase,
     handleCreatePR,
