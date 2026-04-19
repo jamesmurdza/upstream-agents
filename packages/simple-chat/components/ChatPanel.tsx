@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
-import { ArrowUp, Square, ChevronDown, Github, Key, X, Paperclip } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, Github, Key, X, Paperclip, Settings as SettingsIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat, Settings, Agent, ModelOption, PendingFile } from "@/lib/types"
 import { nanoid } from "nanoid"
@@ -42,6 +42,8 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
   // Title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editTitleValue, setEditTitleValue] = useState("")
+  const [titleMenuOpen, setTitleMenuOpen] = useState(false)
+  const titleMenuRef = useRef<HTMLDivElement>(null)
   // File upload state
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const [isDraggingOver, setIsDraggingOver] = useState(false)
@@ -115,6 +117,18 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
     document.addEventListener('click', handleClickOutside)
     return () => document.removeEventListener('click', handleClickOutside)
   }, [isMobile])
+
+  // Close title menu on outside click
+  useEffect(() => {
+    if (!titleMenuOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (titleMenuRef.current && !titleMenuRef.current.contains(e.target as Node)) {
+        setTitleMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [titleMenuOpen])
 
   // Update slash menu visibility based on input
   useEffect(() => {
@@ -709,13 +723,36 @@ export function ChatPanel({ chat, settings, onSendMessage, onStopAgent, onChange
               className="text-sm font-medium text-foreground bg-transparent outline-none border-b border-primary"
             />
           ) : (
-            <h1
-              onClick={startEditingTitle}
-              className="text-sm font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
-              title="Click to rename"
-            >
-              {chatTitle}
-            </h1>
+            <div className="relative flex items-center gap-1" ref={titleMenuRef}>
+              <h1
+                onClick={startEditingTitle}
+                className="text-sm font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
+                title="Click to rename"
+              >
+                {chatTitle}
+              </h1>
+              <button
+                onClick={() => setTitleMenuOpen((v) => !v)}
+                className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                aria-label="Chat menu"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              {titleMenuOpen && (
+                <div className="absolute left-0 top-full mt-1 min-w-[160px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
+                  <button
+                    onClick={() => {
+                      setTitleMenuOpen(false)
+                      onOpenSettings?.()
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
+                  >
+                    <SettingsIcon className="h-3.5 w-3.5" />
+                    Settings
+                  </button>
+                </div>
+              )}
+            </div>
           )}
           <div className="flex items-center gap-1">
             {githubBranchUrl && (
