@@ -146,28 +146,38 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [titleMenuOpen])
 
-  // Update slash menu visibility based on input. Slash commands are git-only,
-  // so don't open the menu at all when the chat has no linked repo.
+  // Update slash menu visibility based on input.
   const hasLinkedRepo = !!(chat?.repo && chat.repo !== NEW_REPOSITORY)
   useEffect(() => {
-    if (input.startsWith("/") && hasLinkedRepo) {
+    if (input.startsWith("/")) {
       setSlashMenuOpen(true)
     } else {
       setSlashMenuOpen(false)
       setSlashSelectedIndex(0)
     }
-  }, [input, hasLinkedRepo])
+  }, [input])
 
-  // Get filtered commands for keyboard navigation
-  const filteredCommands = useMemo(() => filterSlashCommands(input), [input])
+  // Get filtered commands for keyboard navigation. When there's no linked repo,
+  // the slash menu swaps in a single "Create repository" entry.
+  const filteredCommands = useMemo(() => {
+    if (hasLinkedRepo) return filterSlashCommands(input)
+    const filter = input.startsWith("/") ? input.slice(1).toLowerCase() : input.toLowerCase()
+    const repoCmd = { name: "repo", description: "Create repository", icon: "FolderGit2" }
+    if (!filter || repoCmd.name.startsWith(filter)) return [repoCmd]
+    return []
+  }, [input, hasLinkedRepo])
 
   // Handle slash command selection
   const handleSlashCommandSelect = useCallback((command: SlashCommandType) => {
     setSlashMenuOpen(false)
     setSlashSelectedIndex(0)
     setInput("")
+    if (command === "repo") {
+      onChangeRepo?.()
+      return
+    }
     onSlashCommand?.(command)
-  }, [onSlashCommand])
+  }, [onSlashCommand, onChangeRepo])
 
   const handleSend = () => {
     if (!canSend) return
@@ -456,6 +466,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
                 }}
                 selectedIndex={slashSelectedIndex}
                 onSelectedIndexChange={setSlashSelectedIndex}
+                hasLinkedRepo={hasLinkedRepo}
                 isMobile={isMobile}
               />
             )}

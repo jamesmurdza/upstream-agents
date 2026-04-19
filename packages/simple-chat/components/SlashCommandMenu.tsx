@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useCallback, useMemo, useState } from "react"
-import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical } from "lucide-react"
+import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, FolderGit2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { filterSlashCommands, type SlashCommand } from "@upstream/common"
 
@@ -10,9 +10,10 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   GitBranch,
   GitPullRequest,
   GitCommitVertical,
+  FolderGit2,
 }
 
-export type SlashCommandType = "merge" | "rebase" | "pr" | "squash"
+export type SlashCommandType = "merge" | "rebase" | "pr" | "squash" | "repo"
 
 interface SlashCommandMenuProps {
   /** The current input value (used for filtering) */
@@ -27,8 +28,23 @@ interface SlashCommandMenuProps {
   selectedIndex: number
   /** Callback to update the selected index */
   onSelectedIndexChange: (index: number) => void
+  /** Whether the chat has a linked repo (git commands only show when true) */
+  hasLinkedRepo?: boolean
   /** Mobile mode */
   isMobile?: boolean
+}
+
+const CREATE_REPO_COMMAND: SlashCommand = {
+  name: "repo",
+  description: "Create repository",
+  icon: "FolderGit2",
+}
+
+function filterSingleCommand(input: string, cmd: SlashCommand): SlashCommand[] {
+  const filter = input.startsWith("/") ? input.slice(1).toLowerCase() : input.toLowerCase()
+  if (!filter) return [cmd]
+  // Match typed-in prefix against the command name.
+  return cmd.name.toLowerCase().startsWith(filter) ? [cmd] : []
 }
 
 export function SlashCommandMenu({
@@ -38,10 +54,13 @@ export function SlashCommandMenu({
   onClose,
   selectedIndex,
   onSelectedIndexChange,
+  hasLinkedRepo = true,
   isMobile = false,
 }: SlashCommandMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
-  const filteredCommands = filterSlashCommands(input)
+  const filteredCommands = hasLinkedRepo
+    ? filterSlashCommands(input)
+    : filterSingleCommand(input, CREATE_REPO_COMMAND)
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -87,7 +106,7 @@ export function SlashCommandMenu({
         "px-2 py-1.5 font-medium text-muted-foreground uppercase tracking-wider",
         isMobile ? "text-xs" : "text-[10px]"
       )}>
-        Git Commands
+        {hasLinkedRepo ? "Git Commands" : "Repository"}
       </div>
       {filteredCommands.map((cmd, index) => {
         const Icon = ICON_MAP[cmd.icon]
