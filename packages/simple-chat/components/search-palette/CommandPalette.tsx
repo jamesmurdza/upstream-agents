@@ -119,16 +119,15 @@ export function CommandPalette({
               <span>Open Terminal</span>
             </CommandItem>
           )}
-          {onOpenServer && servers.map((s) => (
+          {onOpenServer && servers.length > 0 && (
             <CommandItem
-              key={`server-${s.port}`}
-              value={`open live preview ${s.port}`}
-              onSelect={() => run(() => onOpenServer(s.port, s.url))}
+              value="open live preview"
+              onSelect={() => run(() => onOpenServer(servers[0].port, servers[0].url))}
             >
               <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
-              <span>Open Live Preview · :{s.port}</span>
+              <span>Open Live Preview</span>
             </CommandItem>
-          ))}
+          )}
           {onDeleteChat && (
             <CommandItem value="delete chat" onSelect={() => run(onDeleteChat)}>
               <Trash2 className="mr-2 h-4 w-4 text-muted-foreground" />

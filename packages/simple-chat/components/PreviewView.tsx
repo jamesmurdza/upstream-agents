@@ -14,6 +14,7 @@ import {
   Globe,
   Loader2,
   ExternalLink,
+  ChevronDown,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,11 @@ export interface PreviewViewProps {
   /** Optional — when provided, file titles link to GitHub blob view for that branch. */
   repo?: string | null
   branch?: string | null
+  /** All dev servers currently listening in the sandbox. The live preview
+   *  titlebar shows a port switcher over this list so the user can jump
+   *  between them without closing the pane. */
+  availableServers?: Array<{ port: number; url: string }>
+  onSelectServer?: (port: number, url: string) => void
   onClose?: () => void
   className?: string
   style?: React.CSSProperties
@@ -77,20 +83,13 @@ export function PreviewView({
   sandboxId,
   repo,
   branch,
+  availableServers,
+  onSelectServer,
   onClose,
   className,
   style,
 }: PreviewViewProps) {
   const [refreshKey, setRefreshKey] = useState(0)
-
-  const title =
-    item?.type === "file"
-      ? item.filename
-      : item?.type === "terminal"
-      ? "Terminal"
-      : item?.type === "server"
-      ? `Live preview · :${item.port}`
-      : "Preview"
 
   const TitleIcon =
     item?.type === "terminal"
@@ -113,26 +112,45 @@ export function PreviewView({
     setRefreshKey((k) => k + 1)
   }
 
+  let titleNode: React.ReactNode
+  if (item?.type === "file") {
+    if (fileGithubUrl) {
+      titleNode = (
+        <a
+          href={fileGithubUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group text-xs font-medium truncate flex-1 inline-flex items-center gap-1 hover:underline decoration-dotted underline-offset-2 cursor-pointer"
+          title="Open on GitHub"
+        >
+          <span className="truncate">{item.filename}</span>
+          <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
+        </a>
+      )
+    } else {
+      titleNode = <span className="text-xs font-medium truncate flex-1">{item.filename}</span>
+    }
+  } else if (item?.type === "server") {
+    titleNode = (
+      <LivePreviewTitle
+        currentPort={item.port}
+        servers={availableServers ?? []}
+        onSelectServer={onSelectServer}
+      />
+    )
+  } else if (item?.type === "terminal") {
+    titleNode = <span className="text-xs font-medium truncate flex-1">Terminal</span>
+  } else {
+    titleNode = <span className="text-xs font-medium truncate flex-1">Preview</span>
+  }
+
   return (
     <div className={cn("flex flex-col min-h-0 bg-card", className)} style={style}>
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Titlebar */}
         <div className="flex items-center gap-2 px-4 py-3">
           <TitleIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          {fileGithubUrl ? (
-            <a
-              href={fileGithubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group text-xs font-medium truncate flex-1 inline-flex items-center gap-1 hover:underline decoration-dotted underline-offset-2 cursor-pointer"
-              title="Open on GitHub"
-            >
-              <span className="truncate">{title}</span>
-              <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
-            </a>
-          ) : (
-            <span className="text-xs font-medium truncate flex-1">{title}</span>
-          )}
+          {titleNode}
 
           <button
             onClick={handleRefresh}
@@ -167,6 +185,73 @@ export function PreviewView({
           ) : null}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Live preview title (port switcher)
+// ---------------------------------------------------------------------------
+
+function LivePreviewTitle({
+  currentPort,
+  servers,
+  onSelectServer,
+}: {
+  currentPort: number
+  servers: Array<{ port: number; url: string }>
+  onSelectServer?: (port: number, url: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close the dropdown on outside click.
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    window.addEventListener("mousedown", handler)
+    return () => window.removeEventListener("mousedown", handler)
+  }, [open])
+
+  const switchable = !!onSelectServer && servers.length > 1
+
+  return (
+    <div ref={ref} className="relative flex-1 min-w-0 flex items-center gap-1 text-xs font-medium">
+      <span className="truncate shrink-0">Live preview</span>
+      <span className="text-muted-foreground shrink-0">·</span>
+      {switchable ? (
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="inline-flex items-center gap-0.5 rounded px-1 -mx-1 hover:bg-accent transition-colors cursor-pointer"
+          title="Switch port"
+        >
+          <span>:{currentPort}</span>
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      ) : (
+        <span>:{currentPort}</span>
+      )}
+      {open && switchable && (
+        <div className="absolute top-full left-0 mt-1 min-w-[8rem] bg-popover border border-border rounded-md shadow-lg py-1 z-50">
+          {servers.map((s) => (
+            <button
+              key={s.port}
+              onClick={() => {
+                setOpen(false)
+                onSelectServer!(s.port, s.url)
+              }}
+              className={cn(
+                "w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors cursor-pointer",
+                s.port === currentPort && "bg-accent"
+              )}
+            >
+              :{s.port}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

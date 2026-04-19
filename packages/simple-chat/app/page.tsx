@@ -763,6 +763,8 @@ export default function HomePage() {
                   sandboxId={currentChat?.sandboxId ?? null}
                   repo={currentChat?.repo && currentChat.repo !== NEW_REPOSITORY ? currentChat.repo : null}
                   branch={currentChat?.branch ?? currentChat?.baseBranch ?? null}
+                  availableServers={availableServers}
+                  onSelectServer={(port, url) => openPreview({ type: "server", port, url })}
                   onClose={closePreview}
                 />
               </>
