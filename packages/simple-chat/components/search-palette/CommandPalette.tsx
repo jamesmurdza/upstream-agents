@@ -1,6 +1,6 @@
 "use client"
 
-import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, Plus, GitBranchPlus, Settings, Github, PanelLeft } from "lucide-react"
+import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, Plus, GitBranchPlus, Settings, Github, PanelLeft, LogIn, LogOut } from "lucide-react"
 import {
   CommandDialog,
   CommandInput,
@@ -30,6 +30,8 @@ interface CommandPaletteProps {
   onOpenInGitHub?: () => void
   onOpenSettings: () => void
   onToggleSidebar?: () => void
+  onSignIn?: () => void
+  onSignOut?: () => void
 }
 
 export function CommandPalette({
@@ -41,6 +43,8 @@ export function CommandPalette({
   onOpenInGitHub,
   onOpenSettings,
   onToggleSidebar,
+  onSignIn,
+  onSignOut,
 }: CommandPaletteProps) {
   const handleSelect = (command: string) => {
     onRunCommand(command)
@@ -107,6 +111,18 @@ export function CommandPalette({
             <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
             <span>Settings</span>
           </CommandItem>
+          {onSignIn && (
+            <CommandItem value="sign in" onSelect={() => run(onSignIn)}>
+              <LogIn className="mr-2 h-4 w-4 text-muted-foreground" />
+              <span>Sign in</span>
+            </CommandItem>
+          )}
+          {onSignOut && (
+            <CommandItem value="sign out" onSelect={() => run(onSignOut)}>
+              <LogOut className="mr-2 h-4 w-4 text-muted-foreground" />
+              <span>Sign out</span>
+            </CommandItem>
+          )}
         </CommandGroup>
       </CommandList>
     </CommandDialog>

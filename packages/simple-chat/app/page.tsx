@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { useSession } from "next-auth/react"
+import { useSession, signIn, signOut } from "next-auth/react"
 import { Menu } from "lucide-react"
 import { Sidebar, ALL_REPOSITORIES, NO_REPOSITORY } from "@/components/Sidebar"
 import { ChatPanel } from "@/components/ChatPanel"
@@ -356,6 +356,8 @@ export default function HomePage() {
       onOpenInGitHub={githubBranchUrl ? handleOpenInGitHub : undefined}
       onOpenSettings={() => handleOpenSettings()}
       onToggleSidebar={!isMobile ? () => setSidebarCollapsed((v) => !v) : undefined}
+      onSignIn={!session ? () => signIn("github") : undefined}
+      onSignOut={session ? () => signOut() : undefined}
       chatIds={displayChats.map((c) => c.id)}
       currentChatId={displayCurrentChatId}
       onSelectChat={handleSelectChat}

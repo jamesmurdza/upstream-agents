@@ -40,6 +40,8 @@ interface PaletteProviderProps {
   onOpenInGitHub?: () => void
   onOpenSettings: () => void
   onToggleSidebar?: () => void
+  onSignIn?: () => void
+  onSignOut?: () => void
   // For Alt+Up/Down chat navigation
   chatIds: string[]
   currentChatId: string | null
@@ -60,6 +62,8 @@ export function PaletteProvider({
   onOpenInGitHub,
   onOpenSettings,
   onToggleSidebar,
+  onSignIn,
+  onSignOut,
   chatIds,
   currentChatId,
   onSelectChat,
@@ -158,6 +162,8 @@ export function PaletteProvider({
         onOpenInGitHub={onOpenInGitHub}
         onOpenSettings={onOpenSettings}
         onToggleSidebar={onToggleSidebar}
+        onSignIn={onSignIn}
+        onSignOut={onSignOut}
       />
     </PaletteContext.Provider>
   )
