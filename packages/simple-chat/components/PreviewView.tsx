@@ -1,22 +1,40 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { FileCode2 } from "lucide-react"
+import { FileCode2, RefreshCw, X } from "lucide-react"
 
 interface PreviewViewProps {
   fileName?: string
   className?: string
   style?: React.CSSProperties
+  onRefresh?: () => void
+  onClose?: () => void
 }
 
-export function PreviewView({ fileName = "hello.ts", className, style }: PreviewViewProps) {
+export function PreviewView({ fileName = "hello.ts", className, style, onRefresh, onClose }: PreviewViewProps) {
   return (
     <div className={cn("flex flex-col min-h-0 bg-card", className)} style={style}>
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Titlebar */}
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
+        <div className="flex items-center gap-2 px-4 py-3">
           <FileCode2 className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium truncate">{fileName}</span>
+          <span className="text-xs font-medium truncate flex-1">{fileName}</span>
+          <button
+            onClick={onRefresh}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+            title="Refresh"
+            aria-label="Refresh preview"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={onClose}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+            title="Close"
+            aria-label="Close preview"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         {/* File body — pseudo syntax-highlighted mockup. */}

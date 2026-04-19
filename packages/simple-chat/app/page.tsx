@@ -102,10 +102,10 @@ export default function HomePage() {
     const move = (e: MouseEvent) => {
       if (!resizingPreview.current) return
       const nextWidth = window.innerWidth - e.clientX
-      // Clamp: keep the preview at least 320px wide, but also leave at least
-      // 480px for the chat column on the left.
+      // Clamp: keep the preview at least 320px wide, but also leave enough
+      // room for the chat column on the left.
       const MIN_PREVIEW = 320
-      const MIN_CHAT = 480
+      const MIN_CHAT = 600
       const maxPreview = Math.max(MIN_PREVIEW, window.innerWidth - MIN_CHAT)
       setPreviewWidth(Math.max(MIN_PREVIEW, Math.min(maxPreview, nextWidth)))
     }
