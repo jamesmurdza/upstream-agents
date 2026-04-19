@@ -730,14 +730,6 @@ export default function HomePage() {
                   className="flex-shrink-0"
                   item={previewItem}
                   sandboxId={currentChat?.sandboxId ?? null}
-                  availableServers={availableServers}
-                  terminalAvailable={!!currentChat?.sandboxId}
-                  onOpenTerminal={() => {
-                    if (currentChat?.sandboxId) {
-                      openPreview({ type: "terminal", id: currentChat.sandboxId })
-                    }
-                  }}
-                  onOpenServer={(port, url) => openPreview({ type: "server", port, url })}
                   onClose={() => {
                     setPreviewOpen(false)
                     setPreviewItem(null)

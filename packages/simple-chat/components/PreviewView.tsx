@@ -8,10 +8,8 @@ import {
   FileCode2,
   RefreshCw,
   X,
-  ChevronDown,
   TerminalSquare,
   Globe,
-  Check,
   Loader2,
 } from "lucide-react"
 
@@ -27,11 +25,6 @@ export type PreviewItem =
 export interface PreviewViewProps {
   item: PreviewItem | null
   sandboxId: string | null
-  /** Additional openable items surfaced in the titlebar action menu. */
-  availableServers?: Array<{ port: number; url: string }>
-  terminalAvailable?: boolean
-  onOpenTerminal?: () => void
-  onOpenServer?: (port: number, url: string) => void
   onClose?: () => void
   className?: string
   style?: React.CSSProperties
@@ -40,28 +33,11 @@ export interface PreviewViewProps {
 export function PreviewView({
   item,
   sandboxId,
-  availableServers = [],
-  terminalAvailable = true,
-  onOpenTerminal,
-  onOpenServer,
   onClose,
   className,
   style,
 }: PreviewViewProps) {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const onClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", onClick)
-    return () => document.removeEventListener("mousedown", onClick)
-  }, [menuOpen])
 
   const title =
     item?.type === "file"
@@ -86,61 +62,6 @@ export function PreviewView({
         <div className="flex items-center gap-2 px-4 py-3">
           <TitleIcon className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium truncate flex-1">{title}</span>
-
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="flex h-6 items-center gap-0.5 rounded-md px-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
-              title="Open…"
-              aria-label="Preview actions"
-            >
-              <span className="text-[11px]">Open</span>
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 min-w-[220px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
-                {terminalAvailable && (
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false)
-                      onOpenTerminal?.()
-                    }}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
-                  >
-                    <TerminalSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="flex-1 text-left">Terminal</span>
-                    {item?.type === "terminal" && <Check className="h-3.5 w-3.5" />}
-                  </button>
-                )}
-                {availableServers.length > 0 && (
-                  <>
-                    <div className="my-1 border-t border-border/60" />
-                    {availableServers.map((s) => (
-                      <button
-                        key={s.port}
-                        onClick={() => {
-                          setMenuOpen(false)
-                          onOpenServer?.(s.port, s.url)
-                        }}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
-                      >
-                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="flex-1 text-left">Live preview · :{s.port}</span>
-                        {item?.type === "server" && item.port === s.port && (
-                          <Check className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    ))}
-                  </>
-                )}
-                {!terminalAvailable && availableServers.length === 0 && (
-                  <div className="px-3 py-2 text-xs text-muted-foreground">
-                    Nothing to open yet.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
 
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
