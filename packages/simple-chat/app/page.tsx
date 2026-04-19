@@ -90,9 +90,20 @@ export default function HomePage() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [deleteConfirmChatId, setDeleteConfirmChatId] = useState<string | null>(null)
   const [collapsedChatIds, setCollapsedChatIds] = useState<Set<string>>(new Set())
-  const [previewWidth, setPreviewWidth] = useState(520)
+  const [previewWidth, setPreviewWidth] = useState(() => {
+    if (typeof window === "undefined") return 520
+    const stored = Number(window.localStorage.getItem("simple-chat-preview-width"))
+    return Number.isFinite(stored) && stored >= 320 ? stored : 520
+  })
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem("simple-chat-preview-width", String(Math.round(previewWidth)))
+  }, [previewWidth])
   const [isResizingPreview, setIsResizingPreview] = useState(false)
   const [availableServers, setAvailableServers] = useState<Array<{ port: number; url: string }>>([])
+  // Track ports we've already auto-opened in each sandbox so the preview pane
+  // only pops open the *first* time a new server appears — not every poll.
+  const autoOpenedServersRef = useRef<Map<string, Set<number>>>(new Map())
   // Preview state lives on each Chat, not globally — switching chats shows
   // whatever that chat last had open (or hides the pane if none).
   const previewItem = (currentChat?.previewItem ?? null) as PreviewItem | null
@@ -184,6 +195,7 @@ export default function HomePage() {
   useEffect(() => {
     const sandboxId = currentChat?.sandboxId
     const pattern = currentChat?.previewUrlPattern
+    const chatId = currentChat?.id
     if (!sandboxId) {
       setAvailableServers([])
       return
@@ -200,12 +212,25 @@ export default function HomePage() {
         const data = await res.json()
         if (cancelled) return
         const ports: number[] = Array.isArray(data.ports) ? data.ports : []
-        setAvailableServers(
-          ports.map((port) => ({
-            port,
-            url: pattern ? pattern.replace("{port}", String(port)) : `http://localhost:${port}`,
-          }))
-        )
+        const urlFor = (port: number) =>
+          pattern ? pattern.replace("{port}", String(port)) : `http://localhost:${port}`
+        setAvailableServers(ports.map((port) => ({ port, url: urlFor(port) })))
+
+        // Auto-open the first *new* server we see in this sandbox. Subsequent
+        // polls that see the same port are no-ops, and closing the preview
+        // won't cause it to pop back open.
+        let seen = autoOpenedServersRef.current.get(sandboxId)
+        if (!seen) {
+          seen = new Set()
+          autoOpenedServersRef.current.set(sandboxId, seen)
+        }
+        const newPort = ports.find((p) => !seen!.has(p))
+        if (newPort !== undefined) {
+          ports.forEach((p) => seen!.add(p))
+          if (chatId === currentChat?.id) {
+            updateCurrentChat({ previewItem: { type: "server", port: newPort, url: urlFor(newPort) } })
+          }
+        }
       } catch {
         // Swallow — polling errors are non-fatal.
       }
@@ -216,7 +241,7 @@ export default function HomePage() {
       cancelled = true
       window.clearInterval(id)
     }
-  }, [currentChat?.sandboxId, currentChat?.previewUrlPattern])
+  }, [currentChat?.sandboxId, currentChat?.previewUrlPattern, currentChat?.id, updateCurrentChat])
 
   // Load branches when current chat has a repo
   useEffect(() => {
@@ -736,6 +761,8 @@ export default function HomePage() {
                   className="flex-shrink-0"
                   item={previewItem}
                   sandboxId={currentChat?.sandboxId ?? null}
+                  repo={currentChat?.repo && currentChat.repo !== NEW_REPOSITORY ? currentChat.repo : null}
+                  branch={currentChat?.branch ?? currentChat?.baseBranch ?? null}
                   onClose={closePreview}
                 />
               </>
