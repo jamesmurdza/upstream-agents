@@ -90,6 +90,9 @@ export interface Chat {
   // Display name (auto-generated from first prompt)
   displayName: string | null
 
+  /** When this chat was branched from another chat, the parent's id. */
+  parentChatId?: string
+
   // Status
   status: ChatStatus
 }

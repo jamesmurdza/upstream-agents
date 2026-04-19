@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useCallback, useMemo, useState } from "react"
-import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, FolderGit2 } from "lucide-react"
+import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, FolderGit2, GitBranchPlus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { filterSlashCommands, type SlashCommand } from "@upstream/common"
 
@@ -11,9 +11,10 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   GitPullRequest,
   GitCommitVertical,
   FolderGit2,
+  GitBranchPlus,
 }
 
-export type SlashCommandType = "merge" | "rebase" | "pr" | "squash" | "repo"
+export type SlashCommandType = "merge" | "rebase" | "pr" | "squash" | "repo" | "branch"
 
 interface SlashCommandMenuProps {
   /** The current input value (used for filtering) */

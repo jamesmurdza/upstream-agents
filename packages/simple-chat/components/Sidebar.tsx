@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, Code2, X, ChevronDown, FolderGit2, Check, Loader2, HelpCircle } from "lucide-react"
+import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, Code2, X, ChevronDown, ChevronRight, FolderGit2, Check, Loader2, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat } from "@/lib/types"
 import { NEW_REPOSITORY } from "@/lib/types"
@@ -111,6 +111,36 @@ export function Sidebar({
       })
       .sort((a, b) => (b.lastActiveAt ?? b.createdAt) - (a.lastActiveAt ?? a.createdAt))
   }, [chats, repoFilter])
+
+  // Build parent → children lookup from the filtered list, preserving sort
+  // order. Root chats are the ones with no visible parent.
+  const visibleIds = useMemo(() => new Set(filteredChats.map((c) => c.id)), [filteredChats])
+  const childrenByParent = useMemo(() => {
+    const m = new Map<string, Chat[]>()
+    for (const chat of filteredChats) {
+      const parentId = chat.parentChatId && visibleIds.has(chat.parentChatId) ? chat.parentChatId : null
+      if (parentId) {
+        const list = m.get(parentId) ?? []
+        list.push(chat)
+        m.set(parentId, list)
+      }
+    }
+    return m
+  }, [filteredChats, visibleIds])
+  const rootChats = useMemo(
+    () => filteredChats.filter((c) => !(c.parentChatId && visibleIds.has(c.parentChatId))),
+    [filteredChats, visibleIds],
+  )
+
+  // Track which parent chats are collapsed. Default: expanded.
+  const [collapsedChatIds, setCollapsedChatIds] = useState<Set<string>>(new Set())
+  const toggleChatCollapsed = useCallback((id: string) => {
+    setCollapsedChatIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }, [])
 
   // Count chats per repository (for dropdown display)
   const repoCounts = useMemo(() => {
@@ -586,19 +616,19 @@ export function Sidebar({
           {/* Chat List */}
           <div className="flex-1 overflow-y-auto p-2 pt-0">
             <div className="space-y-1">
-              {filteredChats.map((chat) => (
-                <ChatItem
-                  key={chat.id}
-                  chat={chat}
-                  isActive={chat.id === currentChatId}
-                  collapsed={collapsed}
-                  isDeleting={deletingChatIds.has(chat.id)}
-                  isUnseen={unseenChatIds?.has(chat.id) ?? false}
-                  onSelect={() => onSelectChat(chat.id)}
-                  onDelete={() => onDeleteChat(chat.id)}
-                  onRename={(newName) => onRenameChat(chat.id, newName)}
-                />
-              ))}
+              {renderChatTree({
+                roots: rootChats,
+                childrenByParent,
+                collapsedChatIds,
+                currentChatId,
+                deletingChatIds,
+                unseenChatIds,
+                sidebarCollapsed: collapsed,
+                onToggleCollapsed: toggleChatCollapsed,
+                onSelectChat,
+                onDeleteChat,
+                onRenameChat,
+              })}
             </div>
           </div>
         </>
@@ -913,18 +943,69 @@ function UserMenu({ user, onOpenSettings, onOpenApiReference, onOpenHelp, collap
 // Chat Item Component (Desktop)
 // =============================================================================
 
+// Recursively render a flat list of chats as a tree of ChatItem components.
+// Root chats come first; children are appended in their original (sort-preserved)
+// order when their parent is expanded.
+interface RenderChatTreeArgs {
+  roots: Chat[]
+  childrenByParent: Map<string, Chat[]>
+  collapsedChatIds: Set<string>
+  currentChatId: string | null
+  deletingChatIds: Set<string>
+  unseenChatIds?: Set<string>
+  sidebarCollapsed: boolean
+  onToggleCollapsed: (id: string) => void
+  onSelectChat: (id: string) => void
+  onDeleteChat: (id: string) => void
+  onRenameChat: (id: string, newName: string) => void
+}
+
+function renderChatTree(args: RenderChatTreeArgs): React.ReactNode[] {
+  const out: React.ReactNode[] = []
+  const walk = (chat: Chat, depth: number) => {
+    const children = args.childrenByParent.get(chat.id) ?? []
+    const isExpanded = !args.collapsedChatIds.has(chat.id)
+    out.push(
+      <ChatItem
+        key={chat.id}
+        chat={chat}
+        isActive={chat.id === args.currentChatId}
+        collapsed={args.sidebarCollapsed}
+        isDeleting={args.deletingChatIds.has(chat.id)}
+        isUnseen={args.unseenChatIds?.has(chat.id) ?? false}
+        depth={depth}
+        hasChildren={children.length > 0}
+        isExpanded={isExpanded}
+        onToggleExpanded={() => args.onToggleCollapsed(chat.id)}
+        onSelect={() => args.onSelectChat(chat.id)}
+        onDelete={() => args.onDeleteChat(chat.id)}
+        onRename={(newName) => args.onRenameChat(chat.id, newName)}
+      />
+    )
+    if (isExpanded) {
+      for (const c of children) walk(c, depth + 1)
+    }
+  }
+  for (const root of args.roots) walk(root, 0)
+  return out
+}
+
 interface ChatItemProps {
   chat: Chat
   isActive: boolean
   collapsed: boolean
   isDeleting: boolean
   isUnseen: boolean
+  depth?: number
+  hasChildren?: boolean
+  isExpanded?: boolean
+  onToggleExpanded?: () => void
   onSelect: () => void
   onDelete: () => void
   onRename: (newName: string) => void
 }
 
-function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, onSelect, onDelete, onRename }: ChatItemProps) {
+function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, depth = 0, hasChildren = false, isExpanded = true, onToggleExpanded, onSelect, onDelete, onRename }: ChatItemProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState("")
@@ -990,6 +1071,8 @@ function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, onSelect, o
     )
   }
 
+  const indentPx = collapsed ? 0 : depth * 12
+
   return (
     <div
       className={cn(
@@ -1002,10 +1085,25 @@ function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, onSelect, o
           ? "bg-accent text-accent-foreground"
           : "hover:bg-accent/50 text-sidebar-foreground")
       )}
+      style={indentPx ? { paddingLeft: `calc(0.5rem + ${indentPx}px)` } : undefined}
       onClick={isDeleting ? undefined : onSelect}
     >
       {!collapsed && (
         <>
+          {hasChildren ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleExpanded?.()
+              }}
+              className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-muted-foreground hover:text-foreground rounded-sm"
+              aria-label={isExpanded ? "Collapse children" : "Expand children"}
+            >
+              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </button>
+          ) : (
+            <div className="h-4 w-4 flex-shrink-0" />
+          )}
           <div className="flex-1 min-w-0">
             <div className="text-sm truncate">{displayName}</div>
           </div>

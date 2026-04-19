@@ -317,6 +317,15 @@ export default function HomePage() {
   }, [session, isHydrated, sendMessage])
 
   // Handler for slash commands - open the corresponding git dialog
+  // Start a new chat off the current chat's branch. Defined before
+  // handleSlashCommand so "/branch" can call it.
+  const canBranch = !!(currentChat?.branch && currentChat.repo !== NEW_REPOSITORY)
+  const handleBranchChat = useCallback(() => {
+    if (!currentChat?.branch || currentChat.repo === NEW_REPOSITORY) return
+    startNewChat(currentChat.repo, currentChat.branch, currentChat.id)
+    if (currentPage !== "chat") handleNavigate("chat")
+  }, [currentChat, startNewChat, currentPage])
+
   const handleSlashCommand = useCallback((command: SlashCommandType) => {
     switch (command) {
       case "merge":
@@ -331,8 +340,11 @@ export default function HomePage() {
       case "squash":
         gitDialogs.setSquashOpen(true)
         break
+      case "branch":
+        handleBranchChat()
+        break
     }
-  }, [gitDialogs])
+  }, [gitDialogs, handleBranchChat])
 
   // Palette handlers
   const handlePaletteSelectRepo = useCallback((repo: GitHubRepo) => {
@@ -351,15 +363,6 @@ export default function HomePage() {
   const handleRunCommand = useCallback((command: string) => {
     handleSlashCommand(command as SlashCommandType)
   }, [handleSlashCommand])
-
-  // Start a new chat off the current chat's branch (only available when the
-  // current chat has a branch that can be forked from).
-  const canBranch = !!(currentChat?.branch && currentChat.repo !== NEW_REPOSITORY)
-  const handleBranchChat = useCallback(() => {
-    if (!currentChat?.branch || currentChat.repo === NEW_REPOSITORY) return
-    startNewChat(currentChat.repo, currentChat.branch)
-    if (currentPage !== "chat") handleNavigate("chat")
-  }, [currentChat, startNewChat, currentPage])
 
   // Open the current chat's branch on GitHub (available once the branch is pushed).
   const githubBranchUrl =

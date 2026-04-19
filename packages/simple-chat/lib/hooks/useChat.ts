@@ -126,7 +126,11 @@ export function useChat() {
   // Chat Operations
   // =============================================================================
 
-  const startNewChat = useCallback((repo: string = NEW_REPOSITORY, baseBranch: string = "main") => {
+  const startNewChat = useCallback((
+    repo: string = NEW_REPOSITORY,
+    baseBranch: string = "main",
+    parentChatId?: string,
+  ) => {
     const chat: Chat = {
       id: nanoid(),
       repo,
@@ -139,6 +143,7 @@ export function useChat() {
       updatedAt: Date.now(),
       displayName: null,
       status: "pending",
+      ...(parentChatId && { parentChatId }),
     }
 
     const newState = createChat(chat)

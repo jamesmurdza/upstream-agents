@@ -36,6 +36,11 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     description: "Squash commits on current branch",
     icon: "GitCommitVertical",
   },
+  {
+    name: "branch",
+    description: "Branch chat from current branch",
+    icon: "GitBranchPlus",
+  },
 ]
 
 /**
