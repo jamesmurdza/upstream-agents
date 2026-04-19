@@ -71,7 +71,10 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
     ? hasCredentialsForModel(selectedModelConfig, credentialFlags, currentAgent)
     : true
 
-  const isRunning = chat?.status === "running"
+  // Treat the chat as running while it has queued messages too, so the UI
+  // doesn't flicker between ready and running as the queue drains.
+  const hasQueued = (chat?.queuedMessages?.length ?? 0) > 0
+  const isRunning = chat?.status === "running" || hasQueued
   const isCreating = chat?.status === "creating"
   const hasContent = input.trim() || pendingFiles.length > 0
   // When the agent is running, text-only messages are queued for later dispatch.
