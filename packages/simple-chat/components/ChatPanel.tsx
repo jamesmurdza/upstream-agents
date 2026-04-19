@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
-import { ArrowUp, Square, ChevronDown, Github, Key, X, Paperclip, Settings as SettingsIcon } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, Github, Key, X, Paperclip, Settings as SettingsIcon, Trash2, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat, Settings, Agent, ModelOption, PendingFile } from "@/lib/types"
 import { nanoid } from "nanoid"
@@ -27,10 +27,12 @@ interface ChatPanelProps {
   onOpenSettings?: (highlightKey?: HighlightKey) => void
   onSlashCommand?: (command: SlashCommandType) => void
   onRequireSignIn?: () => void
+  onDeleteChat?: () => void
+  onOpenHelp?: () => void
   isMobile?: boolean
 }
 
-export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, isMobile = false }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, isMobile = false }: ChatPanelProps) {
   const [input, setInput] = useState("")
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
@@ -397,7 +399,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
             {chat.queuedMessages.map((m) => (
               <div
                 key={m.id}
-                className="flex items-center gap-2 rounded-md bg-muted/50 px-2 py-1.5"
+                className="flex items-center gap-2 py-0.5"
               >
                 <span className="flex-1 min-w-0 truncate text-sm text-foreground">{m.content}</span>
                 {onRemoveQueuedMessage && (
@@ -775,23 +777,39 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
               className="text-sm font-medium text-foreground bg-transparent outline-none border-b border-primary"
             />
           ) : (
-            <div className="relative flex items-center gap-1" ref={titleMenuRef}>
-              <h1
-                onClick={startEditingTitle}
-                className="text-sm font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
-                title="Click to rename"
-              >
-                {chatTitle}
-              </h1>
+            <div className="relative" ref={titleMenuRef}>
               <button
                 onClick={() => setTitleMenuOpen((v) => !v)}
-                className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-foreground hover:bg-accent transition-colors cursor-pointer"
                 aria-label="Chat menu"
               >
-                <ChevronDown className="h-3.5 w-3.5" />
+                <span>{chatTitle}</span>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
               {titleMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 min-w-[160px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
+                <div className="absolute left-0 top-full mt-1 min-w-[180px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
+                  <button
+                    onClick={() => {
+                      setTitleMenuOpen(false)
+                      startEditingTitle()
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
+                  >
+                    <SettingsIcon className="h-3.5 w-3.5 opacity-0" />
+                    Rename
+                  </button>
+                  {githubBranchUrl && (
+                    <button
+                      onClick={() => {
+                        setTitleMenuOpen(false)
+                        window.open(githubBranchUrl, "_blank", "noopener,noreferrer")
+                      }}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
+                    >
+                      <Github className="h-3.5 w-3.5" />
+                      Open in GitHub
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setTitleMenuOpen(false)
@@ -802,21 +820,35 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
                     <SettingsIcon className="h-3.5 w-3.5" />
                     Settings
                   </button>
+                  {onDeleteChat && (
+                    <>
+                      <div className="my-1 border-t border-border" />
+                      <button
+                        onClick={() => {
+                          setTitleMenuOpen(false)
+                          onDeleteChat()
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left text-destructive cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
           )}
           <div className="flex items-center gap-1">
-            {githubBranchUrl && (
-              <a
-                href={githubBranchUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+            {onOpenHelp && (
+              <button
+                onClick={onOpenHelp}
                 className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                title="View branch on GitHub"
+                title="Help"
+                aria-label="Help"
               >
-                <Github className="h-4 w-4" />
-              </a>
+                <HelpCircle className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>

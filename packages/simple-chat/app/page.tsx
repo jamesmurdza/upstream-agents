@@ -9,6 +9,7 @@ import { SDKContent } from "@/components/SDKContent"
 import { RepoPickerModal } from "@/components/modals/RepoPickerModal"
 import { SettingsModal, type HighlightKey } from "@/components/modals/SettingsModal"
 import { SignInModal } from "@/components/modals/SignInModal"
+import { HelpModal } from "@/components/modals/HelpModal"
 import { MergeDialog, RebaseDialog, PRDialog, SquashDialog, useGitDialogs } from "@/components/modals/GitDialogs"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
 import { PaletteProvider } from "@/components/search-palette"
@@ -82,6 +83,7 @@ export default function HomePage() {
   const [sidebarWidth, setSidebarWidth] = useState(260)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [signInModalOpen, setSignInModalOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState<"chat" | "sdk">(() => {
     if (typeof window === "undefined") return "chat"
     return window.location.pathname === "/sdk" ? "sdk" : "chat"
@@ -432,6 +434,8 @@ export default function HomePage() {
             onOpenSettings={handleOpenSettings}
             onSlashCommand={handleSlashCommand}
             onRequireSignIn={!session ? () => setSignInModalOpen(true) : undefined}
+            onDeleteChat={displayCurrentChatId ? () => removeChat(displayCurrentChatId) : undefined}
+            onOpenHelp={() => setHelpOpen(true)}
             isMobile={isMobile}
           />
         ) : (
@@ -491,6 +495,12 @@ export default function HomePage() {
       <SignInModal
         open={signInModalOpen}
         onClose={() => setSignInModalOpen(false)}
+        isMobile={isMobile}
+      />
+
+      <HelpModal
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
         isMobile={isMobile}
       />
     </div>
