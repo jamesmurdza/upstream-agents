@@ -12,6 +12,7 @@ import { MessageBubble } from "./MessageBubble"
 import { AgentIcon } from "./icons/agent-icons"
 import { MobileSelect } from "./ui/MobileBottomSheet"
 import { SlashCommandMenu, type SlashCommandType } from "./SlashCommandMenu"
+import { Input } from "./ui/input"
 
 import type { HighlightKey } from "./modals/SettingsModal"
 
@@ -822,7 +823,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
       {!isMobile && (
         <div className="flex items-center justify-between pt-3" style={{ paddingLeft: "1.625rem", paddingRight: "1rem" }}>
           {isEditingTitle ? (
-            <input
+            <Input
               ref={titleInputRef}
               type="text"
               value={editTitleValue}
@@ -832,7 +833,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
                 if (e.key === "Escape") cancelEditingTitle()
               }}
               onBlur={saveTitle}
-              className="text-sm font-medium text-foreground bg-transparent outline-none border-b border-primary"
+              className="w-56 font-medium"
             />
           ) : (
             <div className="group/title relative flex items-center gap-[2px]" ref={titleMenuRef}>
