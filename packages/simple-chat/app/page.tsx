@@ -329,6 +329,7 @@ export default function HomePage() {
       onSelectRepo={handlePaletteSelectRepo}
       onSelectBranch={handlePaletteSelectBranch}
       onRunCommand={handleRunCommand}
+      onNewChat={handleNewChat}
       chatIds={displayChats.map((c) => c.id)}
       currentChatId={displayCurrentChatId}
       onSelectChat={handleSelectChat}

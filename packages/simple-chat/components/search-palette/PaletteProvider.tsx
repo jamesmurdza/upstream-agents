@@ -35,6 +35,7 @@ interface PaletteProviderProps {
   onSelectRepo: (repo: GitHubRepo) => void
   onSelectBranch: (repo: GitHubRepo, branch: GitHubBranch) => void
   onRunCommand: (command: string) => void
+  onNewChat: () => void
   // For Alt+Up/Down chat navigation
   chatIds: string[]
   currentChatId: string | null
@@ -50,6 +51,7 @@ export function PaletteProvider({
   onSelectRepo,
   onSelectBranch,
   onRunCommand,
+  onNewChat,
   chatIds,
   currentChatId,
   onSelectChat,
@@ -134,6 +136,7 @@ export function PaletteProvider({
         open={commandOpen}
         onOpenChange={setCommandOpen}
         onRunCommand={onRunCommand}
+        onNewChat={onNewChat}
       />
     </PaletteContext.Provider>
   )

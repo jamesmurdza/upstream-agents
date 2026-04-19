@@ -1,6 +1,6 @@
 "use client"
 
-import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical } from "lucide-react"
+import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, Plus } from "lucide-react"
 import {
   CommandDialog,
   CommandInput,
@@ -23,15 +23,22 @@ interface CommandPaletteProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onRunCommand: (command: string) => void
+  onNewChat: () => void
 }
 
 export function CommandPalette({
   open,
   onOpenChange,
   onRunCommand,
+  onNewChat,
 }: CommandPaletteProps) {
   const handleSelect = (command: string) => {
     onRunCommand(command)
+    onOpenChange(false)
+  }
+
+  const handleNewChat = () => {
+    onNewChat()
     onOpenChange(false)
   }
 
@@ -45,6 +52,12 @@ export function CommandPalette({
       <CommandInput placeholder="Type a command..." />
       <CommandList>
         <CommandEmpty>No commands found.</CommandEmpty>
+        <CommandGroup heading="Chat">
+          <CommandItem value="new chat" onSelect={handleNewChat}>
+            <Plus className="mr-2 h-4 w-4 text-muted-foreground" />
+            <span>New Chat</span>
+          </CommandItem>
+        </CommandGroup>
         <CommandGroup heading="Git Commands">
           {SLASH_COMMANDS.map((cmd) => {
             const Icon = iconMap[cmd.icon]
