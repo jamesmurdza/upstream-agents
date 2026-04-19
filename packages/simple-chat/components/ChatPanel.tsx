@@ -925,7 +925,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
         ref={messagesContainerRef}
         onScroll={handleScroll}
         className={cn(
-          "flex-1 overflow-y-auto mobile-scroll",
+          "flex-1 overflow-y-auto mobile-scroll scrollbar-auto-hide",
           isMobile ? "py-3 px-[22px]" : "py-4 px-[26px]"
         )}
       >
