@@ -428,7 +428,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
                   isMobile ? "px-3 py-1" : "px-4 py-1"
                 )}
               >
-                <span className="flex-1 min-w-0 truncate text-xs text-muted-foreground">{m.content}</span>
+                <span className="flex-1 min-w-0 truncate text-[11px] text-muted-foreground">{m.content}</span>
                 {onRemoveQueuedMessage && (
                   <button
                     onClick={() => onRemoveQueuedMessage(m.id)}
