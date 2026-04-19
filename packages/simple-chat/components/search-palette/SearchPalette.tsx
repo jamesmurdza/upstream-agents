@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/command"
 import { addRecentItem, getRecentItems, type RecentItem } from "@upstream/common"
 import type { GitHubRepo, GitHubBranch } from "@/lib/github"
+import { NEW_REPOSITORY } from "@/lib/types"
 
 interface Chat {
   id: string
@@ -145,7 +146,9 @@ export function SearchPalette({
                 <MessageSquare className="mr-2 h-4 w-4 text-muted-foreground" />
                 <span>
                   {chat.displayName ?? "Untitled Chat"}
-                  <span className="text-muted-foreground text-xs ml-2">({chat.repo})</span>
+                  {chat.repo !== NEW_REPOSITORY && (
+                    <span className="text-muted-foreground text-xs ml-2">({chat.repo})</span>
+                  )}
                 </span>
               </CommandItem>
             ))}
