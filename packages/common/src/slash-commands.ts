@@ -18,7 +18,7 @@ export interface SlashCommand {
 export const SLASH_COMMANDS: SlashCommand[] = [
   {
     name: "merge",
-    description: "Merge branches",
+    description: "Merge branch",
     icon: "GitMerge",
   },
   {
