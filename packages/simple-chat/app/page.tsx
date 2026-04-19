@@ -91,15 +91,18 @@ export default function HomePage() {
   const [deleteConfirmChatId, setDeleteConfirmChatId] = useState<string | null>(null)
   const [collapsedChatIds, setCollapsedChatIds] = useState<Set<string>>(new Set())
   const [previewWidth, setPreviewWidth] = useState(520)
-  const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null)
-  const [previewOpen, setPreviewOpen] = useState(false)
   const [isResizingPreview, setIsResizingPreview] = useState(false)
   const [availableServers, setAvailableServers] = useState<Array<{ port: number; url: string }>>([])
-  // Helper that replaces the item AND ensures the pane is open.
+  // Preview state lives on each Chat, not globally — switching chats shows
+  // whatever that chat last had open (or hides the pane if none).
+  const previewItem = (currentChat?.previewItem ?? null) as PreviewItem | null
+  const previewOpen = previewItem !== null
   const openPreview = useCallback((next: PreviewItem) => {
-    setPreviewItem(next)
-    setPreviewOpen(true)
-  }, [])
+    updateCurrentChat({ previewItem: next })
+  }, [updateCurrentChat])
+  const closePreview = useCallback(() => {
+    updateCurrentChat({ previewItem: undefined })
+  }, [updateCurrentChat])
   const resizingPreview = useRef(false)
   const startPreviewResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -733,10 +736,7 @@ export default function HomePage() {
                   className="flex-shrink-0"
                   item={previewItem}
                   sandboxId={currentChat?.sandboxId ?? null}
-                  onClose={() => {
-                    setPreviewOpen(false)
-                    setPreviewItem(null)
-                  }}
+                  onClose={closePreview}
                 />
               </>
             )}
