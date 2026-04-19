@@ -5,7 +5,7 @@ import { useSession, signIn, signOut } from "next-auth/react"
 import { Menu } from "lucide-react"
 import { Sidebar, ALL_REPOSITORIES, NO_REPOSITORY } from "@/components/Sidebar"
 import { ChatPanel } from "@/components/ChatPanel"
-import { PreviewView } from "@/components/PreviewView"
+import { PreviewView, type PreviewItem } from "@/components/PreviewView"
 import { SDKContent } from "@/components/SDKContent"
 import { RepoPickerModal } from "@/components/modals/RepoPickerModal"
 import { SettingsModal, type HighlightKey } from "@/components/modals/SettingsModal"
@@ -91,6 +91,8 @@ export default function HomePage() {
   const [deleteConfirmChatId, setDeleteConfirmChatId] = useState<string | null>(null)
   const [collapsedChatIds, setCollapsedChatIds] = useState<Set<string>>(new Set())
   const [previewWidth, setPreviewWidth] = useState(520)
+  const [previewItem, setPreviewItem] = useState<PreviewItem | null>(null)
+  const [availableServers, setAvailableServers] = useState<Array<{ port: number; url: string }>>([])
   const resizingPreview = useRef(false)
   const startPreviewResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -644,6 +646,16 @@ export default function HomePage() {
                 <PreviewView
                   style={{ width: previewWidth }}
                   className="flex-shrink-0"
+                  item={previewItem}
+                  availableServers={availableServers}
+                  terminalAvailable={!!currentChat?.sandboxId}
+                  onOpenTerminal={() => {
+                    if (currentChat?.sandboxId) {
+                      setPreviewItem({ type: "terminal", id: currentChat.sandboxId })
+                    }
+                  }}
+                  onOpenServer={(port, url) => setPreviewItem({ type: "server", port, url })}
+                  onClose={() => setPreviewItem(null)}
                 />
               </>
             )}
