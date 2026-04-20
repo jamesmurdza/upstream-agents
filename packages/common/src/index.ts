@@ -166,3 +166,11 @@ export {
   addRecentItem,
   clearRecentItems,
 } from "./search-palette"
+
+// Credentials
+export {
+  // Types
+  type Credentials,
+  // Functions
+  getEnvForModel,
+} from "./credentials"
