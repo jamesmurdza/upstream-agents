@@ -92,9 +92,11 @@ interface BaseDialogProps {
   icon: React.ReactNode
   children: React.ReactNode
   isMobile?: boolean
+  /** When true, content area allows overflow (for dropdowns) */
+  allowOverflow?: boolean
 }
 
-function BaseDialog({ open, onClose, title, icon, children, isMobile = false }: BaseDialogProps) {
+function BaseDialog({ open, onClose, title, icon, children, isMobile = false, allowOverflow = false }: BaseDialogProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [dragY, setDragY] = useState(0)
   const [startY, setStartY] = useState(0)
@@ -158,8 +160,10 @@ function BaseDialog({ open, onClose, title, icon, children, isMobile = false }: 
           />
 
           <div ref={contentRef} className={cn(
-            "flex-1 overflow-y-auto",
-            isMobile ? "p-4" : "p-4"
+            "flex-1",
+            isMobile ? "p-4" : "p-4",
+            // Allow overflow when dropdowns are open so they're not clipped
+            allowOverflow ? "overflow-visible" : "overflow-y-auto"
           )}>
             {children}
           </div>
@@ -182,11 +186,18 @@ interface BranchSelectorProps {
   isMobile?: boolean
   /** Transform a branch name into a display label (e.g. resolve to chat name). */
   getLabel?: (branch: string) => string
+  /** Called when dropdown open state changes */
+  onOpenChange?: (open: boolean) => void
 }
 
-function BranchSelector({ value, onChange, branches, loading, placeholder = "Select chat", isMobile = false, getLabel }: BranchSelectorProps) {
+function BranchSelector({ value, onChange, branches, loading, placeholder = "Select chat", isMobile = false, getLabel, onOpenChange }: BranchSelectorProps) {
   const label = (b: string) => (getLabel ? getLabel(b) : b)
-  const [open, setOpen] = useState(false)
+  const [open, setOpenState] = useState(false)
+
+  const setOpen = (newOpen: boolean) => {
+    setOpenState(newOpen)
+    onOpenChange?.(newOpen)
+  }
 
   if (loading) {
     return (
@@ -254,6 +265,8 @@ interface MergeDialogProps {
 }
 
 export function MergeDialog({ open, onClose, gitDialogs, chat, isMobile = false }: MergeDialogProps) {
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+
   return (
     <BaseDialog
       open={open}
@@ -261,6 +274,7 @@ export function MergeDialog({ open, onClose, gitDialogs, chat, isMobile = false 
       title="Merge Branch"
       icon={<GitMerge className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
       isMobile={isMobile}
+      allowOverflow={dropdownOpen}
     >
       <div className={cn("space-y-5")}>
         <div>
@@ -288,6 +302,7 @@ export function MergeDialog({ open, onClose, gitDialogs, chat, isMobile = false 
             loading={gitDialogs.branchesLoading}
             isMobile={isMobile}
             getLabel={gitDialogs.branchLabel}
+            onOpenChange={setDropdownOpen}
           />
         </div>
 
@@ -347,6 +362,8 @@ interface RebaseDialogProps {
 }
 
 export function RebaseDialog({ open, onClose, gitDialogs, chat, isMobile = false }: RebaseDialogProps) {
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+
   return (
     <BaseDialog
       open={open}
@@ -354,6 +371,7 @@ export function RebaseDialog({ open, onClose, gitDialogs, chat, isMobile = false
       title="Rebase Branch"
       icon={<GitBranch className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
       isMobile={isMobile}
+      allowOverflow={dropdownOpen}
     >
       <div className={cn("space-y-5")}>
         <div>
@@ -381,6 +399,7 @@ export function RebaseDialog({ open, onClose, gitDialogs, chat, isMobile = false
             loading={gitDialogs.branchesLoading}
             isMobile={isMobile}
             getLabel={gitDialogs.branchLabel}
+            onOpenChange={setDropdownOpen}
           />
         </div>
 
@@ -441,6 +460,7 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
   const isGitHubRepo = chat?.repo && chat.repo !== "__new__"
   const [descriptionType, setDescriptionType] = useState<PRDescriptionType>("short")
   const [descriptionDropdownOpen, setDescriptionDropdownOpen] = useState(false)
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false)
 
   return (
     <BaseDialog
@@ -449,6 +469,7 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
       title="Create Pull Request"
       icon={<GitPullRequest className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
       isMobile={isMobile}
+      allowOverflow={descriptionDropdownOpen || branchDropdownOpen}
     >
       <div className={cn("space-y-5")}>
         {!isGitHubRepo ? (
@@ -484,6 +505,7 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
                 branches={gitDialogs.remoteBranches}
                 loading={gitDialogs.branchesLoading}
                 isMobile={isMobile}
+                onOpenChange={setBranchDropdownOpen}
               />
             </div>
 

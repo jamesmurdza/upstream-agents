@@ -466,8 +466,10 @@ export function RepoPickerModal({ open, onClose, onSelect, isMobile = false, mod
           <div
             ref={contentRef}
             className={cn(
-              "flex-1 overflow-y-auto mobile-scroll",
-              isMobile ? "max-h-none" : "max-h-80"
+              "flex-1 mobile-scroll",
+              isMobile ? "max-h-none" : "max-h-80",
+              // Allow overflow when branch dropdown is open so it's not clipped
+              showBranchDropdown ? "overflow-visible" : "overflow-y-auto"
             )}
           >
             {error && activeTab !== "create" && (
