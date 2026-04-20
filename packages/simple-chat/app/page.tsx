@@ -282,6 +282,13 @@ export default function HomePage() {
       )
       return target?.displayName ?? null
     },
+    getTargetSandboxId: (branch) => {
+      if (!currentChat) return null
+      const target = chats.find(
+        (c) => c.id !== currentChat.id && c.repo === currentChat.repo && c.branch === branch
+      )
+      return target?.sandboxId ?? null
+    },
   })
 
   // Close mobile sidebar when switching to desktop
