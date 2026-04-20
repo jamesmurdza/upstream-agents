@@ -121,8 +121,10 @@ export { cn, formatRelativeTime } from "./utils"
 export {
   type SlashCommand,
   SLASH_COMMANDS,
+  ABORT_COMMAND,
   fuzzyMatch,
   filterSlashCommands,
+  filterSlashCommandsWithConflict,
 } from "./slash-commands"
 
 // Git operations

@@ -44,6 +44,15 @@ export const SLASH_COMMANDS: SlashCommand[] = [
 ]
 
 /**
+ * Abort command - only shown during conflict
+ */
+export const ABORT_COMMAND: SlashCommand = {
+  name: "abort",
+  description: "Abort merge or rebase",
+  icon: "XCircle",
+}
+
+/**
  * Simple fuzzy match for filtering commands
  * Returns true if all characters in the filter appear in order in the target
  */
@@ -75,4 +84,42 @@ export function filterSlashCommands(input: string): SlashCommand[] {
   }
 
   return SLASH_COMMANDS.filter((cmd) => fuzzyMatch(filter, cmd.name))
+}
+
+/**
+ * Commands to hide during an active conflict
+ */
+const CONFLICT_BLOCKED_COMMANDS = ["merge", "rebase", "pr"]
+
+/**
+ * Filter slash commands based on user input and conflict state
+ * @param input - The current input (with or without leading slash)
+ * @param inConflict - Whether we're currently in a merge/rebase conflict
+ * @returns Filtered list of matching commands
+ */
+export function filterSlashCommandsWithConflict(
+  input: string,
+  inConflict: boolean
+): SlashCommand[] {
+  // Remove leading slash if present
+  const filter = input.startsWith("/") ? input.slice(1) : input
+
+  // Build command list based on conflict state
+  let commands: SlashCommand[]
+  if (inConflict) {
+    // During conflict: show abort, hide merge/rebase/pr
+    commands = [
+      ABORT_COMMAND,
+      ...SLASH_COMMANDS.filter((cmd) => !CONFLICT_BLOCKED_COMMANDS.includes(cmd.name)),
+    ]
+  } else {
+    // Normal state: show all except abort
+    commands = SLASH_COMMANDS
+  }
+
+  if (!filter) {
+    return commands
+  }
+
+  return commands.filter((cmd) => fuzzyMatch(filter, cmd.name))
 }

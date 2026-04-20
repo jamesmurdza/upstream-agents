@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
-import { ArrowUp, Square, ChevronDown, Github, Key, X, Paperclip, Settings as SettingsIcon, Trash2, HelpCircle, Pencil } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, Github, Key, X, Paperclip, Settings as SettingsIcon, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat, Settings, Agent, ModelOption, PendingFile } from "@/lib/types"
 import { nanoid } from "nanoid"
 import { NEW_REPOSITORY, agentModels, agentLabels, getModelLabel, hasCredentialsForModel } from "@/lib/types"
 import { getCredentialFlags } from "@/lib/storage"
-import { filterSlashCommands } from "@upstream/common"
+import { filterSlashCommandsWithConflict, type RebaseConflictState } from "@upstream/common"
 import { MessageBubble } from "./MessageBubble"
 import { AgentIcon } from "./icons/agent-icons"
 import { MobileSelect } from "./ui/MobileBottomSheet"
@@ -33,9 +33,15 @@ interface ChatPanelProps {
   onOpenHelp?: () => void
   onOpenFile?: (filePath: string) => void
   isMobile?: boolean
+  /** Conflict state for merge/rebase */
+  rebaseConflict?: RebaseConflictState
+  /** Callback to abort the current conflict */
+  onAbortConflict?: () => void
+  /** Whether an action is loading (e.g., aborting) */
+  conflictActionLoading?: boolean
 }
 
-export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, isMobile = false }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false }: ChatPanelProps) {
   const [input, setInput] = useState("")
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
@@ -51,6 +57,9 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
   const [editTitleValue, setEditTitleValue] = useState("")
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
   const titleMenuRef = useRef<HTMLDivElement>(null)
+  // Conflict menu state
+  const [conflictMenuOpen, setConflictMenuOpen] = useState(false)
+  const conflictMenuRef = useRef<HTMLDivElement>(null)
   // File upload state
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const [isDraggingOver, setIsDraggingOver] = useState(false)
@@ -73,6 +82,10 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
   const hasRequiredCredentials = selectedModelConfig
     ? hasCredentialsForModel(selectedModelConfig, credentialFlags, currentAgent)
     : true
+
+  // Conflict state
+  const inConflict = !!(rebaseConflict?.inRebase || rebaseConflict?.inMerge)
+  const isMergeConflict = rebaseConflict?.inMerge ?? false
 
   // Treat the chat as running while it has (non-paused) queued messages too,
   // so the UI doesn't flicker between ready and running as the queue drains.
@@ -162,12 +175,24 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
   // Get filtered commands for keyboard navigation. When there's no linked repo,
   // the slash menu swaps in a single "Create repository" entry.
   const filteredCommands = useMemo(() => {
-    if (hasLinkedRepo) return filterSlashCommands(input)
+    if (hasLinkedRepo) return filterSlashCommandsWithConflict(input, inConflict)
     const filter = input.startsWith("/") ? input.slice(1).toLowerCase() : input.toLowerCase()
     const repoCmd = { name: "repo", description: "Create repository", icon: "FolderGit2" }
     if (!filter || repoCmd.name.startsWith(filter)) return [repoCmd]
     return []
-  }, [input, hasLinkedRepo])
+  }, [input, hasLinkedRepo, inConflict])
+
+  // Close conflict menu on outside click
+  useEffect(() => {
+    if (!conflictMenuOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (conflictMenuRef.current && !conflictMenuRef.current.contains(e.target as Node)) {
+        setConflictMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [conflictMenuOpen])
 
   // Handle slash command selection
   const handleSlashCommandSelect = useCallback((command: SlashCommandType) => {
@@ -178,8 +203,12 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
       onChangeRepo?.()
       return
     }
+    if (command === "abort") {
+      onAbortConflict?.()
+      return
+    }
     onSlashCommand?.(command)
-  }, [onSlashCommand, onChangeRepo])
+  }, [onSlashCommand, onChangeRepo, onAbortConflict])
 
   const handleSend = () => {
     if (!canSend) return
@@ -469,6 +498,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
                 selectedIndex={slashSelectedIndex}
                 onSelectedIndexChange={setSlashSelectedIndex}
                 hasLinkedRepo={hasLinkedRepo}
+                inConflict={inConflict}
                 isMobile={isMobile}
               />
             )}
@@ -823,23 +853,77 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
       {/* Header with title - hide on mobile since we have mobile header in page.tsx */}
       {!isMobile && (
         <div className="flex items-center justify-between pt-3" style={{ paddingLeft: "1.625rem", paddingRight: "1rem" }}>
-          {isEditingTitle ? (
-            <Input
-              ref={titleInputRef}
-              type="text"
-              value={editTitleValue}
-              onChange={(e) => setEditTitleValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveTitle()
-                if (e.key === "Escape") cancelEditingTitle()
-              }}
-              onBlur={saveTitle}
-              className="w-56 font-medium"
-            />
-          ) : (
-            <div className="group/title relative flex items-center gap-[2px]" ref={titleMenuRef}>
-              <button
-                onClick={startEditingTitle}
+          <div className="flex items-center gap-2">
+            {/* Conflict indicator */}
+            {inConflict && (
+              <div className="relative" ref={conflictMenuRef}>
+                <button
+                  onClick={() => setConflictMenuOpen((v) => !v)}
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                  title={isMergeConflict ? "Merge conflict" : "Rebase conflict"}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                </button>
+                {conflictMenuOpen && (
+                  <div className="absolute left-0 top-full mt-1 min-w-[220px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
+                    <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
+                      {isMergeConflict ? "Merge" : "Rebase"} conflict in progress
+                    </div>
+                    {rebaseConflict?.conflictedFiles && rebaseConflict.conflictedFiles.length > 0 && (
+                      <div className="px-3 py-2 border-b border-border">
+                        <div className="text-xs text-muted-foreground mb-1">Conflicted files:</div>
+                        <div className="space-y-0.5">
+                          {rebaseConflict.conflictedFiles.slice(0, 5).map((file) => (
+                            <div key={file} className="text-xs text-foreground truncate font-mono">
+                              {file}
+                            </div>
+                          ))}
+                          {rebaseConflict.conflictedFiles.length > 5 && (
+                            <div className="text-xs text-muted-foreground">
+                              +{rebaseConflict.conflictedFiles.length - 5} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setConflictMenuOpen(false)
+                        onAbortConflict?.()
+                      }}
+                      disabled={conflictActionLoading}
+                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left text-destructive cursor-pointer disabled:opacity-50"
+                    >
+                      {conflictActionLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <X className="h-3.5 w-3.5" />
+                      )}
+                      {isMergeConflict ? "Abort Merge" : "Abort Rebase"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Title */}
+            {isEditingTitle ? (
+              <Input
+                ref={titleInputRef}
+                type="text"
+                value={editTitleValue}
+                onChange={(e) => setEditTitleValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveTitle()
+                  if (e.key === "Escape") cancelEditingTitle()
+                }}
+                onBlur={saveTitle}
+                className="w-56 font-medium"
+              />
+            ) : (
+              <div className="group/title relative flex items-center gap-[2px]" ref={titleMenuRef}>
+                <button
+                  onClick={startEditingTitle}
                 className="flex h-7 items-center text-sm font-medium text-foreground px-2 rounded-l-md rounded-r-none hover:bg-accent group-hover/title:bg-accent transition-colors cursor-pointer"
                 title="Click to rename"
               >
@@ -904,7 +988,33 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
                 </div>
               )}
             </div>
-          )}
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile conflict bar */}
+      {isMobile && inConflict && (
+        <div className="flex items-center justify-between px-4 py-2 text-xs bg-amber-500/10 border-b border-amber-500/20">
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span>{isMergeConflict ? "Merge" : "Rebase"} conflict</span>
+            {rebaseConflict?.conflictedFiles && rebaseConflict.conflictedFiles.length > 0 && (
+              <span className="text-amber-500/70">({rebaseConflict.conflictedFiles.length} files)</span>
+            )}
+          </div>
+          <button
+            onClick={onAbortConflict}
+            disabled={conflictActionLoading}
+            className="flex items-center gap-1 text-destructive hover:text-destructive/80 disabled:opacity-50"
+          >
+            {conflictActionLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <X className="h-3.5 w-3.5" />
+            )}
+            Abort
+          </button>
         </div>
       )}
 

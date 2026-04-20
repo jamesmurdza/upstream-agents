@@ -478,6 +478,9 @@ export default function HomePage() {
       case "branch":
         handleBranchChat()
         break
+      case "abort":
+        gitDialogs.handleAbortConflict()
+        break
     }
   }, [gitDialogs, handleBranchChat])
 
@@ -745,6 +748,9 @@ export default function HomePage() {
                   openPreview({ type: "file", filePath, filename })
                 }}
                 isMobile={isMobile}
+                rebaseConflict={gitDialogs.rebaseConflict}
+                onAbortConflict={gitDialogs.handleAbortConflict}
+                conflictActionLoading={gitDialogs.actionLoading}
               />
             </div>
             {!isMobile && previewOpen && (

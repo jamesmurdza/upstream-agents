@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useCallback, useMemo, useState } from "react"
-import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, FolderGit2, GitBranchPlus } from "lucide-react"
+import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, FolderGit2, GitBranchPlus, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { filterSlashCommands, type SlashCommand } from "@upstream/common"
+import { filterSlashCommands, filterSlashCommandsWithConflict, type SlashCommand } from "@upstream/common"
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   GitMerge,
@@ -12,9 +12,10 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   GitCommitVertical,
   FolderGit2,
   GitBranchPlus,
+  XCircle,
 }
 
-export type SlashCommandType = "merge" | "rebase" | "pr" | "squash" | "repo" | "branch"
+export type SlashCommandType = "merge" | "rebase" | "pr" | "squash" | "repo" | "branch" | "abort"
 
 interface SlashCommandMenuProps {
   /** The current input value (used for filtering) */
@@ -31,6 +32,8 @@ interface SlashCommandMenuProps {
   onSelectedIndexChange: (index: number) => void
   /** Whether the chat has a linked repo (git commands only show when true) */
   hasLinkedRepo?: boolean
+  /** Whether we're in a merge/rebase conflict */
+  inConflict?: boolean
   /** Mobile mode */
   isMobile?: boolean
 }
@@ -56,11 +59,12 @@ export function SlashCommandMenu({
   selectedIndex,
   onSelectedIndexChange,
   hasLinkedRepo = true,
+  inConflict = false,
   isMobile = false,
 }: SlashCommandMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const filteredCommands = hasLinkedRepo
-    ? filterSlashCommands(input)
+    ? filterSlashCommandsWithConflict(input, inConflict)
     : filterSingleCommand(input, CREATE_REPO_COMMAND)
 
   // Close menu when clicking outside
@@ -145,7 +149,7 @@ export function SlashCommandMenu({
 /**
  * Hook to manage slash command menu state and keyboard navigation
  */
-export function useSlashCommandMenu(input: string) {
+export function useSlashCommandMenu(input: string, inConflict: boolean = false) {
   const [open, setOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
 
@@ -159,7 +163,10 @@ export function useSlashCommandMenu(input: string) {
     }
   }, [input])
 
-  const filteredCommands = useMemo(() => filterSlashCommands(input), [input])
+  const filteredCommands = useMemo(
+    () => filterSlashCommandsWithConflict(input, inConflict),
+    [input, inConflict]
+  )
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, onSelect: (command: SlashCommandType) => void, onClear: () => void) => {
