@@ -131,6 +131,8 @@ export function useChat() {
     repo: string = NEW_REPOSITORY,
     baseBranch: string = "main",
     parentChatId?: string,
+    switchTo: boolean = true,
+    initialStatus: Chat["status"] = "pending",
   ) => {
     const chat: Chat = {
       id: nanoid(),
@@ -143,11 +145,11 @@ export function useChat() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       displayName: null,
-      status: "pending",
+      status: initialStatus,
       ...(parentChatId && { parentChatId }),
     }
 
-    const newState = createChat(chat)
+    const newState = createChat(chat, switchTo)
     setState(newState)
 
     return chat.id
