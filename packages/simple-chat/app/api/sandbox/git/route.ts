@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const { sandboxId, repoPath, action, targetBranch, currentBranch, repoOwner, repoApiName, squash } = body
+  const { sandboxId, repoPath, action, targetBranch, currentBranch, repoOwner, repoApiName, squash, targetSandboxId } = body
 
   if (!sandboxId || !repoPath || !action) {
     return Response.json({ error: "Missing required fields: sandboxId, repoPath, action" }, { status: 400 })
@@ -152,6 +152,14 @@ export async function POST(req: Request) {
         if (isMergingIntoActiveBranch) {
           try {
             await sandbox.git.pull(repoPath, "x-access-token", githubToken)
+          } catch {
+            // Pull may fail but GitHub merge succeeded
+          }
+        } else if (targetSandboxId) {
+          // Pull the merged changes into the target branch's sandbox
+          try {
+            const targetSandbox = await daytona.get(targetSandboxId)
+            await targetSandbox.git.pull(repoPath, "x-access-token", githubToken)
           } catch {
             // Pull may fail but GitHub merge succeeded
           }

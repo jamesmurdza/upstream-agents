@@ -24,6 +24,8 @@ export interface UseGitDialogsOptions {
   onAddMessageToBranch?: (branch: string, message: Message) => void
   /** Resolve a branch name to a chat display name for friendlier messages. */
   resolveChatName?: (branch: string) => string | null
+  /** Get the sandbox ID for a target branch (used to pull changes after merge). */
+  getTargetSandboxId?: (branch: string) => string | null
 }
 
 /** PR description format options */
@@ -721,7 +723,7 @@ export function SquashDialog({ open, onClose, gitDialogs, chat, isMobile = false
 // useGitDialogs Hook
 // ============================================================================
 
-export function useGitDialogs({ chat, onAddMessage, onAddMessageToBranch, resolveChatName }: UseGitDialogsOptions): UseGitDialogsResult {
+export function useGitDialogs({ chat, onAddMessage, onAddMessageToBranch, resolveChatName, getTargetSandboxId }: UseGitDialogsOptions): UseGitDialogsResult {
   const branchName = chat?.branch ?? ""
   const baseBranch = chat?.baseBranch ?? ""
   const sandboxId = chat?.sandboxId ?? ""
@@ -809,6 +811,9 @@ export function useGitDialogs({ chat, onAddMessage, onAddMessageToBranch, resolv
     if (!selectedBranch || !branchName || !sandboxId) return
     setActionLoading(true)
 
+    // Get the target sandbox ID so we can pull the merged changes there
+    const targetSandboxId = getTargetSandboxId?.(selectedBranch) ?? null
+
     try {
       const res = await fetch("/api/sandbox/git", {
         method: "POST",
@@ -822,6 +827,7 @@ export function useGitDialogs({ chat, onAddMessage, onAddMessageToBranch, resolv
           squash: squashMerge,
           repoOwner,
           repoApiName,
+          targetSandboxId,
         }),
       })
 
@@ -869,7 +875,7 @@ export function useGitDialogs({ chat, onAddMessage, onAddMessageToBranch, resolv
     } finally {
       setActionLoading(false)
     }
-  }, [selectedBranch, branchName, sandboxId, repoName, repoOwner, repoApiName, squashMerge, addSystemMessage])
+  }, [selectedBranch, branchName, sandboxId, repoName, repoOwner, repoApiName, squashMerge, addSystemMessage, getTargetSandboxId])
 
   // Handle rebase
   const handleRebase = useCallback(async () => {
