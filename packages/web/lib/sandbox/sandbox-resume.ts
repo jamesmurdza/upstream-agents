@@ -8,6 +8,7 @@ import type { Agent } from "@/lib/shared/types"
 import { setupClaudeHooks } from "@/lib/agents/claude-hooks"
 import { OPENCODE_PERMISSION_ENV } from "@/lib/agents/opencode-permissions"
 import { setupCodexRules } from "@/lib/agents/codex-rules"
+import { getEnvForModel } from "@upstream/common"
 
 /**
  * Error thrown when a sandbox is not found in Daytona but exists in the database.
@@ -52,113 +53,6 @@ async function getRepoEnvVars(repoId?: string): Promise<Record<string, string>> 
     console.error("[getRepoEnvVars] Failed to fetch repo env vars:", err)
     return {}
   }
-}
-
-/**
- * Determines which API key(s) to inject based on agent type and selected model.
- * Returns environment variables appropriate for the model provider.
- */
-function getEnvForModel(
-  model: string | undefined,
-  agent: Agent | undefined,
-  credentials: {
-    anthropicApiKey?: string
-    anthropicAuthToken?: string
-    openaiApiKey?: string
-    opencodeApiKey?: string
-    geminiApiKey?: string
-  }
-): Record<string, string> {
-  const env: Record<string, string> = {}
-
-  // For Claude Code agent: use API key only if not using auth token (credentials file)
-  if (agent === "claude-code" || !agent) {
-    if (!credentials.anthropicAuthToken && credentials.anthropicApiKey) {
-      env.ANTHROPIC_API_KEY = credentials.anthropicApiKey
-    }
-    return env
-  }
-
-  // For Codex agent: use OpenAI API key
-  if (agent === "codex") {
-    if (credentials.openaiApiKey) {
-      env.OPENAI_API_KEY = credentials.openaiApiKey
-    }
-    return env
-  }
-
-  // For Gemini agent: use Gemini API key
-  if (agent === "gemini") {
-    if (credentials.geminiApiKey) {
-      env.GEMINI_API_KEY = credentials.geminiApiKey
-    }
-    return env
-  }
-
-  // For Goose agent: determine API key based on model
-  // Goose uses either OpenAI or Anthropic depending on the model
-  if (agent === "goose") {
-    if (model?.includes("claude")) {
-      if (credentials.anthropicApiKey) {
-        env.ANTHROPIC_API_KEY = credentials.anthropicApiKey
-      }
-    } else {
-      // Default to OpenAI for GPT models and others
-      if (credentials.openaiApiKey) {
-        env.OPENAI_API_KEY = credentials.openaiApiKey
-      }
-    }
-    return env
-  }
-
-  // For Pi agent: determine API key based on model prefix
-  // Pi supports multiple providers (Anthropic, OpenAI, Google) via model prefix
-  if (agent === "pi") {
-    const modelPrefix = model?.split("/")[0]
-
-    if (modelPrefix === "openai") {
-      // openai/* models use OpenAI API key
-      if (credentials.openaiApiKey) {
-        env.OPENAI_API_KEY = credentials.openaiApiKey
-      }
-    } else if (modelPrefix === "google") {
-      // google/* models use Gemini API key
-      if (credentials.geminiApiKey) {
-        env.GEMINI_API_KEY = credentials.geminiApiKey
-      }
-    } else {
-      // Default: Anthropic models (sonnet, opus, haiku)
-      if (credentials.anthropicApiKey) {
-        env.ANTHROPIC_API_KEY = credentials.anthropicApiKey
-      }
-    }
-    return env
-  }
-
-  // For OpenCode agent, determine API key based on model prefix
-  if (agent === "opencode") {
-    const modelPrefix = model?.split("/")[0]
-
-    if (modelPrefix === "anthropic") {
-      // anthropic/* models use Anthropic API key directly
-      if (credentials.anthropicApiKey) {
-        env.ANTHROPIC_API_KEY = credentials.anthropicApiKey
-      }
-    } else if (modelPrefix === "openai") {
-      // openai/* models use OpenAI API key directly
-      if (credentials.openaiApiKey) {
-        env.OPENAI_API_KEY = credentials.openaiApiKey
-      }
-    } else if (modelPrefix === "opencode") {
-      // opencode/* models - free ones don't need a key, paid ones use OpenCode API key
-      const isFreeModel = model?.includes("-free") || model === "opencode/big-pickle"
-      if (!isFreeModel && credentials.opencodeApiKey) {
-        env.OPENCODE_API_KEY = credentials.opencodeApiKey
-      }
-    }
-  }
-
-  return env
 }
 
 /**
@@ -292,12 +186,8 @@ export async function ensureSandboxReady(
   const repoEnv = await getRepoEnvVars(repoId)
 
   // Merge: repo env vars first, then API keys (API keys take precedence if same key)
+  // Note: getEnvForModel already handles CLAUDE_CODE_CREDENTIALS for claude-code agent
   const env: Record<string, string> = { ...repoEnv, ...apiKeyEnv }
-
-  // Pass Claude credentials via env var - the SDK's claude setup() writes them to file
-  if (anthropicAuthToken) {
-    env.CLAUDE_CODE_CREDENTIALS = anthropicAuthToken
-  }
 
   // For OpenCode, pass permissions via env var (NOT config file - see opencode-permissions.ts for why)
   // OPENCODE_PERMISSION overrides the SDK's default '{"*":"allow"}' that bypasses all permissions

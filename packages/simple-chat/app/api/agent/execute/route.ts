@@ -1,7 +1,7 @@
 import { Daytona } from "@daytonaio/sdk"
 import { PATHS } from "@/lib/constants"
 import { createBackgroundAgentSession } from "@/lib/agent-session"
-import { getEnvForModel } from "@/lib/env-for-model"
+import { getEnvForModel } from "@upstream/common"
 
 export const maxDuration = 60
 

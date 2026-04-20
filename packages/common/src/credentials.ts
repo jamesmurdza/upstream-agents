@@ -1,12 +1,15 @@
 /**
- * Credential handling for Simple Chat
+ * Credential handling utilities
  *
  * Determines which API keys to inject based on agent type and selected model.
  * Builds a fresh, minimal env object on each call - no accumulation.
  */
 
-import type { Agent } from "@upstream/common"
+import type { Agent } from "./agents"
 
+/**
+ * User credentials for various LLM providers
+ */
 export interface Credentials {
   anthropicApiKey?: string
   anthropicAuthToken?: string
@@ -23,6 +26,11 @@ export interface Credentials {
  * - For claude-code: subscription token (anthropicAuthToken) takes precedence over API key
  * - Each agent type gets only the credentials it needs
  * - Returns empty object if no credentials are needed/available
+ *
+ * @param model - The selected model (e.g., "opencode/big-pickle", "anthropic/claude-sonnet")
+ * @param agent - The agent type (e.g., "claude-code", "opencode", "codex")
+ * @param credentials - User's API keys and tokens
+ * @returns Environment variables to inject for the agent process
  */
 export function getEnvForModel(
   model: string | undefined,
@@ -31,8 +39,7 @@ export function getEnvForModel(
 ): Record<string, string> {
   const env: Record<string, string> = {}
 
-  // For Claude Code agent: use API key only if not using auth token (credentials file)
-  // Auth token (subscription) takes precedence
+  // For Claude Code agent: subscription token takes precedence over API key
   if (agent === "claude-code" || !agent) {
     if (credentials.anthropicAuthToken) {
       env.CLAUDE_CODE_CREDENTIALS = credentials.anthropicAuthToken
@@ -54,7 +61,7 @@ export function getEnvForModel(
   if (agent === "gemini") {
     if (credentials.geminiApiKey) {
       env.GEMINI_API_KEY = credentials.geminiApiKey
-      env.GOOGLE_API_KEY = credentials.geminiApiKey // Also set GOOGLE_API_KEY for compatibility
+      env.GOOGLE_API_KEY = credentials.geminiApiKey // Also set for compatibility
     }
     return env
   }
