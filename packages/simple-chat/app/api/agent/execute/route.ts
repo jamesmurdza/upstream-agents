@@ -1,6 +1,7 @@
 import { Daytona } from "@daytonaio/sdk"
 import { PATHS } from "@/lib/constants"
 import { createBackgroundAgentSession } from "@/lib/agent-session"
+import { getEnvForModel } from "@/lib/env-for-model"
 
 export const maxDuration = 60
 
@@ -42,25 +43,15 @@ export async function POST(req: Request) {
       await sandbox.start(120) // 2 minute timeout
     }
 
-    // 5. Build env vars for the agent (API keys passed at execution time override sandbox env)
-    const env: Record<string, string> = {}
-    // Claude subscription token takes precedence over API key for claude-code
-    if (anthropicAuthToken) {
-      env.CLAUDE_CODE_CREDENTIALS = anthropicAuthToken
-    }
-    if (anthropicApiKey && !(anthropicAuthToken && (agent === "claude-code" || !agent))) {
-      env.ANTHROPIC_API_KEY = anthropicApiKey
-    }
-    if (openaiApiKey) {
-      env.OPENAI_API_KEY = openaiApiKey
-    }
-    if (opencodeApiKey) {
-      env.OPENCODE_API_KEY = opencodeApiKey
-    }
-    if (geminiApiKey) {
-      env.GEMINI_API_KEY = geminiApiKey
-      env.GOOGLE_API_KEY = geminiApiKey // Also set GOOGLE_API_KEY for compatibility
-    }
+    // 5. Build fresh env vars for the agent based on current credentials
+    // This is a pure function - no accumulation, returns only what's needed now
+    const env = getEnvForModel(model, agent || "opencode", {
+      anthropicApiKey,
+      anthropicAuthToken,
+      openaiApiKey,
+      opencodeApiKey,
+      geminiApiKey,
+    })
 
     // 6. Create background agent session
     const repoPath = `${PATHS.SANDBOX_HOME}/${repoName}`

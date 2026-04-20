@@ -320,8 +320,9 @@ export function useChat() {
             repo: chat.repo,
             baseBranch: chat.baseBranch || "main",
             newBranch: branch,
-            // Pass API key if configured (optional for OpenCode)
-            ...(anthropicApiKey && { anthropicApiKey }),
+            // NOTE: API keys are NOT passed here - they are passed fresh at
+            // execution time via getEnvForModel() to ensure credential changes
+            // (like switching from API key to subscription) take effect immediately.
           }),
         })
 

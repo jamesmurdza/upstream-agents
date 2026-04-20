@@ -59,22 +59,12 @@ export async function POST(req: Request) {
     )
   }
 
-  // 4. Get optional API keys from request (OpenCode uses free models by default)
-  const anthropicApiKey = body.anthropicApiKey
-  const openaiApiKey = body.openaiApiKey
-
   try {
-    // 5. Create Daytona sandbox
+    // 4. Create Daytona sandbox
+    // NOTE: API keys are NOT set here - they are passed fresh at execution time
+    // via getEnvForModel() in the execute route. This ensures credential changes
+    // (like switching from API key to subscription) take effect immediately.
     const daytona = new Daytona({ apiKey: daytonaApiKey })
-
-    // Build env vars - only include keys that are provided
-    const envVars: Record<string, string> = {}
-    if (anthropicApiKey) {
-      envVars.ANTHROPIC_API_KEY = anthropicApiKey
-    }
-    if (openaiApiKey) {
-      envVars.OPENAI_API_KEY = openaiApiKey
-    }
 
     const sandbox = await daytona.create({
       snapshot: SANDBOX_CONFIG.DEFAULT_SNAPSHOT,
@@ -85,7 +75,6 @@ export async function POST(req: Request) {
         repo: isNewRepo ? NEW_REPOSITORY : `${owner}/${repoApiName}`,
         branch: newBranch,
       },
-      ...(Object.keys(envVars).length > 0 && { envVars }),
     })
 
     // 6. Create logs directory
