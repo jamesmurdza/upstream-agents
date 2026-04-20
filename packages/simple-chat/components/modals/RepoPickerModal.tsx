@@ -374,7 +374,9 @@ export function RepoPickerModal({ open, onClose, onSelect, isMobile = false, mod
             }, 0)
           }}
           className={cn(
-            "fixed z-50 bg-popover overflow-hidden flex flex-col",
+            "fixed z-50 bg-popover flex flex-col",
+            // Allow overflow when branch dropdown is open so it's not clipped
+            showBranchDropdown ? "overflow-visible" : "overflow-hidden",
             isMobile
               ? "inset-x-0 bottom-0 top-0 rounded-none"
               : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md border border-border rounded-lg shadow-xl",

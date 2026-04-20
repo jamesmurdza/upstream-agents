@@ -133,7 +133,9 @@ function BaseDialog({ open, onClose, title, icon, children, isMobile = false, al
         <Dialog.Content
           onCloseAutoFocus={(e) => { e.preventDefault(); focusChatPrompt() }}
           className={cn(
-            "fixed z-50 bg-popover overflow-hidden flex flex-col",
+            "fixed z-50 bg-popover flex flex-col",
+            // Allow overflow when dropdowns are open so they're not clipped
+            allowOverflow ? "overflow-visible" : "overflow-hidden",
             isMobile
               ? "inset-x-0 bottom-0 rounded-t-2xl max-h-[85vh]"
               : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm border border-border rounded-lg shadow-xl",
