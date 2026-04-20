@@ -132,9 +132,13 @@ export async function fetchBranchWithAuth(
   await executor.executeCommand(
     `cd ${repoPath} && git remote set-url origin '${authedUrl}' 2>&1`
   )
-  await executor.executeCommand(
-    `cd ${repoPath} && git fetch origin ${branchName} 2>&1`
-  )
+  // For single-branch clones, we need to explicitly create the remote tracking ref
+  // Using refspec format: fetch branchName and create refs/remotes/origin/branchName
+  // For --prune or other flags, use them directly
+  const fetchCmd = branchName.startsWith("-")
+    ? `cd ${repoPath} && git fetch origin ${branchName} 2>&1`
+    : `cd ${repoPath} && git fetch origin ${branchName}:refs/remotes/origin/${branchName} 2>&1`
+  await executor.executeCommand(fetchCmd)
   // Restore original URL
   await executor.executeCommand(
     `cd ${repoPath} && git remote set-url origin '${origUrl}' 2>&1`
