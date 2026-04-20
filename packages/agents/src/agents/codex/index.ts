@@ -70,8 +70,9 @@ export const codexAgent: AgentDefinition = {
       args.push("resume", options.sessionId)
     }
 
-    // Add prompt as trailing argument
+    // The "--" sentinel signals end-of-options to the Codex CLI's argument parser
     if (options.prompt) {
+      args.push("--")
       args.push(options.prompt)
     }
 

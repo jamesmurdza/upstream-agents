@@ -47,7 +47,9 @@ export const opencodeAgent: AgentDefinition = {
       parts.push("-s", quote(options.sessionId))
     }
 
+    // The "--" sentinel signals end-of-options to the OpenCode's argument parser
     if (options.prompt) {
+      parts.push("--")
       parts.push(quote(options.prompt))
     }
 
