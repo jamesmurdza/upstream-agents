@@ -79,6 +79,7 @@ export type { CanonicalToolName } from "./core/tools"
 export type {
   BackgroundSession,
   BackgroundRunPhase,
+  HistoryMessage,
   PollResult,
   TurnHandle,
 } from "./background/index"

@@ -4,6 +4,7 @@
 
 export type {
   BackgroundRunPhase,
+  HistoryMessage,
   PollResult,
   SessionMeta,
   StartOptions,

@@ -10,6 +10,7 @@ import type { AgentDefinition, ParseContext, RunOptions } from "../core/agent"
 import type { Event } from "../types/events"
 import type { CodeAgentSandbox } from "../types/provider"
 import type {
+  HistoryMessage,
   PollResult,
   SessionMeta,
   StartOptions,
@@ -115,6 +116,11 @@ class BackgroundSessionImpl implements BackgroundSession {
       ...this.defaults,
       ...options,
       prompt,
+    }
+
+    // Prepend conversation history to prompt when injecting context
+    if (options.history?.length) {
+      opts.prompt = this.formatHistory(options.history) + "\n\n" + (opts.prompt ?? "")
     }
 
     // Handle system prompt for agents without native support
@@ -621,6 +627,24 @@ class BackgroundSessionImpl implements BackgroundSession {
 
   private quoteArg(arg: string): string {
     return `'${arg.replace(/'/g, "'\\''")}'`
+  }
+
+  /**
+   * Format conversation history into a preamble for prompt injection.
+   *
+   * Produces a structured block that precedes the user's actual prompt,
+   * giving the agent context from a previous session.
+   */
+  private formatHistory(history: readonly HistoryMessage[]): string {
+    const lines = history.map(
+      (m) => `[${m.role === "user" ? "User" : "Assistant"}]: ${m.content}`
+    )
+    return (
+      "## Conversation History\n" +
+      "The following is the conversation history from a previous session. " +
+      "Use it as context for the current request.\n\n" +
+      lines.join("\n\n")
+    )
   }
 }
 

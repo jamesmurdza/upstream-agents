@@ -46,6 +46,15 @@ export interface SessionMeta {
 }
 
 /**
+ * A single message from previous conversation history.
+ * Used to inject context when switching agents or forking chats.
+ */
+export interface HistoryMessage {
+  readonly role: "user" | "assistant"
+  readonly content: string
+}
+
+/**
  * Options for starting a turn
  */
 export interface StartOptions {
@@ -57,4 +66,6 @@ export interface StartOptions {
   env?: Record<string, string>
   /** Working directory for the agent process */
   cwd?: string
+  /** Previous conversation history to inject as context for this turn. */
+  history?: readonly HistoryMessage[]
 }

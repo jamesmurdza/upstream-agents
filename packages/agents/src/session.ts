@@ -197,4 +197,4 @@ async function createSessionWithId(
 
 // Re-export types
 export type { BackgroundSession } from "./background/index"
-export type { BackgroundRunPhase, PollResult, TurnHandle } from "./background/types"
+export type { BackgroundRunPhase, HistoryMessage, PollResult, TurnHandle } from "./background/types"

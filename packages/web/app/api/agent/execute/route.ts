@@ -165,8 +165,33 @@ export async function POST(req: Request) {
 
     // 8. Start the turn and write meta before returning (so client polling sees runId/outputFile)
     // Pass env at start() time for freshest credentials (run-level overrides session-level)
+
+    // Detect agent switch: load conversation history for context injection.
+    // When the user switches agents mid-conversation, the new CLI has no local
+    // session to resume from. We load the full chat history from the DB and
+    // inject it into the prompt so the new agent has context.
+    const previousAgent = sandboxRecord.sessionAgent
+    const isAgentSwitch = !!previousAgent && previousAgent !== agent && !!branchId
+    let history: { role: "user" | "assistant"; content: string }[] | undefined
+
+    if (isAgentSwitch) {
+      const messages = await prisma.message.findMany({
+        where: { branchId },
+        orderBy: { createdAt: "asc" },
+        select: { role: true, content: true },
+      })
+      history = messages
+        .filter((m): m is typeof m & { role: "user" | "assistant" } =>
+          (m.role === "user" || m.role === "assistant") && !!m.content.trim()
+        )
+        .map((m) => ({ role: m.role, content: m.content }))
+
+      if (history.length === 0) history = undefined
+      else console.log(`[agent/execute] Agent switch ${previousAgent} → ${agent}: injecting ${history.length} history messages`)
+    }
+
     try {
-      await bgSession.start(prompt, { env })
+      await bgSession.start(prompt, { env, ...(history && { history }) })
     } catch (error) {
       console.error("[agent/execute] bgSession.start failed", { messageId }, error)
       try {

@@ -132,6 +132,8 @@ export async function readPersistedSessionId(
 export interface BackgroundStartOptions {
   /** Run-level env vars (override session-level for this run only, cleared after run completes). */
   env?: Record<string, string>
+  /** Previous conversation history to inject as context (e.g., agent switch). */
+  history?: readonly { role: "user" | "assistant"; content: string }[]
 }
 
 /** Background session handle returned by createBackgroundAgentSession. */
@@ -188,12 +190,10 @@ export async function createBackgroundAgentSession(
     backgroundSessionId: bgSession.id,
     async start(prompt: string, startOptions?: BackgroundStartOptions) {
       const t1 = Date.now()
-      // Pass run-level env if provided (overrides session-level for this run only)
-      if (startOptions?.env) {
-        await bgSession.start(prompt, { env: startOptions.env })
-      } else {
-        await bgSession.start(prompt)
-      }
+      await bgSession.start(prompt, {
+        ...(startOptions?.env && { env: startOptions.env }),
+        ...(startOptions?.history?.length && { history: startOptions.history }),
+      })
       console.log(`[createBackgroundAgentSession] bgSession.start took ${Date.now() - t1}ms`)
     },
   }
