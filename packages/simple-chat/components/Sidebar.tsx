@@ -16,46 +16,6 @@ const MAX_WIDTH = 400
 const COLLAPSED_WIDTH = 64
 const COLLAPSE_THRESHOLD = 100 // Collapse when dragged below this width
 const SWIPE_THRESHOLD = 80 // Minimum swipe distance to close drawer
-const SCROLL_HIDE_DELAY = 1000 // ms to wait before hiding scrollbar after scroll stops
-
-/**
- * Hook that shows scrollbar only while scrolling.
- * Toggles a class to control scrollbar visibility via CSS.
- */
-function useScrollingIndicator(ref: React.RefObject<HTMLElement | null>) {
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-    // Add base class for hidden scrollbar
-    el.classList.add("scrollbar-hidden")
-
-    const handleScroll = () => {
-      // Show scrollbar when scrolling
-      el.classList.remove("scrollbar-hidden")
-      el.classList.add("scrollbar-visible")
-
-      if (timeoutId) clearTimeout(timeoutId)
-
-      // Hide scrollbar after scroll stops
-      timeoutId = setTimeout(() => {
-        el.classList.remove("scrollbar-visible")
-        el.classList.add("scrollbar-hidden")
-      }, SCROLL_HIDE_DELAY)
-    }
-
-    el.addEventListener("scroll", handleScroll, { passive: true })
-
-    return () => {
-      el.removeEventListener("scroll", handleScroll)
-      if (timeoutId) clearTimeout(timeoutId)
-      }
-    }
-  }, [ref])
-}
-
 interface SidebarProps {
   chats: Chat[]
   currentChatId: string | null
@@ -122,12 +82,6 @@ export function Sidebar({
   const isResizing = useRef(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
-  const mobileChatListRef = useRef<HTMLDivElement>(null)
-  const desktopChatListRef = useRef<HTMLDivElement>(null)
-
-  // Show scrollbar only while scrolling
-  useScrollingIndicator(mobileChatListRef)
-  useScrollingIndicator(desktopChatListRef)
 
   // Swipe gesture state for mobile drawer
   const [isDragging, setIsDragging] = useState(false)
@@ -510,7 +464,7 @@ export function Sidebar({
           </div>
 
           {/* Chat List */}
-          <div ref={mobileChatListRef} className="flex-1 overflow-y-auto mobile-scroll px-3 py-2">
+          <div className="flex-1 overflow-y-auto mobile-scroll scrollbar-auto-hide px-3 py-2">
             <div className="space-y-1">
               {filteredChats.map((chat) => (
                 <MobileChatItem
@@ -695,7 +649,7 @@ export function Sidebar({
           </div>
 
           {/* Chat List */}
-          <div ref={desktopChatListRef} className="flex-1 overflow-y-auto p-2 pt-0">
+          <div className="flex-1 overflow-y-auto scrollbar-auto-hide p-2 pt-0">
             <div className="space-y-1">
               {renderChatTree({
                 roots: rootChats,
