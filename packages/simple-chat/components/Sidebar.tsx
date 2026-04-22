@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react"
+import { useState, useRef, useCallback, useEffect, useMemo, RefObject } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
 import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, Code2, X, ChevronDown, ChevronRight, FolderGit2, Check, Loader2, HelpCircle, GitMerge, GitBranch } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -16,6 +16,44 @@ const MAX_WIDTH = 400
 const COLLAPSED_WIDTH = 64
 const COLLAPSE_THRESHOLD = 100 // Collapse when dragged below this width
 const SWIPE_THRESHOLD = 80 // Minimum swipe distance to close drawer
+const SCROLL_HIDE_DELAY = 1000 // ms to wait before hiding scrollbar after scroll stops
+
+/**
+ * Hook that sets data-scrolling="true" on an element while scrolling,
+ * and removes it after scrolling stops (with a delay).
+ */
+function useScrollingIndicator(ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+    const handleScroll = () => {
+      // Show scrollbar immediately when scrolling starts
+      el.setAttribute("data-scrolling", "true")
+
+      // Clear any existing timeout
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+
+      // Hide scrollbar after delay when scrolling stops
+      timeoutId = setTimeout(() => {
+        el.setAttribute("data-scrolling", "false")
+      }, SCROLL_HIDE_DELAY)
+    }
+
+    el.addEventListener("scroll", handleScroll, { passive: true })
+
+    return () => {
+      el.removeEventListener("scroll", handleScroll)
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [ref])
+}
 
 interface SidebarProps {
   chats: Chat[]
@@ -83,6 +121,12 @@ export function Sidebar({
   const isResizing = useRef(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
+  const mobileChatListRef = useRef<HTMLDivElement>(null)
+  const desktopChatListRef = useRef<HTMLDivElement>(null)
+
+  // Show scrollbar only while scrolling
+  useScrollingIndicator(mobileChatListRef)
+  useScrollingIndicator(desktopChatListRef)
 
   // Swipe gesture state for mobile drawer
   const [isDragging, setIsDragging] = useState(false)
@@ -465,7 +509,7 @@ export function Sidebar({
           </div>
 
           {/* Chat List */}
-          <div className="flex-1 overflow-y-auto mobile-scroll px-3 py-2">
+          <div ref={mobileChatListRef} className="flex-1 overflow-y-auto mobile-scroll scrollbar-on-scroll px-3 py-2">
             <div className="space-y-1">
               {filteredChats.map((chat) => (
                 <MobileChatItem
@@ -650,7 +694,7 @@ export function Sidebar({
           </div>
 
           {/* Chat List */}
-          <div className="flex-1 overflow-y-auto p-2 pt-0">
+          <div ref={desktopChatListRef} className="flex-1 overflow-y-auto scrollbar-on-scroll p-2 pt-0">
             <div className="space-y-1">
               {renderChatTree({
                 roots: rootChats,
