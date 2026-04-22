@@ -69,6 +69,7 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
   // File upload state
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const dragCounterRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -271,21 +272,33 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
     setPendingFiles(prev => prev.filter(f => f.id !== id))
   }
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounterRef.current++
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDraggingOver(true)
+    }
+  }
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setIsDraggingOver(true)
   }
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    setIsDraggingOver(false)
+    dragCounterRef.current--
+    if (dragCounterRef.current === 0) {
+      setIsDraggingOver(false)
+    }
   }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    dragCounterRef.current = 0
     setIsDraggingOver(false)
     if (e.dataTransfer.files.length > 0) {
       addFiles(e.dataTransfer.files)
@@ -466,23 +479,12 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
       isMobile ? "max-w-full" : "max-w-[52rem]"
     )}>
       <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
         className={cn(
           "relative flex flex-col border shadow-sm bg-card border-border",
           isMobile ? "rounded-xl" : "rounded-2xl",
-          "focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20",
-          isDraggingOver && "border-primary ring-2 ring-primary/30"
+          "focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20"
         )}
       >
-        {/* Drop zone overlay */}
-        {isDraggingOver && (
-          <div className="absolute inset-0 bg-primary/5 rounded-2xl flex items-center justify-center z-10 pointer-events-none">
-            <div className="text-primary text-sm font-medium">Drop files here</div>
-          </div>
-        )}
-
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -796,10 +798,25 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
   // New chat - centered welcome with input
   if (isNewChat) {
     return (
-      <div className={cn(
-        "flex-1 flex flex-col items-center justify-center bg-background relative",
-        isMobile ? "p-4 pb-safe" : "p-4"
-      )}>
+      <div
+        className={cn(
+          "flex-1 flex flex-col items-center justify-center bg-background relative",
+          isMobile ? "p-4 pb-safe" : "p-4"
+        )}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Full-screen drop zone overlay */}
+        {isDraggingOver && (
+          <div className="absolute inset-0 bg-primary/5 flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-background/90 border-2 border-dashed border-primary rounded-xl px-8 py-6 shadow-lg">
+              <div className="text-primary text-lg font-medium">Drop files here</div>
+            </div>
+          </div>
+        )}
+
         {onOpenHelp && (
           <button
             onClick={onOpenHelp}
@@ -867,7 +884,22 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
 
   // Chat with messages
   return (
-    <div className="flex-1 flex flex-col bg-background min-h-0">
+    <div
+      className="flex-1 flex flex-col bg-background min-h-0 relative"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Full-screen drop zone overlay */}
+      {isDraggingOver && (
+        <div className="absolute inset-0 bg-primary/5 flex items-center justify-center z-50 pointer-events-none">
+          <div className="bg-background/90 border-2 border-dashed border-primary rounded-xl px-8 py-6 shadow-lg">
+            <div className="text-primary text-lg font-medium">Drop files here</div>
+          </div>
+        </div>
+      )}
+
       {/* Header with title - hide on mobile since we have mobile header in page.tsx */}
       {!isMobile && (
         <div className="flex items-center justify-between pt-3" style={{ paddingLeft: "1.625rem", paddingRight: "1rem" }}>
