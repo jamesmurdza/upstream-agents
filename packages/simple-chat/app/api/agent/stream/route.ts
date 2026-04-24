@@ -1,4 +1,5 @@
 import { Daytona } from "@daytonaio/sdk"
+import { Prisma } from "@prisma/client"
 import { PATHS } from "@/lib/constants"
 import { pollBackgroundAgent } from "@/lib/agent-session"
 import { prisma } from "@/lib/db/prisma"
@@ -84,8 +85,8 @@ export async function GET(req: Request) {
             where: { id: assistantMessageId },
             data: {
               content: accumulatedContent,
-              toolCalls: accumulatedToolCalls.length > 0 ? accumulatedToolCalls : undefined,
-              contentBlocks: accumulatedContentBlocks.length > 0 ? accumulatedContentBlocks : undefined,
+              toolCalls: accumulatedToolCalls.length > 0 ? (accumulatedToolCalls as Prisma.InputJsonValue) : undefined,
+              contentBlocks: accumulatedContentBlocks.length > 0 ? (accumulatedContentBlocks as Prisma.InputJsonValue) : undefined,
             },
           })
 

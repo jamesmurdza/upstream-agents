@@ -45,16 +45,7 @@ export async function POST(req: Request) {
 
   try {
     // Get user credentials if authenticated
-    let credentials = {
-      anthropicApiKey: undefined as string | undefined,
-      anthropicAuthToken: undefined as string | undefined,
-      openaiApiKey: undefined as string | undefined,
-      opencodeApiKey: undefined as string | undefined,
-      geminiApiKey: undefined as string | undefined,
-    }
-    if (userId) {
-      credentials = await getUserCredentials(userId)
-    }
+    const credentials = userId ? await getUserCredentials(userId) : {}
 
     // Get sandbox
     const daytona = new Daytona({ apiKey: daytonaApiKey })

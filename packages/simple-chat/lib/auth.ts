@@ -67,22 +67,4 @@ export const authOptions: NextAuthOptions = {
   },
 }
 
-// Extend the Session type to include our custom fields
-declare module "next-auth" {
-  interface Session {
-    accessToken: string
-    user: {
-      id: string
-      name?: string | null
-      email?: string | null
-      image?: string | null
-    }
-  }
-}
-
-declare module "next-auth/jwt" {
-  interface JWT {
-    accessToken?: string
-    sub?: string
-  }
-}
+// Type extensions are in types/next-auth.d.ts

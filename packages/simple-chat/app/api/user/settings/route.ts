@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/db/prisma"
 import { encrypt, decrypt } from "@/lib/db/encryption"
 import {
@@ -135,8 +136,8 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     await prisma.user.update({
       where: { id: userId },
       data: {
-        settings: newSettings,
-        credentials: newCredentials,
+        settings: newSettings as Prisma.InputJsonValue,
+        credentials: newCredentials as Prisma.InputJsonValue,
       },
     })
 

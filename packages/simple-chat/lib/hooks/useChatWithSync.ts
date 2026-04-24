@@ -502,6 +502,213 @@ export function useChatWithSync() {
   }, [])
 
   // =============================================================================
+  // SSE Streaming
+  // =============================================================================
+
+  const startStreaming = useCallback((
+    chatId: string,
+    sandboxId: string,
+    repoName: string,
+    backgroundSessionId: string,
+    assistantMessageId: string,
+    previewUrlPattern?: string
+  ) => {
+    const streamStore = useStreamStore.getState()
+
+    if (streamStore.isStreaming(chatId)) {
+      streamStore.stopStream(chatId)
+    }
+
+    streamStore.startStream(chatId, {
+      sandboxId,
+      repoName,
+      backgroundSessionId,
+      previewUrlPattern,
+    })
+
+    const connect = (cursor: number = 0) => {
+      const currentStore = useStreamStore.getState()
+      const streamState = currentStore.getStream(chatId)
+      if (!streamState) return
+
+      const params = new URLSearchParams({
+        sandboxId,
+        repoName,
+        backgroundSessionId,
+        chatId,
+        assistantMessageId,
+      })
+      if (previewUrlPattern) params.set("previewUrlPattern", previewUrlPattern)
+      if (cursor > 0) params.set("cursor", cursor.toString())
+
+      const eventSource = new EventSource(`/api/agent/stream?${params}`)
+      currentStore.updateStream(chatId, { eventSource })
+
+      eventSource.addEventListener("update", (event) => {
+        try {
+          const data: SSEUpdateEvent = JSON.parse(event.data)
+          const store = useStreamStore.getState()
+          if (!store.isStreaming(chatId)) return
+
+          store.updateStream(chatId, {
+            cursor: data.cursor,
+            reconnectAttempts: 0,
+          })
+
+          store.appendContent(chatId, data.content)
+          store.appendToolCalls(chatId, data.toolCalls)
+          store.appendContentBlocks(chatId, data.contentBlocks)
+
+          const accumulated = store.getAccumulated(chatId)
+          if (accumulated) {
+            // Update local state
+            setState((prev) => ({
+              ...prev,
+              chats: prev.chats.map((c) => {
+                if (c.id !== chatId) return c
+                const messages = [...c.messages]
+                const lastIndex = messages.length - 1
+                if (lastIndex >= 0) {
+                  messages[lastIndex] = {
+                    ...messages[lastIndex],
+                    content: accumulated.content,
+                    toolCalls: accumulated.toolCalls,
+                    contentBlocks: accumulated.contentBlocks,
+                  }
+                }
+                return { ...c, messages, lastActiveAt: Date.now() }
+              }),
+            }))
+
+            // Update cache
+            updateCacheLastMessage(chatId, {
+              content: accumulated.content,
+              toolCalls: accumulated.toolCalls,
+              contentBlocks: accumulated.contentBlocks,
+            })
+          }
+        } catch (err) {
+          console.error("Failed to parse SSE update:", err)
+        }
+      })
+
+      eventSource.addEventListener("complete", async (event) => {
+        try {
+          const data: SSECompleteEvent = JSON.parse(event.data)
+          useStreamStore.getState().stopStream(chatId)
+
+          const updates: Partial<Chat> = {
+            status: data.status === "error" ? "error" : "ready",
+            backgroundSessionId: undefined,
+            lastActiveAt: Date.now(),
+          }
+          if (data.sessionId) {
+            updates.sessionId = data.sessionId
+          }
+
+          // Update state
+          setState((prev) => ({
+            ...prev,
+            chats: prev.chats.map((c) =>
+              c.id === chatId ? { ...c, ...updates } : c
+            ),
+          }))
+
+          // Update cache
+          updateCacheChat(chatId, updates)
+
+          // Auto-push for GitHub repos
+          if (data.status === "completed") {
+            setState((prev) => {
+              const chat = prev.chats.find((c) => c.id === chatId)
+              if (chat?.branch && chat.repo !== NEW_REPOSITORY) {
+                fetch("/api/git/push", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    sandboxId,
+                    repoName,
+                    branch: chat.branch,
+                  }),
+                }).catch((err) => console.error("Auto-push failed:", err))
+              }
+              return prev
+            })
+          }
+        } catch (err) {
+          console.error("Failed to parse SSE complete:", err)
+        }
+      })
+
+      eventSource.addEventListener("heartbeat", (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          const store = useStreamStore.getState()
+          if (store.isStreaming(chatId)) {
+            store.updateStream(chatId, {
+              cursor: data.cursor,
+              reconnectAttempts: 0,
+            })
+          }
+        } catch (err) {
+          console.error("Failed to parse heartbeat:", err)
+        }
+      })
+
+      eventSource.addEventListener("error", (event) => {
+        try {
+          const data = JSON.parse((event as MessageEvent).data)
+          console.error("SSE error:", data.error)
+          useStreamStore.getState().stopStream(chatId)
+
+          setState((prev) => ({
+            ...prev,
+            chats: prev.chats.map((c) =>
+              c.id === chatId
+                ? { ...c, status: "error" as const, backgroundSessionId: undefined }
+                : c
+            ),
+          }))
+        } catch {
+          // Connection error - handled by onerror
+        }
+      })
+
+      eventSource.onerror = () => {
+        eventSource.close()
+        const store = useStreamStore.getState()
+        const stream = store.getStream(chatId)
+        if (!stream) return
+
+        const attempts = (stream.reconnectAttempts || 0) + 1
+        if (attempts <= SSE_MAX_RECONNECT_ATTEMPTS) {
+          store.updateStream(chatId, {
+            reconnectAttempts: attempts,
+            eventSource: null,
+          })
+          setTimeout(() => {
+            if (useStreamStore.getState().isStreaming(chatId)) {
+              connect(stream.cursor)
+            }
+          }, SSE_RECONNECT_DELAY)
+        } else {
+          store.stopStream(chatId)
+          setState((prev) => ({
+            ...prev,
+            chats: prev.chats.map((c) =>
+              c.id === chatId && c.status === "running"
+                ? { ...c, status: "ready" as const }
+                : c
+            ),
+          }))
+        }
+      }
+    }
+
+    connect()
+  }, [])
+
+  // =============================================================================
   // Messaging (Optimistic Updates)
   // =============================================================================
 
@@ -765,210 +972,6 @@ export function useChatWithSync() {
       }))
     }
   }, [state.currentChatId, state.chats, state.settings, session?.accessToken, startStreaming])
-
-  // =============================================================================
-  // SSE Streaming
-  // =============================================================================
-
-  const startStreaming = useCallback((
-    chatId: string,
-    sandboxId: string,
-    repoName: string,
-    backgroundSessionId: string,
-    assistantMessageId: string,
-    previewUrlPattern?: string
-  ) => {
-    const streamStore = useStreamStore.getState()
-
-    if (streamStore.isStreaming(chatId)) {
-      streamStore.stopStream(chatId)
-    }
-
-    streamStore.startStream(chatId, {
-      sandboxId,
-      repoName,
-      backgroundSessionId,
-      previewUrlPattern,
-    })
-
-    const connect = (cursor: number = 0) => {
-      const currentStore = useStreamStore.getState()
-      const streamState = currentStore.getStream(chatId)
-      if (!streamState) return
-
-      const params = new URLSearchParams({
-        sandboxId,
-        repoName,
-        backgroundSessionId,
-        chatId,
-        assistantMessageId,
-      })
-      if (previewUrlPattern) params.set("previewUrlPattern", previewUrlPattern)
-      if (cursor > 0) params.set("cursor", cursor.toString())
-
-      const eventSource = new EventSource(`/api/agent/stream?${params}`)
-      currentStore.updateStream(chatId, { eventSource })
-
-      eventSource.addEventListener("update", (event) => {
-        try {
-          const data: SSEUpdateEvent = JSON.parse(event.data)
-          const store = useStreamStore.getState()
-          if (!store.isStreaming(chatId)) return
-
-          store.updateStream(chatId, {
-            cursor: data.cursor,
-            reconnectAttempts: 0,
-          })
-
-          store.appendContent(chatId, data.content)
-          store.appendToolCalls(chatId, data.toolCalls)
-          store.appendContentBlocks(chatId, data.contentBlocks)
-
-          const accumulated = store.getAccumulated(chatId)
-          if (accumulated) {
-            // Update local state
-            setState((prev) => ({
-              ...prev,
-              chats: prev.chats.map((c) => {
-                if (c.id !== chatId) return c
-                const messages = [...c.messages]
-                const lastIndex = messages.length - 1
-                if (lastIndex >= 0) {
-                  messages[lastIndex] = {
-                    ...messages[lastIndex],
-                    content: accumulated.content,
-                    toolCalls: accumulated.toolCalls,
-                    contentBlocks: accumulated.contentBlocks,
-                  }
-                }
-                return { ...c, messages, lastActiveAt: Date.now() }
-              }),
-            }))
-
-            // Update cache
-            updateCacheLastMessage(chatId, {
-              content: accumulated.content,
-              toolCalls: accumulated.toolCalls,
-              contentBlocks: accumulated.contentBlocks,
-            })
-          }
-        } catch (err) {
-          console.error("Failed to parse SSE update:", err)
-        }
-      })
-
-      eventSource.addEventListener("complete", async (event) => {
-        try {
-          const data: SSECompleteEvent = JSON.parse(event.data)
-          useStreamStore.getState().stopStream(chatId)
-
-          const updates: Partial<Chat> = {
-            status: data.status === "error" ? "error" : "ready",
-            backgroundSessionId: undefined,
-            lastActiveAt: Date.now(),
-          }
-          if (data.sessionId) {
-            updates.sessionId = data.sessionId
-          }
-
-          // Update state
-          setState((prev) => ({
-            ...prev,
-            chats: prev.chats.map((c) =>
-              c.id === chatId ? { ...c, ...updates } : c
-            ),
-          }))
-
-          // Update cache
-          updateCacheChat(chatId, updates)
-
-          // Auto-push for GitHub repos
-          if (data.status === "completed") {
-            const chat = state.chats.find((c) => c.id === chatId)
-            if (chat?.branch && chat.repo !== NEW_REPOSITORY) {
-              fetch("/api/git/push", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  sandboxId,
-                  repoName,
-                  branch: chat.branch,
-                }),
-              }).catch((err) => console.error("Auto-push failed:", err))
-            }
-          }
-        } catch (err) {
-          console.error("Failed to parse SSE complete:", err)
-        }
-      })
-
-      eventSource.addEventListener("heartbeat", (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          const store = useStreamStore.getState()
-          if (store.isStreaming(chatId)) {
-            store.updateStream(chatId, {
-              cursor: data.cursor,
-              reconnectAttempts: 0,
-            })
-          }
-        } catch (err) {
-          console.error("Failed to parse heartbeat:", err)
-        }
-      })
-
-      eventSource.addEventListener("error", (event) => {
-        try {
-          const data = JSON.parse((event as MessageEvent).data)
-          console.error("SSE error:", data.error)
-          useStreamStore.getState().stopStream(chatId)
-
-          setState((prev) => ({
-            ...prev,
-            chats: prev.chats.map((c) =>
-              c.id === chatId
-                ? { ...c, status: "error" as const, backgroundSessionId: undefined }
-                : c
-            ),
-          }))
-        } catch {
-          // Connection error - handled by onerror
-        }
-      })
-
-      eventSource.onerror = () => {
-        eventSource.close()
-        const store = useStreamStore.getState()
-        const stream = store.getStream(chatId)
-        if (!stream) return
-
-        const attempts = (stream.reconnectAttempts || 0) + 1
-        if (attempts <= SSE_MAX_RECONNECT_ATTEMPTS) {
-          store.updateStream(chatId, {
-            reconnectAttempts: attempts,
-            eventSource: null,
-          })
-          setTimeout(() => {
-            if (useStreamStore.getState().isStreaming(chatId)) {
-              connect(stream.cursor)
-            }
-          }, SSE_RECONNECT_DELAY)
-        } else {
-          store.stopStream(chatId)
-          setState((prev) => ({
-            ...prev,
-            chats: prev.chats.map((c) =>
-              c.id === chatId && c.status === "running"
-                ? { ...c, status: "ready" as const }
-                : c
-            ),
-          }))
-        }
-      }
-    }
-
-    connect()
-  }, [state.chats])
 
   const stopAgent = useCallback(() => {
     if (!currentChat) return

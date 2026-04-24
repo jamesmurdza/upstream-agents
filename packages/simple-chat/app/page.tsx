@@ -491,7 +491,7 @@ export default function HomePage() {
 
   // Branch and send a message to the new chat (Option+Enter)
   // The new chat starts in the background - we stay on the current chat
-  const handleBranchWithMessage = useCallback((message: string, agent: string, model: string) => {
+  const handleBranchWithMessage = useCallback(async (message: string, agent: string, model: string) => {
     if (!branchForNewChat || currentChat?.repo === NEW_REPOSITORY) return
     if (!session) {
       savePendingMessage({ message, agent, model })
@@ -499,14 +499,15 @@ export default function HomePage() {
       return
     }
     // Create new chat in "creating" state without switching to it (spinner shows immediately)
-    const chatId = startNewChat(currentChat.repo, branchForNewChat, currentChat.id, false, "creating")
+    const chatId = await startNewChat(currentChat.repo, branchForNewChat, currentChat.id, false, "creating")
+    if (!chatId) return
     // Send message to the new chat (it runs in background)
     sendMessage(message, agent, model, undefined, chatId)
   }, [currentChat, branchForNewChat, startNewChat, sendMessage, session])
 
   // Branch a queued message to a new chat (removes from queue)
   // The new chat starts in the background - we stay on the current chat
-  const handleBranchQueuedMessage = useCallback((id: string, message: string, agent?: string, model?: string) => {
+  const handleBranchQueuedMessage = useCallback(async (id: string, message: string, agent?: string, model?: string) => {
     if (!branchForNewChat || currentChat?.repo === NEW_REPOSITORY) return
     if (!session) {
       setSignInModalOpen(true)
@@ -515,7 +516,8 @@ export default function HomePage() {
     // Remove from queue first
     removeQueuedMessage(id)
     // Create new chat in "creating" state without switching to it (spinner shows immediately)
-    const chatId = startNewChat(currentChat.repo, branchForNewChat, currentChat.id, false, "creating")
+    const chatId = await startNewChat(currentChat.repo, branchForNewChat, currentChat.id, false, "creating")
+    if (!chatId) return
     // Send message to the new chat (it runs in background)
     sendMessage(message, agent, model, undefined, chatId)
   }, [currentChat, branchForNewChat, startNewChat, sendMessage, removeQueuedMessage, session])
