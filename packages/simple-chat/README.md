@@ -151,4 +151,6 @@ npx prisma migrate dev --name describe_your_change
 3. Commit the new files in `prisma/migrations/`
 4. Push to git
 
+**After pulling:** Run `npx prisma migrate dev` to apply new migrations and regenerate the client.
+
 CI/CD runs `npx prisma migrate deploy` to apply committed migrations to production.
