@@ -239,6 +239,7 @@ export function toChatType(serverChat: ChatResponse): Chat {
     updatedAt: serverChat.updatedAt,
     lastActiveAt: serverChat.lastActiveAt,
     messages: [], // Messages loaded separately
+    messageCount: serverChat.messageCount ?? 0, // For filtering before messages are loaded
   }
 }
 

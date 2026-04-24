@@ -114,11 +114,19 @@ export async function GET(req: Request) {
         }
       }
 
-      const cleanup = () => {
+      const cleanup = (closeController: boolean = false) => {
+        if (isStreamClosed) return // Already cleaned up
         isStreamClosed = true
         if (heartbeatTimer) {
           clearInterval(heartbeatTimer)
           heartbeatTimer = null
+        }
+        if (closeController) {
+          try {
+            controller.close()
+          } catch {
+            // Controller may already be closed
+          }
         }
       }
 
@@ -182,8 +190,7 @@ export async function GET(req: Request) {
               error: result.error,
               cursor,
             })
-            cleanup()
-            controller.close()
+            cleanup(true) // cleanup and close controller
             return
           }
 
@@ -210,8 +217,7 @@ export async function GET(req: Request) {
         }
 
         sendEvent("error", { error: message, cursor })
-        cleanup()
-        controller.close()
+        cleanup(true) // cleanup and close controller
       }
     },
 
