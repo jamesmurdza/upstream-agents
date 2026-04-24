@@ -4,8 +4,20 @@ import { authOptions } from "@/lib/auth"
 import { PATHS, SANDBOX_CONFIG } from "@/lib/constants"
 import { NEW_REPOSITORY } from "@/lib/types"
 import { prisma } from "@/lib/db/prisma"
+import { randomUUID } from "crypto"
 
 export const maxDuration = 300 // 5 minutes
+
+/**
+ * Generate a unique sandbox name
+ * @param userId - The user's ID (first 8 chars will be used)
+ * @returns A sandbox name in format: "backgrounder-{userId prefix}-{uuid first 8 chars}"
+ */
+function generateSandboxName(userId?: string): string {
+  const uuid = randomUUID().split("-")[0] // First segment for brevity (8 chars)
+  const userIdPrefix = userId ? userId.slice(0, 8) : "anon"
+  return `backgrounder-${userIdPrefix}-${uuid}`
+}
 
 export async function POST(req: Request) {
   // 1. Parse request body
