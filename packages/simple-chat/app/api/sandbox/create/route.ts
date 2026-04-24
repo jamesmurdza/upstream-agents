@@ -4,8 +4,14 @@ import { authOptions } from "@/lib/auth"
 import { PATHS, SANDBOX_CONFIG } from "@/lib/constants"
 import { NEW_REPOSITORY } from "@/lib/types"
 import { prisma } from "@/lib/db/prisma"
+import { randomUUID } from "crypto"
 
 export const maxDuration = 300 // 5 minutes
+
+function generateSandboxName(): string {
+  const uuid = randomUUID().slice(0, 8)
+  return `simplechat-${uuid}`
+}
 
 export async function POST(req: Request) {
   // 1. Parse request body

@@ -16,7 +16,7 @@
     "build:sdk": "npm run build -w background-agents",
     "publish:sdk": "npm publish -w background-agents",
     "build:web": "npm run build -w background-agents && npm run build -w @upstream/web",
-    "build:simple-chat": "npm run build -w background-agents && npm run build -w @upstream/simple-chat",
+    "build:simple-chat": "npm run build -w background-agents && cd packages/simple-chat && npx prisma generate && npm run build",
     "start": "cd packages/web && next start",
     "start:simple-chat": "npm run start -w @upstream/simple-chat",
     "lint": "npm run lint --workspaces --if-present",
