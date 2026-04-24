@@ -126,8 +126,10 @@ export function useChatWithSync() {
 
     // Fetch fresh data from server
     const loadFromServer = async () => {
-      // Don't overwrite state if any chat is currently streaming
-      if (useStreamStore.getState().streams.size > 0) {
+      const streamStore = useStreamStore.getState()
+
+      // Don't overwrite state if any chat is currently streaming or recently completed
+      if (streamStore.streams.size > 0 || streamStore.recentlyCompletedChats.size > 0) {
         setIsLoading(false)
         return
       }
@@ -138,8 +140,9 @@ export function useChatWithSync() {
           fetchSettings(),
         ])
 
-        // Check again after fetch - streaming may have started
-        if (useStreamStore.getState().streams.size > 0) {
+        // Check again after fetch - streaming may have started or completed
+        const storeAfterFetch = useStreamStore.getState()
+        if (storeAfterFetch.streams.size > 0 || storeAfterFetch.recentlyCompletedChats.size > 0) {
           setIsLoading(false)
           return
         }
@@ -609,7 +612,18 @@ export function useChatWithSync() {
       eventSource.addEventListener("complete", async (event) => {
         try {
           const data: SSECompleteEvent = JSON.parse(event.data)
-          useStreamStore.getState().stopStream(chatId)
+
+          // IMPORTANT: Get accumulated content BEFORE stopping the stream
+          // stopStream() deletes the stream state including accumulated content
+          const store = useStreamStore.getState()
+          const accumulated = store.getAccumulated(chatId)
+
+          // Mark as recently completed BEFORE stopping
+          // This prevents loadFromServer from overwriting state with stale data
+          store.markCompleted(chatId)
+
+          // Now we can safely stop the stream
+          store.stopStream(chatId)
 
           const updates: Partial<Chat> = {
             status: data.status === "error" ? "error" : "ready",
@@ -620,16 +634,35 @@ export function useChatWithSync() {
             updates.sessionId = data.sessionId
           }
 
-          // Update state
+          // Update state with final message content
           setState((prev) => ({
             ...prev,
-            chats: prev.chats.map((c) =>
-              c.id === chatId ? { ...c, ...updates } : c
-            ),
+            chats: prev.chats.map((c) => {
+              if (c.id !== chatId) return c
+              // Update chat status AND preserve final message content
+              const messages = [...c.messages]
+              if (accumulated && messages.length > 0) {
+                const lastIndex = messages.length - 1
+                messages[lastIndex] = {
+                  ...messages[lastIndex],
+                  content: accumulated.content,
+                  toolCalls: accumulated.toolCalls,
+                  contentBlocks: accumulated.contentBlocks,
+                }
+              }
+              return { ...c, ...updates, messages }
+            }),
           }))
 
-          // Update cache
+          // Update cache with final message content
           updateCacheChat(chatId, updates)
+          if (accumulated) {
+            updateCacheLastMessage(chatId, {
+              content: accumulated.content,
+              toolCalls: accumulated.toolCalls,
+              contentBlocks: accumulated.contentBlocks,
+            })
+          }
 
           // Auto-push for GitHub repos
           if (data.status === "completed") {
