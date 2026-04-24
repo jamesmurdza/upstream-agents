@@ -143,6 +143,7 @@ export async function createChat(data: {
   parentChatId?: string
   agent?: string
   model?: string
+  status?: string
 }): Promise<ChatResponse> {
   return fetchApi<ChatResponse>("/api/chats", {
     method: "POST",

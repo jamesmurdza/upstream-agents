@@ -15,7 +15,7 @@ import { ConfirmDialog } from "@/components/modals/ConfirmDialog"
 import { MergeDialog, RebaseDialog, PRDialog, SquashDialog, useGitDialogs } from "@/components/modals/GitDialogs"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
 import { PaletteProvider } from "@/components/search-palette"
-import { useChat } from "@/lib/hooks/useChat"
+import { useChatWithSync } from "@/lib/hooks/useChatWithSync"
 import { useMobile } from "@/lib/hooks/useMobile"
 import { NEW_REPOSITORY, type Message, type Chat } from "@/lib/types"
 import { fetchRepos, fetchBranches, type GitHubRepo, type GitHubBranch } from "@/lib/github"
@@ -78,7 +78,7 @@ export default function HomePage() {
     removeQueuedMessage,
     resumeQueue,
     updateChatById,
-  } = useChat()
+  } = useChatWithSync()
 
   const [repoSelectOpen, setRepoSelectOpen] = useState(false)
   const [repoCreateOpen, setRepoCreateOpen] = useState(false)

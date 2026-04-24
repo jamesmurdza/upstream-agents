@@ -104,6 +104,7 @@ interface CreateChatBody {
   parentChatId?: string
   agent?: string
   model?: string
+  status?: string
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         parentChatId: body.parentChatId,
         agent: body.agent ?? "opencode",
         model: body.model,
-        status: "pending",
+        status: body.status ?? "pending",
       },
     })
 

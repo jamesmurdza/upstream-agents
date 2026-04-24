@@ -251,6 +251,7 @@ export function useChatWithSync() {
     baseBranch: string = "main",
     parentChatId?: string,
     switchTo: boolean = true,
+    initialStatus: Chat["status"] = "pending",
   ): Promise<string | null> => {
     try {
       // Create on server first
@@ -258,6 +259,7 @@ export function useChatWithSync() {
         repo,
         baseBranch,
         parentChatId,
+        status: initialStatus,
       })
 
       const chat = toChatType(serverChat)
