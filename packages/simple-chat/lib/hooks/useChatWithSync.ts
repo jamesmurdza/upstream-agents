@@ -126,11 +126,23 @@ export function useChatWithSync() {
 
     // Fetch fresh data from server
     const loadFromServer = async () => {
+      // Don't overwrite state if any chat is currently streaming
+      if (useStreamStore.getState().streams.size > 0) {
+        setIsLoading(false)
+        return
+      }
+
       try {
         const [serverChats, serverSettings] = await Promise.all([
           fetchChats(),
           fetchSettings(),
         ])
+
+        // Check again after fetch - streaming may have started
+        if (useStreamStore.getState().streams.size > 0) {
+          setIsLoading(false)
+          return
+        }
 
         // Convert to client types
         const chats = serverChats.map(toChatType)
@@ -158,23 +170,25 @@ export function useChatWithSync() {
           settings,
         }))
 
-        // Load messages for current chat
-        if (localState.currentChatId) {
+        // Load messages for current chat (skip if streaming)
+        if (localState.currentChatId && !useStreamStore.getState().isStreaming(localState.currentChatId)) {
           const chatExists = chats.some((c) => c.id === localState.currentChatId)
           if (chatExists) {
             try {
               const chatData = await fetchChat(localState.currentChatId)
               const messages = chatData.messages.map(toMessageType)
 
-              // Dedupe and update
-              setState((prev) => ({
-                ...prev,
-                chats: prev.chats.map((c) =>
-                  c.id === localState.currentChatId
-                    ? { ...c, messages }
-                    : c
-                ),
-              }))
+              // Final check before updating messages
+              if (!useStreamStore.getState().isStreaming(localState.currentChatId)) {
+                setState((prev) => ({
+                  ...prev,
+                  chats: prev.chats.map((c) =>
+                    c.id === localState.currentChatId
+                      ? { ...c, messages }
+                      : c
+                  ),
+                }))
+              }
             } catch (err) {
               console.error("Failed to load current chat messages:", err)
             }
