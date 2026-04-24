@@ -3,6 +3,16 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { PATHS, SANDBOX_CONFIG } from "@/lib/constants"
 import { NEW_REPOSITORY } from "@/lib/types"
+import { randomUUID } from "crypto"
+
+/**
+ * Generate a unique sandbox name
+ * @returns A sandbox name in format: "backgrounder-{uuid first 8 chars}"
+ */
+function generateSandboxName(): string {
+  const uuid = randomUUID().split("-")[0] // First segment for brevity (8 chars)
+  return `backgrounder-${uuid}`
+}
 
 export const maxDuration = 300 // 5 minutes
 
@@ -67,6 +77,7 @@ export async function POST(req: Request) {
     const daytona = new Daytona({ apiKey: daytonaApiKey })
 
     const sandbox = await daytona.create({
+      name: generateSandboxName(),
       snapshot: SANDBOX_CONFIG.DEFAULT_SNAPSHOT,
       autoStopInterval: 10, // 10 minutes
       public: true,
