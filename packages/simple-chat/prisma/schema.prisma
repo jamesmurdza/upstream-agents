@@ -11,13 +11,14 @@ datasource db {
 // =============================================================================
 
 model User {
-  id        String   @id @default(cuid())
-  email     String?  @unique
-  githubId  String   @unique
-  name      String?
-  image     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  emailVerified DateTime?
+  githubId      String    @unique
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // JSONB for flexible settings storage (no migrations needed for new fields)
   // { defaultAgent, defaultModel, theme }
