@@ -769,6 +769,9 @@ export function useChatWithSync() {
       ),
     }))
 
+    // Add to cache so it persists
+    updateCacheMessages(chatId, [userMessage])
+
     // 2. Create sandbox if needed
     let sandboxId = chat.sandboxId
     let branch = chat.branch
@@ -892,6 +895,9 @@ export function useChatWithSync() {
           : c
       ),
     }))
+
+    // Add to cache so streaming updates work
+    updateCacheMessages(chatId, [assistantMessage])
 
     // 5. Start agent
     try {
