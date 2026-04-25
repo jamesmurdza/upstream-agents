@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
-import { ArrowUp, Square, ChevronDown, Github, Key, X, Paperclip, Settings as SettingsIcon, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, GitBranchPlus } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Settings as SettingsIcon, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, GitBranchPlus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat, Settings, Agent, ModelOption, PendingFile } from "@/lib/types"
 import { nanoid } from "nanoid"
@@ -25,6 +25,7 @@ interface ChatPanelProps {
   onResumeQueue?: () => void
   onStopAgent: () => void
   onChangeRepo?: () => void
+  onChangeBranch?: () => void
   onUpdateChat?: (updates: Partial<Chat>) => void
   onOpenSettings?: (highlightKey?: HighlightKey) => void
   onSlashCommand?: (command: SlashCommandType) => void
@@ -47,7 +48,7 @@ interface ChatPanelProps {
   canBranch?: boolean
 }
 
-export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false, onBranchWithMessage, onBranchQueuedMessage, canBranch = false }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false, onBranchWithMessage, onBranchQueuedMessage, canBranch = false }: ChatPanelProps) {
   const [input, setInput] = useState("")
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
@@ -633,6 +634,19 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
                   <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
                 </button>
               )}
+              {!isNewRepo && onChangeBranch && isNewChat && (
+                <button
+                  onClick={onChangeBranch}
+                  className={cn(
+                    "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
+                    isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-xs"
+                  )}
+                >
+                  <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+                  {chat.branch}
+                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+                </button>
+              )}
               {!isNewRepo && onUpdateChat && canSelectRepo && (
                 <button
                   onClick={() => onUpdateChat({ repo: NEW_REPOSITORY, baseBranch: "main" })}
@@ -649,17 +663,33 @@ export function ChatPanel({ chat, settings, onSendMessage, onEnqueueMessage, onR
           ) : !isNewRepo && (
             // Repo is locked — link out to the repo on GitHub instead of a
             // plain label so the user can jump to it.
-            <a
-              href={`https://github.com/${chat.repo}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                "text-muted-foreground hover:text-foreground transition-colors",
-                isMobile ? "text-sm" : "text-xs"
+            <div className="flex items-center gap-2">
+              <a
+                href={`https://github.com/${chat.repo}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "text-muted-foreground hover:text-foreground transition-colors",
+                  isMobile ? "text-sm" : "text-xs"
+                )}
+              >
+                {chat.repo}
+              </a>
+              {chat.branch && (
+                <a
+                  href={`https://github.com/${chat.repo}/tree/${chat.branch}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
+                    isMobile ? "text-sm" : "text-xs"
+                  )}
+                >
+                  <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+                  {chat.branch}
+                </a>
               )}
-            >
-              {chat.repo}
-            </a>
+            </div>
           )}
 
           {/* Spacer */}

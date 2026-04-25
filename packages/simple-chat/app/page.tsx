@@ -392,6 +392,25 @@ export default function HomePage() {
     }
   }
 
+  // Handler for the branch button in the ChatPanel header.
+  // Opens branch selection modal for the currently selected repository.
+  const handleChangeBranch = () => {
+    if (!session) {
+      setSignInModalOpen(true)
+      return
+    }
+    const chat = currentChat
+    if (!chat || chat.repo === NEW_REPOSITORY) return
+    // Set the preselected repo and open branch selection modal
+    const [owner, name] = chat.repo.split("/")
+    if (owner && name) {
+      // Find the repo object from repos list
+      const repo = repos.find((r) => r.owner.login === owner && r.name === name)
+      setPreselectedRepoForBranch(repo || null)
+      setBranchSelectOpen(true)
+    }
+  }
+
   // Handler for the Create Repository palette/slash command.
   const handleCreateRepo = () => {
     if (!session) {
@@ -803,6 +822,7 @@ export default function HomePage() {
                 onResumeQueue={resumeQueue}
                 onStopAgent={stopAgent}
                 onChangeRepo={handleChangeRepo}
+                onChangeBranch={handleChangeBranch}
                 onUpdateChat={updateCurrentChat}
                 onOpenSettings={handleOpenSettings}
                 onSlashCommand={handleSlashCommand}
@@ -882,8 +902,13 @@ export default function HomePage() {
           setPreselectedRepoForBranch(null)
         }}
         onSelect={(repo, branch) => {
-          // Create new chat with selected repo and branch
-          startNewChat(repo, branch)
+          // If current chat is empty (new chat), update its branch instead of creating a new chat
+          if (currentChat && currentChat.messages.length === 0 && !currentChat.sandboxId) {
+            updateCurrentChat({ branch })
+          } else {
+            // Otherwise create a new chat with the selected branch
+            startNewChat(repo, branch)
+          }
           setBranchSelectOpen(false)
           setPreselectedRepoForBranch(null)
         }}
