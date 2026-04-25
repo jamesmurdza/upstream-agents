@@ -1,7 +1,23 @@
 /**
  * LocalStorage utilities for Simple Chat
  *
- * With server sync enabled:
+ * MIGRATION NOTE (State Refactor):
+ * This file is being phased out in favor of the new state architecture:
+ *
+ * - Server state → TanStack Query (lib/queries/)
+ * - UI state → Zustand ui-store (lib/stores/ui-store.ts)
+ * - Stream state → Zustand stream-store (lib/stores/stream-store.ts)
+ *
+ * Functions marked @deprecated should not be used in new code.
+ * They are kept for backwards compatibility with useChatWithSync.
+ *
+ * Functions still in use:
+ * - DEFAULT_SETTINGS: Used as fallback when settings not loaded
+ * - clearAllStorage(): Called on sign-out
+ * - collectDescendantIds(): Used for cascade delete
+ * - loadLocalState(): Used during migration for initial hydration
+ *
+ * Legacy architecture (being phased out):
  * - Device-specific state (currentChatId, unseenChatIds, previewItems) stays in localStorage
  * - Server cache (chats, messages, settings) is stored in localStorage as a read-only mirror
  * - All writes go through the server first, then update local cache
@@ -117,6 +133,7 @@ export function saveLocalState(state: LocalState): void {
 
 /**
  * Update current chat ID
+ * @deprecated Use useUIStore().setCurrentChatId() instead
  */
 export function setCurrentChatId(chatId: string | null): void {
   const state = loadLocalState()
@@ -125,6 +142,7 @@ export function setCurrentChatId(chatId: string | null): void {
 
 /**
  * Set preview item for a chat
+ * @deprecated Use useUIStore().setPreviewItem() instead
  */
 export function setPreviewItem(chatId: string, item: Chat["previewItem"]): void {
   const state = loadLocalState()
@@ -136,6 +154,7 @@ export function setPreviewItem(chatId: string, item: Chat["previewItem"]): void 
 
 /**
  * Get preview item for a chat
+ * @deprecated Use useUIStore().previewItems[chatId] instead
  */
 export function getPreviewItem(chatId: string): Chat["previewItem"] {
   const state = loadLocalState()
@@ -144,6 +163,7 @@ export function getPreviewItem(chatId: string): Chat["previewItem"] {
 
 /**
  * Set queued messages for a chat
+ * @deprecated Use useUIStore().setQueuedMessages() instead
  */
 export function setQueuedMessages(chatId: string, messages: Chat["queuedMessages"]): void {
   const state = loadLocalState()
@@ -155,6 +175,7 @@ export function setQueuedMessages(chatId: string, messages: Chat["queuedMessages
 
 /**
  * Get queued messages for a chat
+ * @deprecated Use useUIStore().queuedMessages[chatId] instead
  */
 export function getQueuedMessages(chatId: string): Chat["queuedMessages"] {
   const state = loadLocalState()
@@ -163,6 +184,7 @@ export function getQueuedMessages(chatId: string): Chat["queuedMessages"] {
 
 /**
  * Set queue paused for a chat
+ * @deprecated Use useUIStore().setQueuePaused() instead
  */
 export function setQueuePaused(chatId: string, paused: boolean): void {
   const state = loadLocalState()
@@ -174,6 +196,7 @@ export function setQueuePaused(chatId: string, paused: boolean): void {
 
 /**
  * Get queue paused for a chat
+ * @deprecated Use useUIStore().queuePaused[chatId] instead
  */
 export function getQueuePaused(chatId: string): boolean {
   const state = loadLocalState()
@@ -182,10 +205,12 @@ export function getQueuePaused(chatId: string): boolean {
 
 // =============================================================================
 // Server Cache (Read-Only Mirror)
+// @deprecated - Use TanStack Query instead (lib/queries/)
 // =============================================================================
 
 /**
  * Load server cache
+ * @deprecated Use TanStack Query hooks instead (useChatsQuery, useSettingsQuery)
  */
 export function loadServerCache(): ServerCache {
   if (typeof window === "undefined") {
@@ -215,6 +240,7 @@ export function loadServerCache(): ServerCache {
 
 /**
  * Save server cache
+ * @deprecated Use TanStack Query cache updates instead (lib/queries/cache-updates.ts)
  */
 export function saveServerCache(cache: ServerCache): void {
   if (typeof window === "undefined") {
@@ -230,6 +256,7 @@ export function saveServerCache(cache: ServerCache): void {
 
 /**
  * Update chats in cache
+ * @deprecated Use TanStack Query setQueryData instead
  */
 export function updateCacheChats(chats: Chat[]): void {
   const cache = loadServerCache()
@@ -242,6 +269,7 @@ export function updateCacheChats(chats: Chat[]): void {
 
 /**
  * Update a single chat in cache
+ * @deprecated Use updateChatInCache from lib/queries/cache-updates.ts
  */
 export function updateCacheChat(chatId: string, updates: Partial<Chat>): void {
   const cache = loadServerCache()
@@ -255,6 +283,7 @@ export function updateCacheChat(chatId: string, updates: Partial<Chat>): void {
 
 /**
  * Add a chat to cache
+ * @deprecated Use useCreateChat mutation which updates cache automatically
  */
 export function addCacheChat(chat: Chat): void {
   const cache = loadServerCache()
@@ -266,6 +295,7 @@ export function addCacheChat(chat: Chat): void {
 
 /**
  * Remove chats from cache
+ * @deprecated Use useDeleteChat mutation which updates cache automatically
  */
 export function removeCacheChats(chatIds: string[]): void {
   const cache = loadServerCache()
@@ -298,6 +328,7 @@ export function removeCacheChats(chatIds: string[]): void {
 
 /**
  * Update messages for a chat in cache, deduping by ID
+ * @deprecated Use addOptimisticMessages from lib/queries/cache-updates.ts
  */
 export function updateCacheMessages(chatId: string, newMessages: Message[]): void {
   const cache = loadServerCache()
@@ -327,6 +358,7 @@ export function updateCacheMessages(chatId: string, newMessages: Message[]): voi
 
 /**
  * Update the last message for a chat (for streaming)
+ * @deprecated Use updateMessageInCache from lib/queries/cache-updates.ts
  */
 export function updateCacheLastMessage(chatId: string, updates: Partial<Message>): void {
   const cache = loadServerCache()
@@ -346,6 +378,7 @@ export function updateCacheLastMessage(chatId: string, updates: Partial<Message>
 
 /**
  * Update settings in cache
+ * @deprecated Use useUpdateSettings mutation which updates cache automatically
  */
 export function updateCacheSettings(settings: Settings): void {
   const cache = loadServerCache()
@@ -357,6 +390,7 @@ export function updateCacheSettings(settings: Settings): void {
 
 /**
  * Update credential flags in cache
+ * @deprecated Use useUpdateSettings mutation which updates cache automatically
  */
 export function updateCacheCredentialFlags(credentialFlags: CredentialFlags): void {
   const cache = loadServerCache()
@@ -368,6 +402,7 @@ export function updateCacheCredentialFlags(credentialFlags: CredentialFlags): vo
 
 /**
  * Get last message ID for a chat
+ * @deprecated No longer needed - TanStack Query handles delta sync internally
  */
 export function getLastMessageId(chatId: string): string | undefined {
   const cache = loadServerCache()
@@ -376,10 +411,12 @@ export function getLastMessageId(chatId: string): string | undefined {
 
 // =============================================================================
 // Unseen Chat IDs (Device-Specific)
+// @deprecated - Use useUIStore().unseenChatIds instead
 // =============================================================================
 
 /**
  * Load the set of chat IDs with unseen completions
+ * @deprecated Use useUIStore().unseenChatIds instead
  */
 export function loadUnseenChatIds(): Set<string> {
   if (typeof window === "undefined") return new Set()
@@ -395,6 +432,7 @@ export function loadUnseenChatIds(): Set<string> {
 
 /**
  * Save the set of chat IDs with unseen completions
+ * @deprecated Use useUIStore().markChatUnseen() instead
  */
 export function saveUnseenChatIds(ids: Set<string>): void {
   if (typeof window === "undefined") return
@@ -443,10 +481,13 @@ export function collectDescendantIds(chats: Chat[], rootId: string): string[] {
 
 // =============================================================================
 // ID-Based Merging Utilities
+// @deprecated - No longer needed with TanStack Query architecture
+// The streaming store now writes directly to query cache, eliminating races.
 // =============================================================================
 
 /**
  * Merge two message arrays by ID, taking the "better" version of each message.
+ * @deprecated No longer needed - stream store writes directly to query cache
  * "Better" means: more content (for streaming) or newer timestamp as tiebreaker.
  *
  * This eliminates race conditions between streaming completion and server fetches -
@@ -496,6 +537,7 @@ export function mergeMessages(existing: Message[], incoming: Message[]): Message
  * "Better" means: more messages, or newer lastActiveAt/updatedAt as tiebreaker.
  *
  * Local state with active streaming content always wins over server state.
+ * @deprecated No longer needed - stream store writes directly to query cache
  */
 export function mergeChats(existing: Chat[], incoming: Chat[]): Chat[] {
   const chatMap = new Map<string, Chat>()
