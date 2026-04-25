@@ -25,6 +25,7 @@ import {
   // Local state (device-specific)
   loadLocalState,
   setCurrentChatId,
+  setPreviewItem,
   loadUnseenChatIds,
   saveUnseenChatIds,
   setQueuedMessages,
@@ -485,40 +486,64 @@ export function useChatWithSync() {
   const updateCurrentChat = useCallback(async (updates: Partial<Chat>) => {
     if (!state.currentChatId) return
 
-    try {
-      await apiUpdateChat(state.currentChatId, updates as unknown as Parameters<typeof apiUpdateChat>[1])
+    // Separate local-only fields from server-synced fields
+    // Local-only: previewItem, queuedMessages, queuePaused (stored in localStorage, not sent to server)
+    const { previewItem, queuedMessages, queuePaused, ...serverUpdates } = updates
 
-      // Update cache
-      updateCacheChat(state.currentChatId, updates)
+    // Handle local-only updates (previewItem)
+    if (previewItem !== undefined) {
+      setPreviewItem(state.currentChatId, previewItem)
+    }
 
-      // Update state
-      setState((prev) => ({
-        ...prev,
-        chats: prev.chats.map((c) =>
-          c.id === state.currentChatId ? { ...c, ...updates } : c
-        ),
-      }))
-    } catch (error) {
-      console.error("Failed to update chat:", error)
+    // Update React state for all fields (local + server)
+    setState((prev) => ({
+      ...prev,
+      chats: prev.chats.map((c) =>
+        c.id === state.currentChatId ? { ...c, ...updates } : c
+      ),
+    }))
+
+    // Only call the server API if there are server-synced fields to update
+    if (Object.keys(serverUpdates).length > 0) {
+      try {
+        await apiUpdateChat(state.currentChatId, serverUpdates as unknown as Parameters<typeof apiUpdateChat>[1])
+
+        // Update cache (only for server-synced fields)
+        updateCacheChat(state.currentChatId, serverUpdates)
+      } catch (error) {
+        console.error("Failed to update chat:", error)
+      }
     }
   }, [state.currentChatId])
 
   const updateChatById = useCallback(async (chatId: string, updates: Partial<Chat>) => {
-    try {
-      await apiUpdateChat(chatId, updates as unknown as Parameters<typeof apiUpdateChat>[1])
+    // Separate local-only fields from server-synced fields
+    // Local-only: previewItem, queuedMessages, queuePaused (stored in localStorage, not sent to server)
+    const { previewItem, queuedMessages, queuePaused, ...serverUpdates } = updates
 
-      // Update cache
-      updateCacheChat(chatId, updates)
+    // Handle local-only updates (previewItem)
+    if (previewItem !== undefined) {
+      setPreviewItem(chatId, previewItem)
+    }
 
-      // Update state
-      setState((prev) => ({
-        ...prev,
-        chats: prev.chats.map((c) =>
-          c.id === chatId ? { ...c, ...updates } : c
-        ),
-      }))
-    } catch (error) {
-      console.error("Failed to update chat:", error)
+    // Update React state for all fields (local + server)
+    setState((prev) => ({
+      ...prev,
+      chats: prev.chats.map((c) =>
+        c.id === chatId ? { ...c, ...updates } : c
+      ),
+    }))
+
+    // Only call the server API if there are server-synced fields to update
+    if (Object.keys(serverUpdates).length > 0) {
+      try {
+        await apiUpdateChat(chatId, serverUpdates as unknown as Parameters<typeof apiUpdateChat>[1])
+
+        // Update cache (only for server-synced fields)
+        updateCacheChat(chatId, serverUpdates)
+      } catch (error) {
+        console.error("Failed to update chat:", error)
+      }
     }
   }, [])
 
