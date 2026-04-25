@@ -92,18 +92,6 @@ export interface AgentSnapshot {
 }
 
 /**
- * Incremental result of a single poll. Returns only events that have arrived
- * since the previous poll on this session — callers should NOT treat
- * `events` as cumulative. For cumulative state use snapshotBackgroundAgent().
- */
-export interface AgentPollResult {
-  status: "running" | "completed" | "error"
-  events: Event[]
-  error?: string
-  sessionId?: string
-}
-
-/**
  * Derive {content, toolCalls, contentBlocks, status, error} from a list of
  * events. Pass cumulative events to get a cumulative summary; pass deltas to
  * get a delta summary.
@@ -168,55 +156,31 @@ function summarizeEvents(
 }
 
 /**
- * Poll for new events since the last call on this session. Use for
- * low-latency wire updates. Does NOT return cumulative state.
+ * Advance the bg session's per-turn meta after a turn has completed by
+ * triggering one getEvents() call. snapshotBackgroundAgent is read-only and
+ * doesn't perform this bookkeeping; without it, the next start() in the
+ * same session would write to the just-finished turn's outputFile.
+ *
+ * Best-effort: errors are swallowed because the snapshot has already been
+ * persisted to the DB and the wire state has settled.
  */
-export async function pollBackgroundAgent(
+export async function finalizeTurn(
   sandbox: DaytonaSandbox,
   backgroundSessionId: string,
   options: AgentSessionOptions
-): Promise<AgentPollResult> {
+): Promise<void> {
   try {
     const systemPrompt = buildSystemPrompt(
       options.repoPath,
       options.previewUrlPattern
     )
-
     const bgSession = await getSession(backgroundSessionId, {
       sandbox: sandbox as any,
       systemPrompt,
     })
-
-    const result = (await bgSession.getEvents()) as {
-      events: Event[]
-      sessionId: string | null
-      cursor: string
-      running?: boolean
-    }
-
-    const running =
-      typeof result.running === "boolean"
-        ? result.running
-        : await bgSession.isRunning()
-
-    // Reuse summarizeEvents to derive status + error from this batch.
-    // content/toolCalls/contentBlocks aren't returned because they'd be
-    // misleading deltas; callers should use snapshotBackgroundAgent for those.
-    const summary = summarizeEvents(result.events, running, result.sessionId)
-
-    return {
-      status: summary.status,
-      events: result.events,
-      error: summary.error,
-      sessionId: summary.sessionId,
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error"
-    return {
-      status: "error",
-      events: [],
-      error: msg,
-    }
+    await bgSession.getEvents()
+  } catch {
+    /* best effort */
   }
 }
 

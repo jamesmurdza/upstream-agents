@@ -2,7 +2,7 @@ import { Daytona } from "@daytonaio/sdk"
 import { Prisma } from "@prisma/client"
 import { PATHS } from "@/lib/constants"
 import {
-  pollBackgroundAgent,
+  finalizeTurn,
   snapshotBackgroundAgent,
   type AgentSnapshot,
 } from "@/lib/agent-session"
@@ -217,18 +217,9 @@ export async function GET(req: Request) {
             // Final DB flush from the same snapshot we just sent.
             await persistSnapshot(snap, true)
 
-            // The bg session's per-turn meta (currentTurn, cursor) is
-            // only advanced inside getEvents(); snapshotBackgroundAgent is
-            // read-only. Trigger one getEvents() call so the next
-            // start() in this session writes to a fresh outputFile
-            // instead of overwriting the just-finished turn's log.
-            await pollBackgroundAgent(
-              sandbox,
-              backgroundSessionId,
-              sessionOpts
-            ).catch(() => {
-              /* best effort — DB and wire state already settled */
-            })
+            // Advance the bg session's per-turn meta so the next start()
+            // writes to a fresh outputFile.
+            await finalizeTurn(sandbox, backgroundSessionId, sessionOpts)
 
             sendEvent("complete", {
               status: snap.status,
