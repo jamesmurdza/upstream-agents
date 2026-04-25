@@ -349,10 +349,10 @@ export default function HomePage() {
 
   // Auto-create a new chat if none exists after hydration
   useEffect(() => {
-    if (isHydrated && !currentChatId) {
+    if (isHydrated && !currentChatId && session) {
       startNewChat()
     }
-  }, [isHydrated, currentChatId, startNewChat])
+  }, [isHydrated, currentChatId, session, startNewChat])
 
   // Handler for new chat - uses selected repo filter as default, or NEW_REPOSITORY if "All" is selected
   const handleNewChat = () => {
