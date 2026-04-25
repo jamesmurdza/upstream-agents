@@ -89,6 +89,11 @@ export function useChatWithSync() {
   const [unseenChatIds, setUnseenChatIds] = useState<Set<string>>(new Set())
   const [deletingChatIds, setDeletingChatIds] = useState<Set<string>>(new Set())
   const prevStatuses = useRef<Map<string, ChatStatus>>(new Map())
+  // Synchronous guard for sendMessage re-entry. The isStreaming check
+  // doesn't help during stages (b)–(c) (sandbox create / file upload)
+  // because the stream hasn't started yet; a double-click in that window
+  // would otherwise create two sandboxes and race them.
+  const sendInFlight = useRef<Set<string>>(new Set())
 
   // =============================================================================
   // Initial Load - Fetch from server
@@ -798,11 +803,26 @@ export function useChatWithSync() {
     const chat = state.chats.find((c) => c.id === chatId)
     if (!chat) return
 
-    // Guard: prevent concurrent sends
+    // Concurrency guards — three layers, narrowest first:
+    //   1. Synchronous in-flight ref: catches a re-entrant call within
+    //      the same tick (double-click before any state update lands).
+    //   2. Streaming check: catches the case where stage (d) already
+    //      started a stream.
+    //   3. Status check: catches state-visible mid-pipeline state.
+    if (sendInFlight.current.has(chatId)) {
+      console.warn("Send already in flight for this chat")
+      return
+    }
     if (useStreamStore.getState().isStreaming(chatId)) {
       console.warn("Already streaming for this chat")
       return
     }
+    if (chat.status === "creating" || chat.status === "running") {
+      console.warn(`Chat is ${chat.status}; can't send`)
+      return
+    }
+    sendInFlight.current.add(chatId)
+    try {
 
     const isNewRepo = chat.repo === NEW_REPOSITORY
     if (!isNewRepo && !session?.accessToken) return
@@ -1073,6 +1093,10 @@ export function useChatWithSync() {
             : c
         ),
       }))
+    }
+
+    } finally {
+      sendInFlight.current.delete(chatId)
     }
   }, [state.currentChatId, state.chats, state.settings, session?.accessToken, startStreaming])
 
