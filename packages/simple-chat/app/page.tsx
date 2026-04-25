@@ -977,23 +977,23 @@ export default function HomePage() {
         suggestedName={currentChat?.displayName ?? null}
       />
 
-      <RepoPickerModal
+      <BranchPickerModal
         open={branchSelectOpen}
         onClose={() => setBranchSelectOpen(false)}
-          onSelect={(branch) => {
-            if (currentChat && currentChat.messages.length === 0 && !currentChat.sandboxId) {
-              updateCurrentChat({ branch })
-            } else if (currentChat) {
-              const chatId = startNewChat(currentChat.repo, branch)
-              if (chatId) selectChat(chatId)
-            }
-            setBranchSelectOpen(false)
-          }}
-          repo={currentChat?.repo?.split("/")[1] || ""}
-          owner={currentChat?.repo?.split("/")[0] || ""}
-          defaultBranch={currentChat?.branch}
-          isMobile={isMobile}
-        />
+        onSelect={async (branch) => {
+          if (currentChat && currentChat.messages.length === 0 && !currentChat.sandboxId) {
+            updateCurrentChat({ branch })
+          } else if (currentChat) {
+            const chatId = await startNewChat(currentChat.repo, branch)
+            if (chatId) selectChat(chatId)
+          }
+          setBranchSelectOpen(false)
+        }}
+        repo={currentChat?.repo?.split("/")[1] || ""}
+        owner={currentChat?.repo?.split("/")[0] || ""}
+        defaultBranch={currentChat?.branch ?? undefined}
+        isMobile={isMobile}
+      />
 
         <SettingsModal
         open={settingsOpen}

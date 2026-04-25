@@ -102,10 +102,7 @@ export function BranchPickerModal({
             "animate-in fade-in zoom-in-95"
           )}
         >
-          <ModalHeader
-            title="Select Branch"
-            onClose={onClose}
-          />
+          <ModalHeader title="Select Branch" />
 
           <div className="flex flex-col overflow-hidden">
             <div className={cn("flex items-center gap-2 border-b border-border", isMobile ? "p-3" : "p-4 pt-2")}>
