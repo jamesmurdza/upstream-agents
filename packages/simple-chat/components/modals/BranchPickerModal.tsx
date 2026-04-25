@@ -71,9 +71,10 @@ export function BranchPickerModal({
     branch.name.toLowerCase().includes(search.toLowerCase())
   )
 
-  const handleSelect = useCallback(() => {
-    if (selectedBranch) {
-      onSelect(selectedBranch)
+  const handleSelect = useCallback((branchName?: string) => {
+    const branch = branchName ?? selectedBranch
+    if (branch) {
+      onSelect(branch)
       onClose()
     }
   }, [selectedBranch, onSelect, onClose])
@@ -151,10 +152,7 @@ export function BranchPickerModal({
                   {filteredBranches.map((branch, index) => (
                     <button
                       key={branch.name}
-                      onClick={() => {
-                        setSelectedBranch(branch.name)
-                        handleSelect()
-                      }}
+                      onClick={() => handleSelect(branch.name)}
                       className={cn(
                         "flex w-full items-center gap-2 px-4 py-2 text-left transition-colors",
                         isMobile ? "text-base" : "text-sm",
