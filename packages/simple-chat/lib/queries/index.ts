@@ -35,5 +35,16 @@ export {
   type ChatDetailWithLocalFields,
 } from "./local-state"
 
+// Cache update helpers (for SSE handlers)
+export {
+  updateMessageInCache,
+  markStreamComplete,
+  markStreamError,
+  markStreamStarted,
+  addOptimisticMessages,
+  updateChatInCache,
+  updateUserMessageFiles,
+} from "./cache-updates"
+
 // Provider
 export { QueryProvider, getQueryClient } from "./provider"
