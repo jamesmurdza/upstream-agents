@@ -12,6 +12,7 @@ import { SettingsModal, type HighlightKey } from "@/components/modals/SettingsMo
 import { SignInModal } from "@/components/modals/SignInModal"
 import { HelpModal } from "@/components/modals/HelpModal"
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog"
+import { BranchPickerModal } from "@/components/modals/BranchPickerModal"
 import { MergeDialog, RebaseDialog, PRDialog, SquashDialog, useGitDialogs } from "@/components/modals/GitDialogs"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
 import { PaletteProvider } from "@/components/search-palette"
@@ -83,7 +84,6 @@ export default function HomePage() {
   const [repoSelectOpen, setRepoSelectOpen] = useState(false)
   const [repoCreateOpen, setRepoCreateOpen] = useState(false)
   const [branchSelectOpen, setBranchSelectOpen] = useState(false)
-  const [preselectedRepoForBranch, setPreselectedRepoForBranch] = useState<GitHubRepo | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsHighlightKey, setSettingsHighlightKey] = useState<HighlightKey>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -400,14 +400,8 @@ export default function HomePage() {
     }
     const chat = currentChat
     if (!chat || chat.repo === NEW_REPOSITORY) return
-    // Set the preselected repo and open branch selection modal
-    const [owner, name] = chat.repo.split("/")
-    if (owner && name) {
-      // Find the repo object from repos list
-      const repo = repos.find((r) => r.owner.login === owner && r.name === name)
-      setPreselectedRepoForBranch(repo || null)
-      setBranchSelectOpen(true)
-    }
+    // Just open the branch picker - it will fetch branches for the current repo
+    setBranchSelectOpen(true)
   }
 
   // Handler for the Create Repository palette/slash command.
@@ -566,11 +560,10 @@ export default function HomePage() {
 
   // Palette handlers
   const handlePaletteSelectRepo = useCallback((repo: GitHubRepo) => {
-    // Open branch selection modal for this repo instead of creating chat directly
-    setPreselectedRepoForBranch(repo)
-    setBranchSelectOpen(true)
+    // Create new chat with the repo - branch selection happens via the header button
+    startNewChat(`${repo.owner.login}/${repo.name}`, repo.default_branch)
     if (currentPage !== "chat") handleNavigate("chat")
-  }, [currentPage])
+  }, [currentPage, startNewChat])
 
   const handlePaletteSelectBranch = useCallback((repo: GitHubRepo, branch: GitHubBranch) => {
     // Create a new chat with this repo and branch
@@ -893,27 +886,23 @@ export default function HomePage() {
 
       <RepoPickerModal
         open={branchSelectOpen}
-        onClose={() => {
-          setBranchSelectOpen(false)
-          setPreselectedRepoForBranch(null)
-        }}
-        onSelect={(repo, branch) => {
-          // If current chat is empty (new chat), update its branch instead of creating a new chat
-          if (currentChat && currentChat.messages.length === 0 && !currentChat.sandboxId) {
-            updateCurrentChat({ branch })
-          } else {
-            // Otherwise create a new chat with the selected branch
-            startNewChat(repo, branch)
-          }
-          setBranchSelectOpen(false)
-          setPreselectedRepoForBranch(null)
-        }}
-        isMobile={isMobile}
-        mode="branch-only"
-        preselectedRepo={preselectedRepoForBranch}
-      />
+        onClose={() => setBranchSelectOpen(false)}
+          onSelect={(branch) => {
+            if (currentChat && currentChat.messages.length === 0 && !currentChat.sandboxId) {
+              updateCurrentChat({ branch })
+            } else if (currentChat) {
+              const chatId = startNewChat(currentChat.repo, branch)
+              if (chatId) selectChat(chatId)
+            }
+            setBranchSelectOpen(false)
+          }}
+          repo={currentChat?.repo?.split("/")[1] || ""}
+          owner={currentChat?.repo?.split("/")[0] || ""}
+          defaultBranch={currentChat?.branch}
+          isMobile={isMobile}
+        />
 
-      <SettingsModal
+        <SettingsModal
         open={settingsOpen}
         onClose={handleCloseSettings}
         settings={settings}
