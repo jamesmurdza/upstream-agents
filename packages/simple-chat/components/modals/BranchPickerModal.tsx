@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import * as Dialog from "@radix-ui/react-dialog"
-import { Search, GitBranch, Loader2, ChevronLeft } from "lucide-react"
+import { Search, GitBranch, Loader2, ChevronLeft, X } from "lucide-react"
 import { ModalHeader, focusChatPrompt } from "@/components/ui/modal-header"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -95,25 +95,31 @@ export function BranchPickerModal({
   return (
     <Dialog.Root open={open} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 animate-in fade-in" />
+        <Dialog.Overlay className={cn(
+            "fixed inset-0 z-50 transition-opacity duration-300 bg-black/15 backdrop-blur-[1px]",
+            open ? "opacity-100" : "opacity-0"
+          )} />
         <Dialog.Content
+          onCloseAutoFocus={(e) => { e.preventDefault(); focusChatPrompt() }}
+          onOpenAutoFocus={(e) => {
+            e.preventDefault()
+            setTimeout(() => {
+              searchInputRef.current?.focus()
+            }, 0)
+          }}
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 overflow-hidden bg-background shadow-lg",
-            isMobile ? "max-h-[85vh] rounded-t-2xl" : "max-w-[480px] rounded-2xl max-h-[80vh]",
-            "animate-in fade-in zoom-in-95"
+            "fixed z-50 bg-popover flex flex-col",
+            "overflow-hidden",
+            isMobile
+              ? "inset-x-0 bottom-0 top-0 rounded-none"
+              : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md border border-border rounded-lg shadow-xl",
+            "animate-in fade-in zoom-in-95 duration-200"
           )}
         >
           <ModalHeader title="Select Branch" />
 
           <div className="flex flex-col overflow-hidden">
-            <div className={cn("flex items-center gap-2 border-b border-border", isMobile ? "p-3" : "p-4 pt-2")}>
-              <GitBranch className={cn("text-muted-foreground", isMobile ? "h-5 w-5" : "h-4 w-4")} />
-              <span className={cn("font-medium", isMobile ? "text-base" : "text-sm")}>
-                {owner}/{repo}
-              </span>
-            </div>
-
-            <div className={cn("flex items-center gap-2 border-b border-border", isMobile ? "p-3 pt-0" : "p-4 pt-2")}>
+            <div className={cn("flex items-center gap-2 border-b border-border", isMobile ? "p-4" : "p-4")}>
               <Search className={cn("text-muted-foreground shrink-0", isMobile ? "h-5 w-5" : "h-4 w-4")} />
               <Input
                 ref={searchInputRef}
@@ -126,10 +132,7 @@ export function BranchPickerModal({
             </div>
 
             <div
-              ref={searchInputRef}
-              onKeyDown={handleKeyDown}
-              className={cn("overflow-y-auto", isMobile ? "flex-1" : "flex-1 min-h-0")}
-              style={{ maxHeight: "calc(80vh - 180px)" }}
+              className={cn("flex-1 overflow-y-auto", isMobile ? "max-h-none" : "max-h-80")}
             >
               {loading && (
                 <div className="flex items-center justify-center p-8 text-muted-foreground">
@@ -148,23 +151,24 @@ export function BranchPickerModal({
               )}
 
               {!loading && !error && filteredBranches.length > 0 && (
-                <div className="py-2">
+                <div className={cn(isMobile ? "p-3" : "p-2")}>
                   {filteredBranches.map((branch, index) => (
                     <button
                       key={branch.name}
                       onClick={() => handleSelect(branch.name)}
                       className={cn(
-                        "flex w-full items-center gap-2 px-4 py-2 text-left transition-colors",
-                        isMobile ? "text-base" : "text-sm",
-                        index === selectedIndex || branch.name === selectedBranch
-                          ? "bg-accent"
-                          : "hover:bg-accent/50"
+                        "flex items-center gap-2 w-full rounded-lg hover:bg-accent active:bg-accent transition-colors text-left",
+                        isMobile ? "px-4 py-4" : "px-3 py-2",
+                        index === selectedIndex && "bg-accent"
                       )}
                     >
-                      <GitBranch className={cn("text-muted-foreground", isMobile ? "h-5 w-5" : "h-4 w-4")} />
+                      <GitBranch className={cn("text-muted-foreground shrink-0", isMobile ? "h-5 w-5" : "h-4 w-4")} />
                       <span className="flex-1 truncate">{branch.name}</span>
                       {branch.name === defaultBranch && (
                         <span className="text-xs text-muted-foreground">default</span>
+                      )}
+                      {branch.name === selectedBranch && (
+                        <X className={cn("text-primary shrink-0", isMobile ? "h-5 w-5" : "h-4 w-4")} />
                       )}
                     </button>
                   ))}
@@ -172,15 +176,14 @@ export function BranchPickerModal({
               )}
             </div>
 
-            <div className={cn("flex items-center justify-between border-t border-border", isMobile ? "p-3" : "p-3")}>
+            <div className={cn("flex justify-end gap-2 border-t border-border", isMobile ? "p-4" : "p-4")}>
               <button
                 onClick={onClose}
                 className={cn(
-                  "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
-                  isMobile ? "text-base" : "text-sm"
+                  "rounded-md hover:bg-accent active:bg-accent transition-colors",
+                  isMobile ? "px-6 py-3 text-base" : "px-4 py-2 text-sm"
                 )}
               >
-                <ChevronLeft className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />
                 Back
               </button>
 
@@ -188,11 +191,11 @@ export function BranchPickerModal({
                 onClick={handleSelect}
                 disabled={!selectedBranch}
                 className={cn(
-                  "flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50",
-                  isMobile ? "text-base" : "text-sm"
+                  "bg-primary text-primary-foreground rounded-md hover:bg-primary/90 active:bg-primary/80 transition-colors disabled:opacity-50",
+                  isMobile ? "px-6 py-3 text-base" : "px-4 py-2 text-sm"
                 )}
               >
-                Select
+                OK
               </button>
             </div>
           </div>
