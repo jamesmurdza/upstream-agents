@@ -4,11 +4,8 @@
  * Export all custom hooks from a single entry point.
  */
 
-// New unified chat hook (replaces useChatWithSync)
+// Unified chat hook (server state via TanStack Query)
 export { useChat } from "./useChat"
-
-// Legacy hook (deprecated, kept for migration)
-export { useChatWithSync } from "./useChatWithSync"
 
 // Utility hooks
 export { useMobile } from "./useMobile"

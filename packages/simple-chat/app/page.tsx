@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
 import { nanoid } from "nanoid"
 import { Menu } from "lucide-react"
-import { Sidebar, ALL_REPOSITORIES, NO_REPOSITORY } from "@/components/Sidebar"
+import { Sidebar } from "@/components/Sidebar"
 import { ChatPanel } from "@/components/ChatPanel"
 import { PreviewView, type PreviewItem } from "@/components/PreviewView"
 import { RepoPickerModal } from "@/components/modals/RepoPickerModal"
-import { SettingsModal, type HighlightKey } from "@/components/modals/SettingsModal"
+import { SettingsModal } from "@/components/modals/SettingsModal"
 import { SignInModal } from "@/components/modals/SignInModal"
 import { HelpModal } from "@/components/modals/HelpModal"
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog"
@@ -17,34 +17,25 @@ import { MergeDialog, RebaseDialog, PRDialog, SquashDialog, useGitDialogs } from
 import { clearAllStorage } from "@/lib/storage"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
 import { PaletteProvider } from "@/components/search-palette"
-import { useChatWithSync } from "@/lib/hooks/useChatWithSync"
+import { useChat } from "@/lib/hooks/useChat"
+import { useUIStore, ALL_REPOSITORIES, NO_REPOSITORY, type PendingMessage } from "@/lib/stores/ui-store"
 import { useMobile } from "@/lib/hooks/useMobile"
 import { NEW_REPOSITORY, type Message, type Chat } from "@/lib/types"
 import { fetchRepos, fetchBranches, type GitHubRepo, type GitHubBranch } from "@/lib/github"
 
-// Storage key for pending message (persists across OAuth redirect)
-const PENDING_MESSAGE_KEY = "simple-chat-pending-message"
-
-// Type for pending message data stored before sign-in
-interface PendingMessage {
-  message: string
-  agent: string
-  model: string
-}
-
 // Helper to save pending message to sessionStorage
 function savePendingMessage(data: PendingMessage): void {
   if (typeof window !== "undefined") {
-    sessionStorage.setItem(PENDING_MESSAGE_KEY, JSON.stringify(data))
+    sessionStorage.setItem("simple-chat-pending-message", JSON.stringify(data))
   }
 }
 
 // Helper to load and clear pending message from sessionStorage
 function loadAndClearPendingMessage(): PendingMessage | null {
   if (typeof window === "undefined") return null
-  const stored = sessionStorage.getItem(PENDING_MESSAGE_KEY)
+  const stored = sessionStorage.getItem("simple-chat-pending-message")
   if (stored) {
-    sessionStorage.removeItem(PENDING_MESSAGE_KEY)
+    sessionStorage.removeItem("simple-chat-pending-message")
     try {
       return JSON.parse(stored) as PendingMessage
     } catch {
@@ -58,6 +49,7 @@ export default function HomePage() {
   const { data: session } = useSession()
   const isMobile = useMobile()
 
+  // New state architecture: useChat for server state, useUIStore for UI state
   const {
     chats,
     currentChat,
@@ -81,20 +73,41 @@ export default function HomePage() {
     removeQueuedMessage,
     resumeQueue,
     updateChatById,
-  } = useChatWithSync()
+  } = useChat()
 
+  // UI state from Zustand store
+  const {
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    toggleSidebar,
+    sidebarWidth,
+    setSidebarWidth,
+    mobileSidebarOpen,
+    setMobileSidebarOpen,
+    signInModalOpen,
+    setSignInModalOpen,
+    helpOpen,
+    setHelpOpen,
+    settingsOpen,
+    settingsHighlightKey,
+    openSettings,
+    closeSettings,
+    repoFilter,
+    setRepoFilter,
+    collapsedChatIds,
+    toggleChatCollapsed,
+    expandChatAndAncestors,
+    draftAgent,
+    setDraftAgent,
+    draftModel,
+    setDraftModel,
+  } = useUIStore()
+
+  // Local component state (not persisted)
   const [repoSelectOpen, setRepoSelectOpen] = useState(false)
   const [repoCreateOpen, setRepoCreateOpen] = useState(false)
   const [branchSelectOpen, setBranchSelectOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsHighlightKey, setSettingsHighlightKey] = useState<HighlightKey>(null)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [sidebarWidth, setSidebarWidth] = useState(260)
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [signInModalOpen, setSignInModalOpen] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
   const [deleteConfirmChatId, setDeleteConfirmChatId] = useState<string | null>(null)
-  const [collapsedChatIds, setCollapsedChatIds] = useState<Set<string>>(new Set())
   const [previewWidth, setPreviewWidth] = useState(() => {
     if (typeof window === "undefined") return 520
     const stored = Number(window.localStorage.getItem("simple-chat-preview-width"))
@@ -152,42 +165,13 @@ export default function HomePage() {
       window.removeEventListener("mouseup", up)
     }
   }, [])
-  const toggleChatCollapsed = useCallback((id: string) => {
-    setCollapsedChatIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }, [])
-  const expandChatAndAncestors = useCallback((targetId: string, byId: Map<string, Chat>) => {
-    setCollapsedChatIds((prev) => {
-      let next = prev
-      let cur = byId.get(targetId)?.parentChatId
-      while (cur) {
-        if (next.has(cur)) {
-          if (next === prev) next = new Set(prev)
-          next.delete(cur)
-        }
-        cur = byId.get(cur)?.parentChatId
-      }
-      return next
-    })
-  }, [])
+
   // Track if we've already processed a pending message (to avoid double-sending)
   const pendingMessageProcessed = useRef(false)
-
-  // Draft chat agent/model — only used when an unauthenticated user is
-  // composing a message before any real chat exists. Stored locally because
-  // the chat row that would normally hold these doesn't exist yet.
-  const [draftAgent, setDraftAgent] = useState<string | null>(null)
-  const [draftModel, setDraftModel] = useState<string | null>(null)
 
   // Repos and branches for search palette
   const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [branches, setBranches] = useState<GitHubBranch[]>([])
-
-  // Repository filter state (shared with Sidebar)
-  const [repoFilter, setRepoFilter] = useState<string>(ALL_REPOSITORIES)
 
   // Load repos when authenticated
   useEffect(() => {
@@ -316,31 +300,23 @@ export default function HomePage() {
     if (!isMobile) {
       setMobileSidebarOpen(false)
     }
-  }, [isMobile])
-
+  }, [isMobile, setMobileSidebarOpen])
 
   // Handler for opening settings (optionally with a highlighted API key field)
-  const handleOpenSettings = (highlightKey?: HighlightKey) => {
-    setSettingsHighlightKey(highlightKey ?? null)
-    setSettingsOpen(true)
+  const handleOpenSettings = useCallback((highlightKey?: Parameters<typeof openSettings>[0]) => {
+    openSettings(highlightKey ?? null)
     // Close mobile sidebar when opening settings
     if (isMobile) {
       setMobileSidebarOpen(false)
     }
-  }
-
-  // Handler for closing settings
-  const handleCloseSettings = () => {
-    setSettingsOpen(false)
-    setSettingsHighlightKey(null)
-  }
+  }, [openSettings, isMobile, setMobileSidebarOpen])
 
   // Auto-create a new chat if none exists after hydration. Skip when there
   // is a pending message in sessionStorage — the replay effect below will
   // create a chat for the message itself and we don't want to create two.
   useEffect(() => {
     if (!isHydrated || currentChatId || !session) return
-    if (typeof window !== "undefined" && sessionStorage.getItem(PENDING_MESSAGE_KEY)) return
+    if (typeof window !== "undefined" && sessionStorage.getItem("simple-chat-pending-message")) return
     startNewChat()
   }, [isHydrated, currentChatId, session, startNewChat])
 
@@ -667,8 +643,12 @@ export default function HomePage() {
     const nextId = treeOrderedChatIds[nextIdx]
     if (!nextId) return
     // If the target is inside a collapsed parent, expand up the chain.
-    const byId = new Map(chats.map((c) => [c.id, c]))
-    expandChatAndAncestors(nextId, byId)
+    // Build parent map from chats for expandChatAndAncestors
+    const parentMap = new Map<string, string | undefined>()
+    for (const c of chats) {
+      parentMap.set(c.id, c.parentChatId)
+    }
+    expandChatAndAncestors(nextId, parentMap)
     handleSelectChat(nextId)
   }, [treeOrderedChatIds, currentChatId, chats, expandChatAndAncestors])
 
@@ -773,7 +753,7 @@ export default function HomePage() {
       showGitCommands={!!currentChat && currentChat.repo !== NEW_REPOSITORY}
       onOpenInGitHub={githubBranchUrl ? handleOpenInGitHub : undefined}
       onOpenSettings={() => handleOpenSettings()}
-      onToggleSidebar={!isMobile ? () => setSidebarCollapsed((v) => !v) : undefined}
+      onToggleSidebar={!isMobile ? toggleSidebar : undefined}
       onSignIn={!session ? () => signIn("github") : undefined}
       onSignOut={session ? () => {
             clearAllStorage()
@@ -807,7 +787,7 @@ export default function HomePage() {
           onRenameChat={renameChat}
           onOpenSettings={() => handleOpenSettings()}
           collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggleCollapse={toggleSidebar}
           width={sidebarWidth}
           onWidthChange={setSidebarWidth}
           onOpenHelp={() => setHelpOpen(true)}
@@ -970,7 +950,7 @@ export default function HomePage() {
 
         <SettingsModal
           open={settingsOpen}
-          onClose={handleCloseSettings}
+          onClose={closeSettings}
           settings={settings}
           credentialFlags={credentialFlags}
           onSave={updateSettings}

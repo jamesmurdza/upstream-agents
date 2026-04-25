@@ -25,16 +25,6 @@ export {
   type SettingsData,
 } from "./settings"
 
-// Local state helpers
-export {
-  getLocalFieldsForChat,
-  withLocalFields,
-  withLocalFieldsArray,
-  type LocalChatFields,
-  type ChatWithLocalFields,
-  type ChatDetailWithLocalFields,
-} from "./local-state"
-
 // Cache update helpers (for SSE handlers)
 export {
   updateMessageInCache,
