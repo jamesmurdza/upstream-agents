@@ -180,6 +180,12 @@ export default function HomePage() {
   // Track if we've already processed a pending message (to avoid double-sending)
   const pendingMessageProcessed = useRef(false)
 
+  // Draft chat agent/model — only used when an unauthenticated user is
+  // composing a message before any real chat exists. Stored locally because
+  // the chat row that would normally hold these doesn't exist yet.
+  const [draftAgent, setDraftAgent] = useState<string | null>(null)
+  const [draftModel, setDraftModel] = useState<string | null>(null)
+
   // Repos and branches for search palette
   const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [branches, setBranches] = useState<GitHubBranch[]>([])
@@ -347,11 +353,13 @@ export default function HomePage() {
     setSettingsHighlightKey(null)
   }
 
-  // Auto-create a new chat if none exists after hydration
+  // Auto-create a new chat if none exists after hydration. Skip when there
+  // is a pending message in sessionStorage — the replay effect below will
+  // create a chat for the message itself and we don't want to create two.
   useEffect(() => {
-    if (isHydrated && !currentChatId && session) {
-      startNewChat()
-    }
+    if (!isHydrated || currentChatId || !session) return
+    if (typeof window !== "undefined" && sessionStorage.getItem(PENDING_MESSAGE_KEY)) return
+    startNewChat()
   }, [isHydrated, currentChatId, session, startNewChat])
 
   // Handler for new chat - uses selected repo filter as default, or NEW_REPOSITORY if "All" is selected
@@ -478,22 +486,54 @@ export default function HomePage() {
     sendMessage(message, agent, model, files)
   }
 
-  // Effect to send pending message after sign-in (handles OAuth redirect case)
-  useEffect(() => {
-    // Only process once per session, and only when we have a session and hydrated state
-    if (session && isHydrated && !pendingMessageProcessed.current) {
-      const pending = loadAndClearPendingMessage()
-      if (pending) {
-        pendingMessageProcessed.current = true
-        setSignInModalOpen(false)
+  // After sign-in, replay any pending message saved before the OAuth
+  // redirect. Two effects work together to avoid a stale-closure race:
+  //   (a) pending-replay: creates the chat, then stages a "pending send"
+  //       referencing the new chat ID.
+  //   (b) pending-send: fires once `chats` actually contains the new
+  //       chat (so sendMessage's state.chats is fresh enough to locate
+  //       it). Calls sendMessage and clears the staging state.
+  const [pendingSend, setPendingSend] = useState<
+    { chatId: string; message: string; agent: string; model: string } | null
+  >(null)
 
-        // Small delay to ensure state is fully updated after hydration
-        setTimeout(() => {
-          sendMessage(pending.message, pending.agent, pending.model)
-        }, 200)
+  useEffect(() => {
+    if (!session || !isHydrated || pendingMessageProcessed.current) return
+
+    const pending = loadAndClearPendingMessage()
+    if (!pending) return
+
+    pendingMessageProcessed.current = true
+    setSignInModalOpen(false)
+
+    void (async () => {
+      let chatId = currentChatId
+      if (!chatId) {
+        chatId = await startNewChat()
+        if (!chatId) return
       }
-    }
-  }, [session, isHydrated, sendMessage])
+      // Persist the agent/model picked in draft mode so subsequent
+      // messages on this chat use them too. Best-effort.
+      updateChatById(chatId, {
+        agent: pending.agent,
+        model: pending.model,
+      }).catch(() => {})
+      setPendingSend({
+        chatId,
+        message: pending.message,
+        agent: pending.agent,
+        model: pending.model,
+      })
+    })()
+  }, [session, isHydrated, startNewChat, updateChatById, currentChatId])
+
+  useEffect(() => {
+    if (!pendingSend) return
+    if (!chats.some((c) => c.id === pendingSend.chatId)) return
+    const { message, agent, model, chatId } = pendingSend
+    setPendingSend(null)
+    sendMessage(message, agent, model, undefined, chatId)
+  }, [pendingSend, chats, sendMessage])
 
   // Handler for slash commands - open the corresponding git dialog
   // Start a new chat off the current chat's branch. Defined before
@@ -692,7 +732,48 @@ export default function HomePage() {
   // Don't render chats until hydrated to avoid SSR mismatch
   const displayChats = isHydrated ? chats : []
   const displayCurrentChatId = isHydrated ? currentChatId : null
-  const displayCurrentChat = isHydrated ? currentChat : null
+
+  // For unauthenticated users with no real chat, render a synthetic "draft"
+  // chat so the prompt bar and dropdowns are interactive. The draft never
+  // talks to the server; on submit we save a pending-message blob to
+  // sessionStorage, prompt sign-in, and replay it once the user is signed in.
+  const draftChat: Chat | null = useMemo(() => {
+    if (!isHydrated || session || currentChatId) return null
+    return {
+      id: "__draft__",
+      repo: NEW_REPOSITORY,
+      baseBranch: "main",
+      branch: null,
+      sandboxId: null,
+      sessionId: null,
+      agent: draftAgent ?? settings.defaultAgent,
+      model: draftModel ?? settings.defaultModel,
+      messages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      status: "pending",
+      displayName: null,
+    }
+  }, [isHydrated, session, currentChatId, draftAgent, draftModel, settings.defaultAgent, settings.defaultModel])
+
+  const isDraftMode = !!draftChat
+  const displayCurrentChat = isHydrated ? (currentChat ?? draftChat) : null
+
+  // When in draft mode, agent/model dropdowns route to local draft state
+  // because no real chat row exists to PATCH yet.
+  const handleUpdateChatProp = useCallback(
+    (updates: Partial<Chat>) => {
+      if (isDraftMode) {
+        if (updates.agent !== undefined) setDraftAgent(updates.agent)
+        if (updates.model !== undefined) setDraftModel(updates.model)
+        // Other fields (repo, branch, etc.) are ignored — those pickers
+        // already prompt sign-in before they could fire onUpdateChat.
+        return
+      }
+      updateCurrentChat(updates)
+    },
+    [isDraftMode, updateCurrentChat]
+  )
 
   return (
     <PaletteProvider
@@ -824,7 +905,7 @@ export default function HomePage() {
                 onStopAgent={stopAgent}
                 onChangeRepo={handleChangeRepo}
                 onChangeBranch={handleChangeBranch}
-                onUpdateChat={updateCurrentChat}
+                onUpdateChat={handleUpdateChatProp}
                 onOpenSettings={handleOpenSettings}
                 onSlashCommand={handleSlashCommand}
                 onRequireSignIn={!session ? () => setSignInModalOpen(true) : undefined}
