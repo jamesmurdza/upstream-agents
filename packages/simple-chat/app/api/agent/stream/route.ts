@@ -7,22 +7,22 @@ import {
   type AgentSnapshot,
 } from "@/lib/agent-session"
 import { prisma } from "@/lib/db/prisma"
-import { getAuthUserId, getChatWithAuth } from "@/lib/db/api-helpers"
+import { isAuthError, requireChatStreamAccess } from "@/lib/db/api-helpers"
 
 // Allow longer streaming connections (5 minutes max)
 export const maxDuration = 300
 
-// Polling interval for backend -> sandbox (ms)
 const BACKEND_POLL_INTERVAL = 500
-
-// Heartbeat interval to keep connection alive (ms)
 const HEARTBEAT_INTERVAL = 15000
-
-// How often to persist to database (ms)
 const DB_PERSIST_INTERVAL = 5000
 
+const jsonResponse = (status: number, body: object) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  })
+
 export async function GET(req: Request) {
-  // 1. Parse query params
   const url = new URL(req.url)
   const sandboxId = url.searchParams.get("sandboxId")
   const repoName = url.searchParams.get("repoName")
@@ -33,93 +33,47 @@ export async function GET(req: Request) {
   const assistantMessageId = url.searchParams.get("assistantMessageId")
 
   if (!sandboxId || !repoName || !backgroundSessionId) {
-    return new Response(
-      JSON.stringify({ error: "Missing required fields: sandboxId, repoName, backgroundSessionId" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    )
+    return jsonResponse(400, {
+      error: "Missing required fields: sandboxId, repoName, backgroundSessionId",
+    })
   }
 
-  // 2. Auth: require login, and if a chatId/assistantMessageId is provided
-  // verify the caller owns the chat and the message lives in it.
-  const userId = await getAuthUserId()
-  if (!userId) {
-    return new Response(
-      JSON.stringify({ error: "Unauthorized" }),
-      { status: 401, headers: { "Content-Type": "application/json" } }
-    )
-  }
-  if (chatId) {
-    const chat = await getChatWithAuth(chatId, userId)
-    if (!chat) {
-      return new Response(
-        JSON.stringify({ error: "Chat not found" }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
-      )
-    }
-    if (assistantMessageId) {
-      const msg = await prisma.message.findFirst({
-        where: { id: assistantMessageId, chatId },
-        select: { id: true },
-      })
-      if (!msg) {
-        return new Response(
-          JSON.stringify({ error: "Message not found" }),
-          { status: 404, headers: { "Content-Type": "application/json" } }
-        )
-      }
-    }
-  }
+  const auth = await requireChatStreamAccess(chatId, assistantMessageId)
+  if (isAuthError(auth)) return auth
 
-  // 3. Get Daytona API key
   const daytonaApiKey = process.env.DAYTONA_API_KEY
   if (!daytonaApiKey) {
-    return new Response(
-      JSON.stringify({ error: "Daytona API key not configured" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    )
+    return jsonResponse(500, { error: "Daytona API key not configured" })
   }
 
-  // 4. Set up SSE stream
   const encoder = new TextEncoder()
   let isStreamClosed = false
 
   const stream = new ReadableStream({
     async start(controller) {
-      // SSE poll-counter, used by the client for reconnection bookkeeping.
+      // SSE poll-counter, bumped per wire frame for client reconnect bookkeeping.
       let cursor = cursorParam ? parseInt(cursorParam, 10) : 0
       let heartbeatTimer: NodeJS.Timeout | null = null
       let lastDbPersist = Date.now()
-      // Signature of the last "update" we sent on the wire — used to skip
-      // sending no-op updates when the agent hasn't produced anything new.
+      // Signature of the last "update" sent — skip resends when the snapshot
+      // hasn't changed.
       let lastSentSig: string | null = null
 
       const sendEvent = (event: string, data: object) => {
         if (isStreamClosed) return
         try {
-          const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
-          controller.enqueue(encoder.encode(payload))
+          controller.enqueue(
+            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+          )
         } catch {
           isStreamClosed = true
         }
       }
 
-      const sendHeartbeat = () => {
-        sendEvent("heartbeat", { cursor, timestamp: Date.now() })
-      }
-
       // Persist a snapshot to the DB. The snapshot is the source of truth —
       // the route never holds a separate accumulator that could drift.
-      const persistSnapshot = async (
-        snap: AgentSnapshot,
-        isFinal: boolean
-      ) => {
+      const persistSnapshot = async (snap: AgentSnapshot, isFinal: boolean) => {
         if (!chatId || !assistantMessageId) return
-        // Don't write empty rows for non-final flushes (the assistant
-        // placeholder created in /api/agent/start is already content="").
-        const hasContent =
-          !!snap.content || snap.toolCalls.length > 0 || snap.contentBlocks.length > 0
-        if (!hasContent && !isFinal) return
-
         try {
           await prisma.message.update({
             where: { id: assistantMessageId },
@@ -144,10 +98,7 @@ export async function GET(req: Request) {
             chatUpdate.backgroundSessionId = null
             if (snap.sessionId) chatUpdate.sessionId = snap.sessionId
           }
-          await prisma.chat.update({
-            where: { id: chatId },
-            data: chatUpdate,
-          })
+          await prisma.chat.update({ where: { id: chatId }, data: chatUpdate })
 
           lastDbPersist = Date.now()
         } catch (error) {
@@ -155,55 +106,36 @@ export async function GET(req: Request) {
         }
       }
 
-      const sendUpdateIfChanged = (snap: AgentSnapshot) => {
-        const sig = `${snap.status}|${snap.content.length}|${snap.toolCalls.length}|${snap.contentBlocks.length}|${snap.error ?? ""}`
-        if (sig === lastSentSig) return
-        lastSentSig = sig
-        cursor += 1
-        sendEvent("update", {
-          status: snap.status,
-          content: snap.content,
-          toolCalls: snap.toolCalls,
-          contentBlocks: snap.contentBlocks,
-          cursor,
-          sessionId: snap.sessionId,
-          error: snap.error,
-        })
-      }
-
-      const cleanup = (closeController: boolean = false) => {
-        if (isStreamClosed && !closeController) return
+      const closeStream = () => {
         isStreamClosed = true
         if (heartbeatTimer) {
           clearInterval(heartbeatTimer)
           heartbeatTimer = null
         }
-        if (closeController) {
-          try {
-            controller.close()
-          } catch {
-            /* already closed */
-          }
+        try {
+          controller.close()
+        } catch {
+          /* already closed */
         }
       }
 
       try {
         const daytona = new Daytona({ apiKey: daytonaApiKey })
         const sandbox = await daytona.get(sandboxId)
-        const repoPath = `${PATHS.SANDBOX_HOME}/${repoName}`
         const sessionOpts = {
-          repoPath,
+          repoPath: `${PATHS.SANDBOX_HOME}/${repoName}`,
           previewUrlPattern: previewUrlPattern || undefined,
         }
 
-        heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL)
+        heartbeatTimer = setInterval(() => {
+          sendEvent("heartbeat", { cursor, timestamp: Date.now() })
+        }, HEARTBEAT_INTERVAL)
 
-        // The polling loop. Each iteration: take a cumulative snapshot of
-        // the agent's event log (source of truth = the file in the sandbox),
-        // send it to the client, and periodically persist it to the DB. The
-        // route holds NO accumulator state of its own — the snapshot is
-        // re-derived from the file each time, so a new SSE connection
-        // (reconnect) automatically reconstructs the full state.
+        // Each iteration: take a cumulative snapshot of the agent's event log
+        // (source of truth = file in the sandbox), send it to the client, and
+        // periodically persist it to the DB. The route holds NO accumulator
+        // state — the snapshot is re-derived from the file each time, so a
+        // new SSE connection (reconnect) automatically reconstructs full state.
         while (!isStreamClosed) {
           const snap = await snapshotBackgroundAgent(
             sandbox,
@@ -211,27 +143,36 @@ export async function GET(req: Request) {
             sessionOpts
           )
 
-          sendUpdateIfChanged(snap)
+          const sig = `${snap.status}|${snap.content.length}|${snap.toolCalls.length}|${snap.contentBlocks.length}|${snap.error ?? ""}`
+          if (sig !== lastSentSig) {
+            lastSentSig = sig
+            cursor += 1
+            sendEvent("update", {
+              status: snap.status,
+              content: snap.content,
+              toolCalls: snap.toolCalls,
+              contentBlocks: snap.contentBlocks,
+              cursor,
+              sessionId: snap.sessionId,
+              error: snap.error,
+            })
+          }
 
           if (snap.status === "completed" || snap.status === "error") {
-            // Final DB flush from the same snapshot we just sent.
             await persistSnapshot(snap, true)
-
             // Advance the bg session's per-turn meta so the next start()
             // writes to a fresh outputFile.
             await finalizeTurn(sandbox, backgroundSessionId, sessionOpts)
-
             sendEvent("complete", {
               status: snap.status,
               sessionId: snap.sessionId,
               error: snap.error,
               cursor,
             })
-            cleanup(true)
+            closeStream()
             return
           }
 
-          // Periodic DB flush — same snapshot, no extra roundtrip.
           if (Date.now() - lastDbPersist >= DB_PERSIST_INTERVAL) {
             await persistSnapshot(snap, false)
           }
@@ -244,9 +185,9 @@ export async function GET(req: Request) {
         }
 
         // Client disconnected mid-stream. Take one more snapshot (the agent
-        // may have produced output between our last poll and the
-        // disconnect) and flush. Leave chat.status as "running" — the
-        // agent in the sandbox is still alive and a reconnect will resume.
+        // may have produced output between our last poll and the disconnect)
+        // and flush. Leave chat.status as "running" — the agent is still
+        // alive in the sandbox and a reconnect will resume.
         if (heartbeatTimer) {
           clearInterval(heartbeatTimer)
           heartbeatTimer = null
@@ -269,10 +210,7 @@ export async function GET(req: Request) {
           try {
             await prisma.chat.update({
               where: { id: chatId },
-              data: {
-                status: "error",
-                backgroundSessionId: null,
-              },
+              data: { status: "error", backgroundSessionId: null },
             })
           } catch {
             /* best effort */
@@ -280,7 +218,7 @@ export async function GET(req: Request) {
         }
 
         sendEvent("error", { error: message, cursor })
-        cleanup(true)
+        closeStream()
       }
     },
 
@@ -293,7 +231,7 @@ export async function GET(req: Request) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     },
   })

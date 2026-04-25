@@ -97,6 +97,35 @@ export function isAuthError(result: AuthResult | Response): result is Response {
   return result instanceof Response
 }
 
+/**
+ * Auth gate for streaming routes that take chatId/assistantMessageId from
+ * query parameters. Verifies the caller is signed in, owns the chat, and
+ * that the message lives in that chat. Returns the userId on success, or a
+ * Response the caller should return verbatim on failure.
+ */
+export async function requireChatStreamAccess(
+  chatId: string | null,
+  assistantMessageId: string | null
+): Promise<AuthResult | Response> {
+  const userId = await getAuthUserId()
+  if (!userId) return unauthorized()
+
+  if (chatId) {
+    const chat = await getChatWithAuth(chatId, userId)
+    if (!chat) return notFound("Chat not found")
+
+    if (assistantMessageId) {
+      const msg = await prisma.message.findFirst({
+        where: { id: assistantMessageId, chatId },
+        select: { id: true },
+      })
+      if (!msg) return notFound("Message not found")
+    }
+  }
+
+  return { userId }
+}
+
 // =============================================================================
 // GitHub Token Helpers
 // =============================================================================
