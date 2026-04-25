@@ -824,10 +824,12 @@ export function useChatWithSync() {
     // Add to cache so it persists
     updateCacheMessages(chatId, [userMessage])
 
-    // 2. Create sandbox if needed
+    // 2. Create sandbox if needed. Track whether we created one in this
+    // call so we can clean it up if a later stage fails.
     let sandboxId = chat.sandboxId
     let branch = chat.branch
     let previewUrlPattern = chat.previewUrlPattern
+    let createdSandboxThisCall = false
 
     if (!sandboxId) {
       branch = `agent/${generateBranchName()}`
@@ -860,6 +862,7 @@ export function useChatWithSync() {
         const data = await response.json()
         sandboxId = data.sandboxId
         previewUrlPattern = data.previewUrlPattern
+        createdSandboxThisCall = true
 
         setState((prev) => ({
           ...prev,
@@ -1026,6 +1029,18 @@ export function useChatWithSync() {
       }
     } catch (error) {
       console.error("Failed to start agent:", error)
+
+      // If this call created the sandbox, agent/start failed leaves it
+      // orphaned (no chat references it for streaming). Clean it up.
+      if (createdSandboxThisCall && sandboxId) {
+        const orphanSandboxId = sandboxId
+        fetch("/api/sandbox/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sandboxId: orphanSandboxId }),
+        }).catch((err) => console.error("Failed to delete orphan sandbox:", err))
+      }
+
       setState((prev) => ({
         ...prev,
         chats: prev.chats.map((c) =>
@@ -1033,6 +1048,10 @@ export function useChatWithSync() {
             ? {
                 ...c,
                 status: "error" as const,
+                // Drop stale sandbox refs if we created one we just deleted.
+                ...(createdSandboxThisCall
+                  ? { sandboxId: undefined, branch: undefined, previewUrlPattern: undefined }
+                  : {}),
                 messages: c.messages.map((m) =>
                   m.id === assistantMessage.id
                     ? { ...m, content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`, isError: true }
