@@ -43,9 +43,11 @@ export function PreviewView({
 
   // When the titled item is a file and we have a repo/branch, let the user
   // click the title to jump to the file on GitHub in a new tab.
+  // File paths from sandbox are absolute (e.g., /home/daytona/project/src/index.ts)
+  // so we need to strip the sandbox prefix to get the repo-relative path.
   const fileGithubUrl =
     item.type === "file" && repo && branch
-      ? `https://github.com/${repo}/blob/${branch}/${item.filePath.replace(/^\/+/, "")}`
+      ? `https://github.com/${repo}/blob/${branch}/${item.filePath.replace(/^\/home\/daytona\/project\/?/, "").replace(/^\/+/, "")}`
       : null
 
   const handleRefresh = () => {
