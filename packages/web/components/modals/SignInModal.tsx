@@ -1,6 +1,5 @@
 "use client"
 
-import { useCallback } from "react"
 import { signIn } from "next-auth/react"
 import * as Dialog from "@radix-ui/react-dialog"
 import { Github, MessageSquare } from "lucide-react"
@@ -14,22 +13,9 @@ interface SignInModalProps {
 }
 
 export function SignInModal({ open, onClose, isMobile = false }: SignInModalProps) {
-  const handleSignIn = useCallback(() => {
+  const handleSignIn = () => {
     signIn("github")
-  }, [])
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Don't trigger if user is typing in form fields
-    const target = e.target as HTMLElement
-    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-      return
-    }
-
-    if (e.key === "Enter") {
-      e.preventDefault()
-      handleSignIn()
-    }
-  }, [handleSignIn])
+  }
 
   return (
     <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -39,9 +25,7 @@ export function SignInModal({ open, onClose, isMobile = false }: SignInModalProp
           open ? "opacity-100" : "opacity-0"
         )} />
         <Dialog.Content
-          onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => { e.preventDefault(); focusChatPrompt() }}
-          onKeyDown={handleKeyDown}
           className={cn(
             "fixed z-50 bg-popover overflow-hidden flex flex-col",
             isMobile
@@ -71,6 +55,7 @@ export function SignInModal({ open, onClose, isMobile = false }: SignInModalProp
             </p>
 
             <button
+              autoFocus
               onClick={handleSignIn}
               className={cn(
                 "w-full flex items-center justify-center gap-2 rounded-md bg-[#24292f] text-white hover:bg-[#24292f]/90 active:bg-[#24292f]/80 transition-colors font-medium cursor-pointer",

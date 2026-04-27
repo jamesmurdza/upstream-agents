@@ -103,32 +103,15 @@ interface BaseDialogProps {
   isMobile?: boolean
   /** When true, content area allows overflow (for dropdowns) */
   allowOverflow?: boolean
-  /** Optional callback for Enter key default action */
-  onDefaultAction?: () => void
-  /** Whether the default action is disabled */
-  defaultActionDisabled?: boolean
 }
 
-function BaseDialog({ open, onClose, title, icon, children, isMobile = false, allowOverflow = false, onDefaultAction, defaultActionDisabled = false }: BaseDialogProps) {
+function BaseDialog({ open, onClose, title, icon, children, isMobile = false, allowOverflow = false }: BaseDialogProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [dragY, setDragY] = useState(0)
   const [startY, setStartY] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
 
   const SWIPE_THRESHOLD = 100
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Don't trigger if user is typing in form fields
-    const target = e.target as HTMLElement
-    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-      return
-    }
-
-    if (e.key === "Enter" && onDefaultAction && !defaultActionDisabled) {
-      e.preventDefault()
-      onDefaultAction()
-    }
-  }, [onDefaultAction, defaultActionDisabled])
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!isMobile) return
@@ -157,9 +140,7 @@ function BaseDialog({ open, onClose, title, icon, children, isMobile = false, al
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/15 backdrop-blur-[1px]" />
         <Dialog.Content
-          onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => { e.preventDefault(); focusChatPrompt() }}
-          onKeyDown={handleKeyDown}
           className={cn(
             "fixed z-50 bg-popover flex flex-col",
             // Allow overflow when dropdowns are open so they're not clipped
@@ -218,9 +199,11 @@ interface BranchSelectorProps {
   getLabel?: (branch: string) => string
   /** Called when dropdown open state changes */
   onOpenChange?: (open: boolean) => void
+  /** Whether to auto-focus the dropdown button */
+  autoFocus?: boolean
 }
 
-function BranchSelector({ value, onChange, branches, loading, placeholder = "Select chat", isMobile = false, getLabel, onOpenChange }: BranchSelectorProps) {
+function BranchSelector({ value, onChange, branches, loading, placeholder = "Select chat", isMobile = false, getLabel, onOpenChange, autoFocus }: BranchSelectorProps) {
   const label = (b: string) => (getLabel ? getLabel(b) : b)
   const [open, setOpenState] = useState(false)
 
@@ -245,6 +228,7 @@ function BranchSelector({ value, onChange, branches, loading, placeholder = "Sel
     <div className="relative">
       <button
         type="button"
+        autoFocus={autoFocus}
         onClick={() => setOpen(!open)}
         className={cn(
           "w-full flex items-center justify-between bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring",
@@ -310,8 +294,6 @@ export function MergeDialog({ open, onClose, gitDialogs, chat, isMobile = false 
       icon={<GitMerge className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
       isMobile={isMobile}
       allowOverflow={dropdownOpen}
-      onDefaultAction={handleMergeAndClose}
-      defaultActionDisabled={!gitDialogs.selectedBranch || gitDialogs.actionLoading}
     >
       <div className={cn("space-y-5")}>
         <div>
@@ -333,6 +315,7 @@ export function MergeDialog({ open, onClose, gitDialogs, chat, isMobile = false 
             isMobile ? "text-sm" : "text-xs"
           )}>Into chat</label>
           <BranchSelector
+            autoFocus
             value={gitDialogs.selectedBranch}
             onChange={gitDialogs.setSelectedBranch}
             branches={gitDialogs.remoteBranches}
@@ -411,8 +394,6 @@ export function RebaseDialog({ open, onClose, gitDialogs, chat, isMobile = false
       icon={<GitBranch className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
       isMobile={isMobile}
       allowOverflow={dropdownOpen}
-      onDefaultAction={handleRebaseAndClose}
-      defaultActionDisabled={!gitDialogs.selectedBranch || gitDialogs.actionLoading}
     >
       <div className={cn("space-y-5")}>
         <div>
@@ -434,6 +415,7 @@ export function RebaseDialog({ open, onClose, gitDialogs, chat, isMobile = false
             isMobile ? "text-sm" : "text-xs"
           )}>Onto branch</label>
           <BranchSelector
+            autoFocus
             value={gitDialogs.selectedBranch}
             onChange={gitDialogs.setSelectedBranch}
             branches={gitDialogs.remoteBranches}
@@ -513,8 +495,6 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
       icon={<GitPullRequest className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
       isMobile={isMobile}
       allowOverflow={descriptionDropdownOpen || branchDropdownOpen}
-      onDefaultAction={isGitHubRepo ? handleCreatePRAndClose : undefined}
-      defaultActionDisabled={!gitDialogs.selectedBranch || gitDialogs.actionLoading}
     >
       <div className={cn("space-y-5")}>
         {!isGitHubRepo ? (
@@ -545,6 +525,7 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
                 isMobile ? "text-sm" : "text-xs"
               )}>Into chat</label>
               <BranchSelector
+                autoFocus
                 value={gitDialogs.selectedBranch}
                 onChange={gitDialogs.setSelectedBranch}
                 branches={gitDialogs.remoteBranches}
@@ -663,8 +644,6 @@ export function SquashDialog({ open, onClose, gitDialogs, chat, isMobile = false
       title="Squash Commits"
       icon={<GitCommitVertical className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
       isMobile={isMobile}
-      onDefaultAction={handleSquashAndClose}
-      defaultActionDisabled={!canSquash || gitDialogs.actionLoading}
     >
       <div className={cn("space-y-5")}>
         <div>
@@ -745,6 +724,7 @@ export function SquashDialog({ open, onClose, gitDialogs, chat, isMobile = false
             Cancel
           </button>
           <button
+            autoFocus
             onClick={handleSquashAndClose}
             disabled={!canSquash || gitDialogs.actionLoading}
             className={cn(
@@ -788,8 +768,6 @@ export function ForcePushDialog({ open, onClose, gitDialogs, chat, isMobile = fa
       title="Force push"
       icon={<AlertTriangle className={cn(isMobile ? "h-5 w-5" : "h-4 w-4", "text-amber-500")} />}
       isMobile={isMobile}
-      onDefaultAction={handleForcePush}
-      defaultActionDisabled={agentRunning || gitDialogs.actionLoading || !gitDialogs.branchName}
     >
       <div className={cn("space-y-5")}>
         <div>
@@ -834,6 +812,7 @@ export function ForcePushDialog({ open, onClose, gitDialogs, chat, isMobile = fa
             Cancel
           </button>
           <button
+            autoFocus
             onClick={handleForcePush}
             disabled={agentRunning || gitDialogs.actionLoading || !gitDialogs.branchName}
             className={cn(

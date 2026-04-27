@@ -33,19 +33,6 @@ export function ConfirmDialog({
     onClose()
   }, [onConfirm, onClose])
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Don't trigger if user is typing in form fields
-    const target = e.target as HTMLElement
-    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-      return
-    }
-
-    if (e.key === "Enter") {
-      e.preventDefault()
-      handleConfirm()
-    }
-  }, [handleConfirm])
-
   return (
     <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <Dialog.Portal>
@@ -54,8 +41,6 @@ export function ConfirmDialog({
           open ? "opacity-100" : "opacity-0"
         )} />
         <Dialog.Content
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          onKeyDown={handleKeyDown}
           className={cn(
             "fixed z-50 bg-popover overflow-hidden flex flex-col",
             isMobile
@@ -76,6 +61,7 @@ export function ConfirmDialog({
                 {cancelLabel}
               </button>
               <button
+                autoFocus
                 onClick={handleConfirm}
                 className={cn(
                   "rounded-md transition-colors px-3 py-1.5 text-sm cursor-pointer",
