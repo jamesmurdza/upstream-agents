@@ -683,15 +683,43 @@ export function useChatWithSync() {
             setState((prev) => {
               const chat = prev.chats.find((c) => c.id === chatId)
               if (chat?.branch && chat.repo !== NEW_REPOSITORY) {
+                const branch = chat.branch
+                const showPushError = (errorMessage: string) => {
+                  const message: Message = {
+                    id: nanoid(),
+                    role: "assistant",
+                    content: `Push failed: ${errorMessage}`,
+                    messageType: "git-operation",
+                    isError: true,
+                    timestamp: Date.now(),
+                  }
+                  setState((prev2) => ({
+                    ...prev2,
+                    chats: prev2.chats.map((c) =>
+                      c.id === chatId ? { ...c, messages: [...c.messages, message] } : c
+                    ),
+                  }))
+                  updateCacheMessages(chatId, [message])
+                }
                 fetch("/api/git/push", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     sandboxId,
                     repoName,
-                    branch: chat.branch,
+                    branch,
                   }),
-                }).catch((err) => console.error("Auto-push failed:", err))
+                })
+                  .then(async (res) => {
+                    if (!res.ok) {
+                      const body = await res.json().catch(() => ({}))
+                      showPushError(body?.error || `HTTP ${res.status}`)
+                    }
+                  })
+                  .catch((err) => {
+                    console.error("Auto-push failed:", err)
+                    showPushError(err instanceof Error ? err.message : "Network error")
+                  })
               }
               return prev
             })
