@@ -827,6 +827,45 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
     </div>
   )
 
+  // Loading messages skeleton - check BEFORE isNewChat to prevent flash
+  if (isLoadingMessages) {
+    return (
+      <div className="flex-1 flex flex-col bg-background min-h-0 animate-pulse">
+        {/* Header skeleton */}
+        {!isMobile && (
+          <div className="pt-3 pl-[1.625rem] pr-4">
+            <div className="h-6 w-48 rounded bg-muted" />
+          </div>
+        )}
+        {/* Empty messages area */}
+        <div className="flex-1" />
+        {/* Input skeleton */}
+        <div className={cn(
+          "w-full mx-auto",
+          isMobile ? "max-w-full px-3 pb-3" : "max-w-[52rem] px-4 pb-4"
+        )}>
+          <div className={cn(
+            "flex flex-col border border-border bg-card shadow-sm",
+            isMobile ? "rounded-xl" : "rounded-2xl"
+          )}>
+            <div className={cn(isMobile ? "px-3 py-3" : "px-4 py-3")}>
+              <div className="h-5 w-1/4 rounded bg-muted" />
+            </div>
+            <div className={cn(
+              "flex items-center gap-2 border-t border-border",
+              isMobile ? "px-3 py-2" : "px-4 py-2"
+            )}>
+              <div className="h-6 w-20 rounded bg-muted" />
+              <div className="h-6 w-24 rounded bg-muted" />
+              <div className="flex-1" />
+              <div className={cn("rounded-md bg-muted", isMobile ? "h-9 w-9" : "h-7 w-7")} />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // New chat - centered welcome with input
   if (isNewChat) {
     return (
@@ -865,45 +904,6 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           </a>
           {" "}and tied to Git branches.
         </p>
-      </div>
-    )
-  }
-
-  // Loading messages skeleton - just header and input, messages area empty
-  if (isLoadingMessages) {
-    return (
-      <div className="flex-1 flex flex-col bg-background min-h-0 animate-pulse">
-        {/* Header skeleton */}
-        {!isMobile && (
-          <div className="pt-3 pl-[1.625rem] pr-4">
-            <div className="h-6 w-48 rounded bg-muted" />
-          </div>
-        )}
-        {/* Empty messages area */}
-        <div className="flex-1" />
-        {/* Input skeleton */}
-        <div className={cn(
-          "w-full mx-auto",
-          isMobile ? "max-w-full px-3 pb-3" : "max-w-[52rem] px-4 pb-4"
-        )}>
-          <div className={cn(
-            "flex flex-col border border-border bg-card shadow-sm",
-            isMobile ? "rounded-xl" : "rounded-2xl"
-          )}>
-            <div className={cn(isMobile ? "px-3 py-3" : "px-4 py-3")}>
-              <div className="h-5 w-1/4 rounded bg-muted" />
-            </div>
-            <div className={cn(
-              "flex items-center gap-2 border-t border-border",
-              isMobile ? "px-3 py-2" : "px-4 py-2"
-            )}>
-              <div className="h-6 w-20 rounded bg-muted" />
-              <div className="h-6 w-24 rounded bg-muted" />
-              <div className="flex-1" />
-              <div className={cn("rounded-md bg-muted", isMobile ? "h-9 w-9" : "h-7 w-7")} />
-            </div>
-          </div>
-        </div>
       </div>
     )
   }
