@@ -41,9 +41,45 @@ import {
   queryKeys,
 } from "@/lib/query"
 import { useStreamStore } from "@/lib/stores/stream-store"
+import { fetchChat, toMessageType } from "@/lib/sync/api"
 
 const SSE_RECONNECT_DELAY = 1000
 const SSE_MAX_RECONNECT_ATTEMPTS = 10
+
+/**
+ * Merge messages, preferring the one with more content.
+ * This handles the case where streaming has accumulated content
+ * but server has stale/empty content.
+ */
+function mergeMessages(existing: Message[], incoming: Message[]): Message[] {
+  const messageMap = new Map<string, Message>()
+
+  for (const msg of existing) {
+    messageMap.set(msg.id, msg)
+  }
+
+  for (const incomingMsg of incoming) {
+    const existingMsg = messageMap.get(incomingMsg.id)
+    if (!existingMsg) {
+      messageMap.set(incomingMsg.id, incomingMsg)
+    } else {
+      const existingLen = (existingMsg.content?.length ?? 0) +
+        (existingMsg.toolCalls?.length ?? 0) +
+        (existingMsg.contentBlocks?.length ?? 0)
+      const incomingLen = (incomingMsg.content?.length ?? 0) +
+        (incomingMsg.toolCalls?.length ?? 0) +
+        (incomingMsg.contentBlocks?.length ?? 0)
+
+      if (incomingLen > existingLen) {
+        messageMap.set(incomingMsg.id, incomingMsg)
+      } else if (incomingLen === existingLen && incomingMsg.timestamp > existingMsg.timestamp) {
+        messageMap.set(incomingMsg.id, incomingMsg)
+      }
+    }
+  }
+
+  return Array.from(messageMap.values()).sort((a, b) => a.timestamp - b.timestamp)
+}
 
 export function useChatWithSync() {
   const { data: session } = useSession()
@@ -75,6 +111,7 @@ export function useChatWithSync() {
 
   const prevStatuses = useRef<Map<string, ChatStatus>>(new Map())
   const sendInFlight = useRef<Set<string>>(new Set())
+  const messagesLoadFailed = useRef<Set<string>>(new Set())
 
   // Hydration
   useEffect(() => {
@@ -145,6 +182,38 @@ export function useChatWithSync() {
       return updater(old)
     })
   }, [queryClient])
+
+  // Load messages for current chat when selected
+  useEffect(() => {
+    if (!currentChatId || !isHydrated) return
+
+    const chat = chats.find((c) => c.id === currentChatId)
+    if (!chat) return
+
+    // Skip if messages already loaded or previous load failed
+    if (chat.messages.length > 0 || messagesLoadFailed.current.has(currentChatId)) {
+      return
+    }
+
+    const loadMessages = async () => {
+      try {
+        const chatData = await fetchChat(currentChatId)
+        const incomingMessages = chatData.messages.map(toMessageType)
+
+        updateChatsCache((old) =>
+          old.map((c) => {
+            if (c.id !== currentChatId) return c
+            return { ...c, messages: mergeMessages(c.messages, incomingMessages) }
+          })
+        )
+      } catch (err) {
+        console.error("Failed to load chat messages:", err)
+        messagesLoadFailed.current.add(currentChatId)
+      }
+    }
+
+    loadMessages()
+  }, [currentChatId, chats, isHydrated, updateChatsCache])
 
   // Chat operations
   const startNewChat = useCallback(async (
