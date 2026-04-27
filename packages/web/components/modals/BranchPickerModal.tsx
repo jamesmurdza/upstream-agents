@@ -98,9 +98,14 @@ export function BranchPickerModal({
     }
   }, [open])
 
-  const filteredBranches = branches.filter((branch) =>
-    branch.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredBranches = branches
+    .filter((branch) => branch.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      // Default branch always comes first
+      if (a.name === repoDefaultBranch) return -1
+      if (b.name === repoDefaultBranch) return 1
+      return 0
+    })
 
   // Handle branch selection - one-click: select branch immediately
   const handleSelectBranch = (branchName: string) => {

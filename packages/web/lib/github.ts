@@ -53,7 +53,7 @@ export async function fetchBranches(
   owner: string,
   repo: string
 ): Promise<GitHubBranch[]> {
-  return getRepoBranches(token, owner, repo, { perPage: 100, paginate: false })
+  return getRepoBranches(token, owner, repo, { perPage: 100, paginate: true })
 }
 
 /**

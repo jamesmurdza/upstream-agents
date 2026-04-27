@@ -20,7 +20,8 @@ import { PaletteProvider } from "@/components/search-palette"
 import { useChatWithSync } from "@/lib/hooks/useChatWithSync"
 import { useMobile } from "@/lib/hooks/useMobile"
 import { NEW_REPOSITORY, getDefaultAgent, getDefaultModelForAgent, type Agent, type Message, type Chat } from "@/lib/types"
-import { fetchRepos, fetchBranches, type GitHubRepo, type GitHubBranch } from "@/lib/github"
+import { useReposQuery, useBranchesQuery, useServersQuery } from "@/lib/query"
+import type { GitHubRepo, GitHubBranch } from "@/lib/github"
 
 // Storage key for pending message (persists across OAuth redirect)
 const PENDING_MESSAGE_KEY = "simple-chat-pending-message"
@@ -65,6 +66,7 @@ export default function HomePage() {
     settings,
     credentialFlags,
     isHydrated,
+    isLoadingMessages,
     deletingChatIds,
     unseenChatIds,
     startNewChat,
@@ -105,10 +107,17 @@ export default function HomePage() {
     window.localStorage.setItem("simple-chat-preview-width", String(Math.round(previewWidth)))
   }, [previewWidth])
   const [isResizingPreview, setIsResizingPreview] = useState(false)
-  const [availableServers, setAvailableServers] = useState<Array<{ port: number; url: string }>>([])
+
   // Track ports we've already auto-opened in each sandbox so the preview pane
   // only pops open the *first* time a new server appears — not every poll.
   const autoOpenedServersRef = useRef<Map<string, Set<number>>>(new Map())
+
+  // Use TanStack Query for server polling
+  const serversQuery = useServersQuery(
+    currentChat?.sandboxId,
+    currentChat?.previewUrlPattern
+  )
+  const availableServers = serversQuery.data ?? []
   // Preview state lives on each Chat, not globally — switching chats shows
   // whatever that chat last had open (or hides the pane if none).
   const previewItem = (currentChat?.previewItem ?? null) as PreviewItem | null
@@ -182,84 +191,41 @@ export default function HomePage() {
   const [draftAgent, setDraftAgent] = useState<string | null>(null)
   const [draftModel, setDraftModel] = useState<string | null>(null)
 
-  // Repos and branches for search palette
-  const [repos, setRepos] = useState<GitHubRepo[]>([])
-  const [branches, setBranches] = useState<GitHubBranch[]>([])
-
   // Repository filter state (shared with Sidebar)
   const [repoFilter, setRepoFilter] = useState<string>(ALL_REPOSITORIES)
 
-  // Load repos when authenticated
-  useEffect(() => {
-    if (session?.accessToken) {
-      fetchRepos(session.accessToken).then(setRepos).catch(console.error)
-    }
-  }, [session?.accessToken])
+  // Use TanStack Query for repos and branches
+  const reposQuery = useReposQuery()
+  const repos = reposQuery.data ?? []
 
-  // Poll for listening dev servers in the current sandbox every 5s so the
-  // preview pane's Open menu stays fresh when the agent starts a server.
+  // Parse current repo for branches query
+  const [currentOwner, currentRepoName] = (currentChat?.repo ?? "").split("/")
+  const branchesQuery = useBranchesQuery(
+    currentChat?.repo !== NEW_REPOSITORY ? currentOwner : "",
+    currentChat?.repo !== NEW_REPOSITORY ? currentRepoName : ""
+  )
+  const branches = branchesQuery.data ?? []
+
+  // Auto-open the first *new* server we see in this sandbox
   useEffect(() => {
     const sandboxId = currentChat?.sandboxId
-    const pattern = currentChat?.previewUrlPattern
     const chatId = currentChat?.id
-    if (!sandboxId) {
-      setAvailableServers([])
-      return
-    }
-    let cancelled = false
-    const poll = async () => {
-      try {
-        const res = await fetch("/api/sandbox/files", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sandboxId, action: "list-servers" }),
-        })
-        if (!res.ok) return
-        const data = await res.json()
-        if (cancelled) return
-        const ports: number[] = Array.isArray(data.ports) ? data.ports : []
-        const urlFor = (port: number) =>
-          pattern ? pattern.replace("{port}", String(port)) : `http://localhost:${port}`
-        setAvailableServers(ports.map((port) => ({ port, url: urlFor(port) })))
+    if (!sandboxId || availableServers.length === 0) return
 
-        // Auto-open the first *new* server we see in this sandbox. Subsequent
-        // polls that see the same port are no-ops, and closing the preview
-        // won't cause it to pop back open.
-        let seen = autoOpenedServersRef.current.get(sandboxId)
-        if (!seen) {
-          seen = new Set()
-          autoOpenedServersRef.current.set(sandboxId, seen)
-        }
-        const newPort = ports.find((p) => !seen!.has(p))
-        if (newPort !== undefined) {
-          ports.forEach((p) => seen!.add(p))
-          if (chatId === currentChat?.id) {
-            updateCurrentChat({ previewItem: { type: "server", port: newPort, url: urlFor(newPort) } })
-          }
-        }
-      } catch {
-        // Swallow — polling errors are non-fatal.
+    let seen = autoOpenedServersRef.current.get(sandboxId)
+    if (!seen) {
+      seen = new Set()
+      autoOpenedServersRef.current.set(sandboxId, seen)
+    }
+
+    const newServer = availableServers.find((s) => !seen!.has(s.port))
+    if (newServer) {
+      availableServers.forEach((s) => seen!.add(s.port))
+      if (chatId === currentChat?.id) {
+        updateCurrentChat({ previewItem: { type: "server", port: newServer.port, url: newServer.url } })
       }
     }
-    poll()
-    const id = window.setInterval(poll, 5000)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
-  }, [currentChat?.sandboxId, currentChat?.previewUrlPattern, currentChat?.id, updateCurrentChat])
-
-  // Load branches when current chat has a repo
-  useEffect(() => {
-    if (session?.accessToken && currentChat?.repo && currentChat.repo !== NEW_REPOSITORY) {
-      const [owner, name] = currentChat.repo.split("/")
-      if (owner && name) {
-        fetchBranches(session.accessToken, owner, name).then(setBranches).catch(console.error)
-      }
-    } else {
-      setBranches([])
-    }
-  }, [session?.accessToken, currentChat?.repo])
+  }, [availableServers, currentChat?.sandboxId, currentChat?.id, updateCurrentChat])
 
   // Handler for adding messages to current chat
   const handleAddMessage = useCallback((message: Message) => {
@@ -344,14 +310,19 @@ export default function HomePage() {
     startNewChat()
   }, [isHydrated, currentChatId, session, startNewChat])
 
-  // Handler for new chat - uses selected repo filter as default, or NEW_REPOSITORY if "All" is selected
+  // Handler for new chat - uses current chat's repo/branch if available, otherwise repo filter
   const handleNewChat = () => {
     if (!session) {
       setSignInModalOpen(true)
       return
     }
-    // If a specific repo is selected in the filter, use it for the new chat
-    if (repoFilter !== ALL_REPOSITORIES && repoFilter !== NO_REPOSITORY) {
+    // If there's a current chat with a repo selected, use the same repo and branch
+    if (currentChat && currentChat.repo !== NEW_REPOSITORY) {
+      // Use the branch if available (sandbox created), otherwise baseBranch (before first message)
+      const branchToUse = currentChat.branch || currentChat.baseBranch
+      startNewChat(currentChat.repo, branchToUse, currentChat.id)
+    } else if (repoFilter !== ALL_REPOSITORIES && repoFilter !== NO_REPOSITORY) {
+      // If a specific repo is selected in the filter, use it for the new chat
       // Find the repo to get the default branch
       const repo = repos.find(r => `${r.owner.login}/${r.name}` === repoFilter)
       startNewChat(repoFilter, repo?.default_branch ?? "main")
@@ -900,6 +871,7 @@ export default function HomePage() {
                 onBranchWithMessage={handleBranchWithMessage}
                 onBranchQueuedMessage={handleBranchQueuedMessage}
                 canBranch={canBranch}
+                isLoadingMessages={isLoadingMessages}
               />
             </div>
             {!isMobile && previewOpen && (

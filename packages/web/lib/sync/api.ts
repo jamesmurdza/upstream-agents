@@ -144,7 +144,7 @@ export async function updateChat(
     model: string
     repo: string
     baseBranch: string
-    branch: string
+    branch: string | null
     sandboxId: string
     sessionId: string
     previewUrlPattern: string

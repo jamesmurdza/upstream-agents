@@ -46,9 +46,11 @@ interface ChatPanelProps {
   onBranchQueuedMessage?: (id: string, message: string, agent?: string, model?: string) => void
   /** Whether branching is available (has repo and branch) */
   canBranch?: boolean
+  /** Whether messages are currently being loaded for this chat */
+  isLoadingMessages?: boolean
 }
 
-export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false, onBranchWithMessage, onBranchQueuedMessage, canBranch = false }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false, onBranchWithMessage, onBranchQueuedMessage, canBranch = false, isLoadingMessages = false }: ChatPanelProps) {
   const [input, setInput] = useState("")
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
@@ -75,6 +77,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  // Track previous message count to only scroll on new messages, not on any array change
+  const prevMessageCountRef = useRef(0)
+  const prevChatIdRef = useRef<string | null>(null)
 
   // Get current agent/model (from chat, the user's preference, or auto-resolved
   // from credential flags). Uses ?? so we don't trip over the empty string.
@@ -116,12 +121,23 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
     setUserHasScrolledUp(!isAtBottom)
   }
 
-  // Auto-scroll to bottom when messages change (only if user hasn't scrolled up)
-  useEffect(() => {
-    if (!userHasScrolledUp) {
+  // Auto-scroll to bottom when new messages arrive (not on every array change).
+  // Uses useLayoutEffect to measure DOM synchronously before browser paint,
+  // preventing scroll jumps when loading long chats.
+  useLayoutEffect(() => {
+    const currentCount = chat?.messages?.length ?? 0
+    const currentChatId = chat?.id ?? null
+    const chatChanged = currentChatId !== prevChatIdRef.current
+    const hasNewMessages = currentCount > prevMessageCountRef.current
+
+    prevMessageCountRef.current = currentCount
+    prevChatIdRef.current = currentChatId
+
+    // Scroll to bottom when: switching chats, or new messages arrive and user is at bottom
+    if (chatChanged || (hasNewMessages && !userHasScrolledUp)) {
       messagesEndRef.current?.scrollIntoView({ behavior: "instant" })
     }
-  }, [chat?.messages, userHasScrolledUp])
+  }, [chat?.id, chat?.messages?.length, userHasScrolledUp])
 
   // Focus prompt when switching chats or when the welcome view transitions to
   // the messages view (which remounts the textarea in a different DOM location).
@@ -438,7 +454,8 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
   const canCreateRepo = isNewRepo
   // Show the repo button if either action is available
   const showRepoButton = canSelectRepo || canCreateRepo
-  const isNewChat = chat.messages.length === 0 && !chat.parentChatId
+  // Only show welcome screen if no messages AND not loading messages AND not a child chat
+  const isNewChat = chat.messages.length === 0 && !chat.parentChatId && !isLoadingMessages
 
   const agents: Agent[] = ["claude-code", "opencode", "codex", "gemini", "goose", "pi", "eliza"]
 
@@ -823,6 +840,45 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
       )}
     </div>
   )
+
+  // Loading messages skeleton - check BEFORE isNewChat to prevent flash
+  if (isLoadingMessages) {
+    return (
+      <div className="flex-1 flex flex-col bg-background min-h-0 animate-pulse">
+        {/* Header skeleton */}
+        {!isMobile && (
+          <div className="pt-3 pl-[1.625rem] pr-4">
+            <div className="h-6 w-48 rounded bg-muted" />
+          </div>
+        )}
+        {/* Empty messages area */}
+        <div className="flex-1" />
+        {/* Input skeleton */}
+        <div className={cn(
+          "w-full mx-auto",
+          isMobile ? "max-w-full px-3 pb-3" : "max-w-[52rem] px-4 pb-4"
+        )}>
+          <div className={cn(
+            "flex flex-col border border-border bg-card shadow-sm",
+            isMobile ? "rounded-xl" : "rounded-2xl"
+          )}>
+            <div className={cn(isMobile ? "px-3 py-3" : "px-4 py-3")}>
+              <div className="h-5 w-1/4 rounded bg-muted" />
+            </div>
+            <div className={cn(
+              "flex items-center gap-2 border-t border-border",
+              isMobile ? "px-3 py-2" : "px-4 py-2"
+            )}>
+              <div className="h-6 w-20 rounded bg-muted" />
+              <div className="h-6 w-24 rounded bg-muted" />
+              <div className="flex-1" />
+              <div className={cn("rounded-md bg-muted", isMobile ? "h-9 w-9" : "h-7 w-7")} />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // New chat - centered welcome with input
   if (isNewChat) {
