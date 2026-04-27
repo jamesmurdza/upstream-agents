@@ -310,14 +310,19 @@ export default function HomePage() {
     startNewChat()
   }, [isHydrated, currentChatId, session, startNewChat])
 
-  // Handler for new chat - uses selected repo filter as default, or NEW_REPOSITORY if "All" is selected
+  // Handler for new chat - uses current chat's repo/branch if available, otherwise repo filter
   const handleNewChat = () => {
     if (!session) {
       setSignInModalOpen(true)
       return
     }
-    // If a specific repo is selected in the filter, use it for the new chat
-    if (repoFilter !== ALL_REPOSITORIES && repoFilter !== NO_REPOSITORY) {
+    // If there's a current chat with a repo selected, use the same repo and branch
+    if (currentChat && currentChat.repo !== NEW_REPOSITORY) {
+      // Use the branch if available (sandbox created), otherwise baseBranch (before first message)
+      const branchToUse = currentChat.branch || currentChat.baseBranch
+      startNewChat(currentChat.repo, branchToUse, currentChat.id)
+    } else if (repoFilter !== ALL_REPOSITORIES && repoFilter !== NO_REPOSITORY) {
+      // If a specific repo is selected in the filter, use it for the new chat
       // Find the repo to get the default branch
       const repo = repos.find(r => `${r.owner.login}/${r.name}` === repoFilter)
       startNewChat(repoFilter, repo?.default_branch ?? "main")
