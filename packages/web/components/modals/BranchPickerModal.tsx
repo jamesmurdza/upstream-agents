@@ -7,7 +7,7 @@ import { Search, GitBranch, Loader2 } from "lucide-react"
 import { ModalHeader, focusChatPrompt } from "@/components/ui/modal-header"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { fetchBranches } from "@/lib/github"
+import { fetchRepo, fetchBranches } from "@/lib/github"
 import type { GitHubBranch } from "@/lib/types"
 
 interface BranchPickerModalProps {
@@ -16,7 +16,8 @@ interface BranchPickerModalProps {
   onSelect: (branch: string) => void
   repo: string
   owner: string
-  defaultBranch?: string
+  /** The currently selected base branch for this chat */
+  selectedBranch?: string
   isMobile?: boolean
 }
 
@@ -28,11 +29,12 @@ export function BranchPickerModal({
   onSelect,
   repo,
   owner,
-  defaultBranch = "main",
+  selectedBranch,
   isMobile = false,
 }: BranchPickerModalProps) {
   const { data: session } = useSession()
   const [branches, setBranches] = useState<GitHubBranch[]>([])
+  const [repoDefaultBranch, setRepoDefaultBranch] = useState<string>("main")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
@@ -51,7 +53,7 @@ export function BranchPickerModal({
     setSelectedIndex(0)
   }, [search])
 
-  // Reset state and fetch branches when modal opens or repo changes
+  // Reset state and fetch repo info + branches when modal opens or repo changes
   useEffect(() => {
     if (open && session?.accessToken && repo && owner) {
       // Reset all state when opening with a new repo
@@ -62,17 +64,23 @@ export function BranchPickerModal({
       setSelectedIndex(0)
       setLoading(true)
 
-      fetchBranches(session.accessToken, owner, repo)
-        .then((fetchedBranches) => {
+      // Fetch repo info (for default branch) and branches in parallel
+      Promise.all([
+        fetchRepo(session.accessToken, owner, repo),
+        fetchBranches(session.accessToken, owner, repo)
+      ])
+        .then(([repoInfo, fetchedBranches]) => {
+          setRepoDefaultBranch(repoInfo.default_branch)
           setBranches(fetchedBranches)
-          // Set selectedIndex to the default branch if it exists
-          const defaultIndex = fetchedBranches.findIndex(b => b.name === defaultBranch)
-          setSelectedIndex(defaultIndex >= 0 ? defaultIndex : 0)
+          // Set selectedIndex to the currently selected branch, or default branch
+          const targetBranch = selectedBranch || repoInfo.default_branch
+          const targetIndex = fetchedBranches.findIndex(b => b.name === targetBranch)
+          setSelectedIndex(targetIndex >= 0 ? targetIndex : 0)
         })
         .catch((err) => setError(err instanceof Error ? err.message : "Failed to fetch branches"))
         .finally(() => setLoading(false))
     }
-  }, [open, session?.accessToken, repo, owner, defaultBranch])
+  }, [open, session?.accessToken, repo, owner, selectedBranch])
 
   // Reset drag state when modal closes
   useEffect(() => {
@@ -114,9 +122,9 @@ export function BranchPickerModal({
         break
       case "Enter":
         e.preventDefault()
-        const selectedBranch = filteredBranches[selectedIndex]
-        if (selectedBranch) {
-          handleSelectBranch(selectedBranch.name)
+        const selectedBranchItem = filteredBranches[selectedIndex]
+        if (selectedBranchItem) {
+          handleSelectBranch(selectedBranchItem.name)
         }
         break
       case "Escape":
@@ -302,7 +310,7 @@ export function BranchPickerModal({
                         )}>
                           {branch.name}
                         </div>
-                        {branch.name === defaultBranch && (
+                        {branch.name === repoDefaultBranch && (
                           <div className={cn(
                             "text-muted-foreground",
                             isMobile ? "text-sm" : "text-xs"

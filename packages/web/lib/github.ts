@@ -6,6 +6,7 @@
 import {
   getUser,
   getUserRepos,
+  getRepo,
   getRepoBranches,
   type GitHubUser,
   type GitHubRepo,
@@ -31,6 +32,17 @@ export async function fetchRepos(token: string): Promise<GitHubRepo[]> {
     perPage: 50,
     affiliation: "owner,collaborator,organization_member",
   })
+}
+
+/**
+ * Fetch a single repository
+ */
+export async function fetchRepo(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<GitHubRepo> {
+  return getRepo(token, owner, repo)
 }
 
 /**

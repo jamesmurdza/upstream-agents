@@ -967,7 +967,7 @@ export default function HomePage() {
         }}
         repo={currentChat?.repo?.split("/")[1] || ""}
         owner={currentChat?.repo?.split("/")[0] || ""}
-        defaultBranch={currentChat?.branch || currentChat?.baseBranch}
+        selectedBranch={currentChat?.baseBranch}
         isMobile={isMobile}
       />
 
