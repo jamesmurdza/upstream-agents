@@ -869,59 +869,25 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
     )
   }
 
-  // Loading messages skeleton
+  // Loading messages skeleton - just header and input, messages area empty
   if (isLoadingMessages) {
     return (
-      <div className="flex-1 flex flex-col bg-background min-h-0">
+      <div className="flex-1 flex flex-col bg-background min-h-0 animate-pulse">
         {/* Header skeleton */}
         {!isMobile && (
-          <div className="pt-3 pl-[1.625rem] pr-4 animate-pulse">
+          <div className="pt-3 pl-[1.625rem] pr-4">
             <div className="h-6 w-48 rounded bg-muted" />
           </div>
         )}
-        {/* Messages skeleton */}
-        <div className={cn(
-          "flex-1 overflow-y-auto",
-          isMobile ? "px-3 py-3" : "px-6 py-4"
-        )}>
-          <div className="max-w-[52rem] mx-auto space-y-6 animate-pulse">
-            {/* User message skeleton */}
-            <div className="flex justify-end">
-              <div className="max-w-[80%] space-y-2">
-                <div className="h-4 w-64 rounded bg-muted ml-auto" />
-                <div className="h-4 w-48 rounded bg-muted ml-auto" />
-              </div>
-            </div>
-            {/* Assistant message skeleton */}
-            <div className="flex justify-start">
-              <div className="max-w-[80%] space-y-2">
-                <div className="h-4 w-72 rounded bg-muted" />
-                <div className="h-4 w-80 rounded bg-muted" />
-                <div className="h-4 w-56 rounded bg-muted" />
-              </div>
-            </div>
-            {/* Another user message skeleton */}
-            <div className="flex justify-end">
-              <div className="max-w-[80%]">
-                <div className="h-4 w-40 rounded bg-muted ml-auto" />
-              </div>
-            </div>
-            {/* Another assistant message skeleton */}
-            <div className="flex justify-start">
-              <div className="max-w-[80%] space-y-2">
-                <div className="h-4 w-64 rounded bg-muted" />
-                <div className="h-4 w-72 rounded bg-muted" />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Empty messages area */}
+        <div className="flex-1" />
         {/* Input skeleton */}
         <div className={cn(
           "w-full mx-auto",
           isMobile ? "max-w-full px-3 pb-3" : "max-w-[52rem] px-4 pb-4"
         )}>
           <div className={cn(
-            "flex flex-col border border-border bg-card shadow-sm animate-pulse",
+            "flex flex-col border border-border bg-card shadow-sm",
             isMobile ? "rounded-xl" : "rounded-2xl"
           )}>
             <div className={cn(isMobile ? "px-3 py-3" : "px-4 py-3")}>
