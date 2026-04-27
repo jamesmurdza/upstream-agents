@@ -439,13 +439,14 @@ export function useChatWithSync() {
     if (!canSelectRepo && !canAssignNewRepo) return
 
     try {
-      await apiUpdateChat(chatId, { repo, baseBranch })
+      // Reset branch to null when changing repo (branch is created on first message)
+      await apiUpdateChat(chatId, { repo, baseBranch, branch: null })
 
       // Update local state
       setState((prev) => ({
         ...prev,
         chats: prev.chats.map((c) =>
-          c.id === chatId ? { ...c, repo, baseBranch } : c
+          c.id === chatId ? { ...c, repo, baseBranch, branch: null } : c
         ),
       }))
     } catch (error) {
