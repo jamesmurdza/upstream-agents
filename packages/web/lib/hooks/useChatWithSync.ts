@@ -403,7 +403,7 @@ export function useChatWithSync() {
             if (lastIndex >= 0) {
               messages[lastIndex] = { ...messages[lastIndex], content: data.content, toolCalls: data.toolCalls, contentBlocks: data.contentBlocks }
             }
-            return { ...c, messages, lastActiveAt: Date.now() }
+            return { ...c, messages }
           }))
         } catch (err) {
           console.error("Failed to parse SSE update:", err)
