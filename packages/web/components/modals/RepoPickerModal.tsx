@@ -273,9 +273,15 @@ export function RepoPickerModal({ open, onClose, onSelect, isMobile = false, mod
   const filteredRepos = repos.filter((repo) =>
     repo.full_name.toLowerCase().includes(search.toLowerCase())
   )
-  const filteredBranches = branches.filter((branch) =>
-    branch.name.toLowerCase().includes(branchSearch.toLowerCase())
-  )
+  const filteredBranches = branches
+    .filter((branch) => branch.name.toLowerCase().includes(branchSearch.toLowerCase()))
+    .sort((a, b) => {
+      // Default branch always comes first
+      const defaultBranchName = selectedRepo?.default_branch
+      if (a.name === defaultBranchName) return -1
+      if (b.name === defaultBranchName) return 1
+      return 0
+    })
 
   // Handle keyboard navigation for repo list
   const handleRepoKeyDown = (e: React.KeyboardEvent) => {
