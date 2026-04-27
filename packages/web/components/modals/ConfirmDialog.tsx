@@ -34,9 +34,9 @@ export function ConfirmDialog({
   }, [onConfirm, onClose])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Don't trigger if user is interacting with form elements
+    // Don't trigger if user is typing in form fields
     const target = e.target as HTMLElement
-    if (target.tagName === "BUTTON" || target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
       return
     }
 
