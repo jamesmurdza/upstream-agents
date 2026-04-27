@@ -201,9 +201,11 @@ interface BranchSelectorProps {
   onOpenChange?: (open: boolean) => void
   /** Whether to auto-focus the input */
   autoFocus?: boolean
+  /** Called when Enter is pressed while dropdown is closed (to submit the form) */
+  onSubmit?: () => void
 }
 
-function BranchSelector({ value, onChange, branches, loading, placeholder = "Select chat", isMobile = false, getLabel, onOpenChange, autoFocus }: BranchSelectorProps) {
+function BranchSelector({ value, onChange, branches, loading, placeholder = "Select chat", isMobile = false, getLabel, onOpenChange, autoFocus, onSubmit }: BranchSelectorProps) {
   const label = (b: string) => (getLabel ? getLabel(b) : b)
   const [open, setOpenState] = useState(false)
   const [search, setSearch] = useState("")
@@ -255,13 +257,29 @@ function BranchSelector({ value, onChange, branches, loading, placeholder = "Sel
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!open) {
-      if (e.key === "Enter" || e.key === "ArrowDown" || e.key === " ") {
+      // When dropdown is closed:
+      // - Enter submits the form (if value selected and onSubmit provided)
+      // - ArrowDown/Space opens the dropdown
+      if (e.key === "Enter") {
+        if (value && onSubmit) {
+          e.preventDefault()
+          onSubmit()
+        }
+        // If no value selected, let Enter open the dropdown
+        else {
+          e.preventDefault()
+          setOpen(true)
+        }
+        return
+      }
+      if (e.key === "ArrowDown" || e.key === " ") {
         e.preventDefault()
         setOpen(true)
       }
       return
     }
 
+    // When dropdown is open
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault()
@@ -425,6 +443,7 @@ export function MergeDialog({ open, onClose, gitDialogs, chat, isMobile = false 
             isMobile={isMobile}
             getLabel={gitDialogs.branchLabel}
             onOpenChange={setDropdownOpen}
+            onSubmit={handleMergeAndClose}
           />
         </div>
 
@@ -525,6 +544,7 @@ export function RebaseDialog({ open, onClose, gitDialogs, chat, isMobile = false
             isMobile={isMobile}
             getLabel={gitDialogs.branchLabel}
             onOpenChange={setDropdownOpen}
+            onSubmit={handleRebaseAndClose}
           />
         </div>
 
@@ -634,6 +654,7 @@ export function PRDialog({ open, onClose, gitDialogs, chat, isMobile = false }: 
                 loading={gitDialogs.branchesLoading}
                 isMobile={isMobile}
                 onOpenChange={setBranchDropdownOpen}
+                onSubmit={handleCreatePRAndClose}
               />
             </div>
 
