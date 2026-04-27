@@ -128,10 +128,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
   useEffect(() => {
     if (isMobile) return
     const t = window.setTimeout(() => {
-      const el = textareaRef.current
-      if (el && document.activeElement !== el) {
-        el.focus()
-      }
+      textareaRef.current?.focus()
     }, 0)
     return () => window.clearTimeout(t)
   }, [chat?.id, isCreating, isMobile])
