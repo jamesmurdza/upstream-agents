@@ -91,15 +91,17 @@ export async function GET(req: Request) {
             },
           })
 
-          const chatUpdate: Record<string, unknown> = {
-            lastActiveAt: new Date(),
-          }
           if (isFinal) {
-            chatUpdate.status = snap.status === "error" ? "error" : "ready"
-            chatUpdate.backgroundSessionId = null
-            if (snap.sessionId) chatUpdate.sessionId = snap.sessionId
+            await prisma.chat.update({
+              where: { id: chatId },
+              data: {
+                lastActiveAt: new Date(),
+                status: snap.status === "error" ? "error" : "ready",
+                backgroundSessionId: null,
+                sessionId: snap.sessionId || undefined,
+              },
+            })
           }
-          await prisma.chat.update({ where: { id: chatId }, data: chatUpdate })
 
           lastDbPersist = Date.now()
         } catch (error) {
