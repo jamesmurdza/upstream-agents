@@ -171,6 +171,9 @@ export async function GET(req: Request) {
           }
 
           if (snap.status === "completed" || snap.status === "error") {
+            // If intentionally cancelled, let the post-loop handler deal with it
+            if (wasIntentionallyCancelled) break
+
             await persistSnapshot(snap, true)
             // Advance the bg session's per-turn meta so the next start()
             // writes to a fresh outputFile.
