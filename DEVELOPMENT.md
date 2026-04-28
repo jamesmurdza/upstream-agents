@@ -63,6 +63,28 @@ GITHUB_PAT=ghp_your_token_here
 DAYTONA_API_KEY=dtn_your_key_here
 ```
 
+**Alternative: Test auth bypass.** Instead of using `GITHUB_PAT`, you can enable the test auth endpoint by setting `ENABLE_TEST_AUTH=true`. This exposes `/api/test/auth` which creates a test user (`test@playwright.local`) and returns a valid session token—no GitHub token required.
+
+```bash
+DATABASE_URL="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
+DATABASE_URL_UNPOOLED="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
+
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="dev-secret-not-used-in-dev-mode"
+
+GITHUB_CLIENT_ID="placeholder"
+GITHUB_CLIENT_SECRET="placeholder"
+
+ENCRYPTION_KEY="0000000000000000000000000000000000000000000000000000000000000000"
+
+DAYTONA_API_KEY=dtn_your_key_here
+
+# Enable test auth endpoint (creates test user, no GitHub OAuth needed)
+ENABLE_TEST_AUTH="true"
+```
+
+To authenticate, visit `/api/test/auth` or POST to it—the endpoint returns a session token. Safety checks require the database URL to contain `test`, `localhost`, or `127.0.0.1` (override with `I_KNOW_THIS_IS_THE_TEST_DB=true` if needed).
+
 If the app is served behind a Daytona proxy, `NEXTAUTH_URL` must be that public URL (not `http://localhost:3000`). NextAuth validates requests against this value.
 
 With `GITHUB_PAT` set you get auto-login at http://localhost:3000—no GitHub OAuth app required. The first visit creates a dev user in the database and logs a warning that dev mode is active.
