@@ -478,6 +478,12 @@ export function ChatPanel({
     const hasNewMessages = currentCount > prevMessageCountRef.current
     prevMessageCountRef.current = currentCount
 
+    // Reset content length tracking when a new message is added
+    // This ensures streaming content growth is detected for the new message
+    if (hasNewMessages) {
+      prevContentLengthRef.current = 0
+    }
+
     // Track content length changes during streaming
     const currentContentLength = lastMessageContent.length + lastMessageToolCallsCount
     const hasContentGrown = currentContentLength > prevContentLengthRef.current
