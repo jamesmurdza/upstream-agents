@@ -50,8 +50,6 @@ export async function GET(req: Request) {
 
   const encoder = new TextEncoder()
   let isStreamClosed = false
-  // Flag to distinguish intentional stop from accidental disconnect
-  let wasIntentionallyCancelled = false
   // Store sandbox reference for use in cancel() callback
   let sandboxRef: Awaited<ReturnType<Daytona["get"]>> | null = null
   let sessionOptsRef: { repoPath: string; previewUrlPattern?: string } | null = null
@@ -172,9 +170,6 @@ export async function GET(req: Request) {
           }
 
           if (lastSnap.status === "completed" || lastSnap.status === "error") {
-            // If intentionally cancelled, break and handle below
-            if (wasIntentionallyCancelled) break
-
             await persistSnapshot(lastSnap, true)
             await finalizeTurn(sandbox, backgroundSessionId, sessionOpts)
             sendEvent("complete", {
@@ -198,19 +193,13 @@ export async function GET(req: Request) {
           )
         }
 
-        // Client disconnected or intentionally stopped
+        // Client disconnected - flush last known state
         if (heartbeatTimer) {
           clearInterval(heartbeatTimer)
           heartbeatTimer = null
         }
         if (lastSnap) {
-          if (wasIntentionallyCancelled) {
-            // User stopped - save content as completed, not error
-            await persistSnapshot({ ...lastSnap, status: "completed", error: undefined }, true)
-          } else {
-            // Accidental disconnect - flush state, leave as running for reconnect
-            await persistSnapshot(lastSnap, false)
-          }
+          await persistSnapshot(lastSnap, false)
         }
       } catch (error) {
         console.error("[agent/stream] Error:", error)
@@ -234,12 +223,19 @@ export async function GET(req: Request) {
 
     async cancel() {
       isStreamClosed = true
-      wasIntentionallyCancelled = true
-      // Kill the agent process when the client stops.
-      // The final snapshot (taken after the loop exits) will persist
-      // any output and update the DB status.
+      // Kill the agent process and update DB status
       if (sandboxRef && sessionOptsRef) {
         await cancelBackgroundAgent(sandboxRef, backgroundSessionId, sessionOptsRef)
+      }
+      if (chatId) {
+        try {
+          await prisma.chat.update({
+            where: { id: chatId },
+            data: { status: "ready", backgroundSessionId: null },
+          })
+        } catch {
+          /* best effort */
+        }
       }
     },
   })
