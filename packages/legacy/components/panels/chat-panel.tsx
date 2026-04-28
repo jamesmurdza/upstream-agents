@@ -223,6 +223,8 @@ export function ChatPanel({
   const prevMessageCountRef = useRef(branch.messages.length)
   // Track previous content length for streaming auto-scroll
   const prevContentLengthRef = useRef(0)
+  // Track previous scroll position to detect user-initiated scroll vs content growth
+  const prevScrollTopRef = useRef(0)
 
   // Reset scroll tracking state on branch switch
   useEffect(() => {
@@ -442,9 +444,18 @@ export function ChatPanel({
     if (scrollRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
       const nearBottom = scrollHeight - scrollTop - clientHeight < 150
-      isNearBottomRef.current = nearBottom
-      // If user scrolls to bottom, enable auto-scroll for new messages
-      if (nearBottom) {
+
+      // Detect if user scrolled UP (manual scroll away from bottom)
+      // vs scroll event fired due to content growth (scrollTop stays same or increases from auto-scroll)
+      const userScrolledUp = scrollTop < prevScrollTopRef.current
+      prevScrollTopRef.current = scrollTop
+
+      // Only mark as "not near bottom" if user actively scrolled up
+      // This prevents content growth from disabling auto-scroll
+      if (userScrolledUp && !nearBottom) {
+        isNearBottomRef.current = false
+      } else if (nearBottom) {
+        isNearBottomRef.current = true
         hasUserInteractedRef.current = true
       }
     }
@@ -456,7 +467,11 @@ export function ChatPanel({
   const lastMessage = branch.messages[branch.messages.length - 1]
   const lastMessageContent = lastMessage?.content ?? ""
   const lastMessageToolCallsCount = lastMessage?.toolCalls?.length ?? 0
-  const isStreaming = lastMessage ? useExecutionStore.getState().isStreaming(lastMessage.id) : false
+  // Subscribe to execution store to get reactive updates when streaming state changes
+  const lastMessageId = lastMessage?.id
+  const isStreaming = useExecutionStore(
+    useCallback((state: { activeExecutions: Map<string, unknown> }) => lastMessageId ? state.activeExecutions.has(lastMessageId) : false, [lastMessageId])
+  )
 
   useLayoutEffect(() => {
     const currentCount = branch.messages.length
