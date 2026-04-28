@@ -105,9 +105,11 @@ interface BaseDialogProps {
   isMobile?: boolean
   /** When true, content area allows overflow (for dropdowns) */
   allowOverflow?: boolean
+  /** Ref to the element that should receive focus when dialog opens */
+  initialFocusRef?: React.RefObject<HTMLElement | null>
 }
 
-function BaseDialog({ open, onClose, title, icon, children, isMobile = false, allowOverflow = false }: BaseDialogProps) {
+function BaseDialog({ open, onClose, title, icon, children, isMobile = false, allowOverflow = false, initialFocusRef }: BaseDialogProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [dragY, setDragY] = useState(0)
   const [startY, setStartY] = useState(0)
@@ -142,6 +144,12 @@ function BaseDialog({ open, onClose, title, icon, children, isMobile = false, al
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/15 backdrop-blur-[1px]" />
         <Dialog.Content
+          onOpenAutoFocus={(e) => {
+            if (initialFocusRef?.current) {
+              e.preventDefault()
+              initialFocusRef.current.focus()
+            }
+          }}
           onCloseAutoFocus={(e) => { e.preventDefault(); focusChatPrompt() }}
           className={cn(
             "fixed z-50 bg-popover flex flex-col",
@@ -755,6 +763,7 @@ interface SquashDialogProps {
 
 export function SquashDialog({ open, onClose, gitDialogs, chat, isMobile = false }: SquashDialogProps) {
   const canSquash = gitDialogs.commitsAhead >= 2 && !gitDialogs.commitsLoading
+  const squashButtonRef = useRef<HTMLButtonElement>(null)
 
   const handleSquashAndClose = useCallback(async () => {
     await gitDialogs.handleSquash()
@@ -768,6 +777,7 @@ export function SquashDialog({ open, onClose, gitDialogs, chat, isMobile = false
       title="Squash Commits"
       icon={<GitCommitVertical className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />}
       isMobile={isMobile}
+      initialFocusRef={squashButtonRef}
     >
       <div className={cn("space-y-5")}>
         <div>
@@ -848,7 +858,7 @@ export function SquashDialog({ open, onClose, gitDialogs, chat, isMobile = false
             Cancel
           </button>
           <button
-            autoFocus
+            ref={squashButtonRef}
             onClick={handleSquashAndClose}
             disabled={!canSquash || gitDialogs.actionLoading}
             className={cn(
@@ -880,6 +890,7 @@ interface ForcePushDialogProps {
 export function ForcePushDialog({ open, onClose, gitDialogs, chat, isMobile = false }: ForcePushDialogProps) {
   const agentRunning = chat?.status === "running"
   const branchLabel = gitDialogs.branchName ? gitDialogs.branchLabel(gitDialogs.branchName) : ""
+  const forcePushButtonRef = useRef<HTMLButtonElement>(null)
 
   const handleForcePush = useCallback(async () => {
     await gitDialogs.handleForcePush()
@@ -892,6 +903,7 @@ export function ForcePushDialog({ open, onClose, gitDialogs, chat, isMobile = fa
       title="Force push"
       icon={<AlertTriangle className={cn(isMobile ? "h-5 w-5" : "h-4 w-4", "text-amber-500")} />}
       isMobile={isMobile}
+      initialFocusRef={forcePushButtonRef}
     >
       <div className={cn("space-y-5")}>
         <div>
@@ -936,7 +948,7 @@ export function ForcePushDialog({ open, onClose, gitDialogs, chat, isMobile = fa
             Cancel
           </button>
           <button
-            autoFocus
+            ref={forcePushButtonRef}
             onClick={handleForcePush}
             disabled={agentRunning || gitDialogs.actionLoading || !gitDialogs.branchName}
             className={cn(
