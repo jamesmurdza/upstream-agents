@@ -257,7 +257,7 @@ class BackgroundSessionImpl implements BackgroundSession {
   }
 
   async getSnapshot(): Promise<PollResult> {
-    const { meta, outputContent, stillRunning } = await this.readSessionState()
+    let { meta, outputContent, stillRunning } = await this.readSessionState()
 
     if (!meta?.outputFile) {
       return {
@@ -275,14 +275,50 @@ class BackgroundSessionImpl implements BackgroundSession {
       state: {},
       sessionId: meta.sessionId ?? null,
     }
-    const result = await this.pollOutput(
+    let result = await this.pollOutput(
       meta.outputFile,
       "0",
       null,
       outputContent,
       tempContext
     )
-    const sawEnd = result.events.some((e) => e.type === "end")
+    let sawEnd = result.events.some((e) => e.type === "end")
+
+    // Grace period: if process appears stopped without an end event, wait briefly
+    // and re-check. This handles the race condition where the process just finished
+    // but the output file hasn't been fully flushed yet.
+    if (!stillRunning && !sawEnd) {
+      // Check if we're within startup grace period
+      if (withinStartupGrace(meta) && !hasObservableBackgroundProgress(result)) {
+        // Still starting up, report as running
+        return {
+          sessionId: tempContext.sessionId,
+          events: result.events,
+          cursor: result.cursor,
+          running: true,
+          runPhase: "starting",
+        }
+      }
+
+      // Not in startup grace, but give a brief window for I/O flush
+      await new Promise((resolve) => setTimeout(resolve, 200))
+
+      // Re-read session state and output
+      const recheck = await this.readSessionState()
+      stillRunning = recheck.stillRunning
+      if (recheck.outputContent !== outputContent) {
+        outputContent = recheck.outputContent
+        result = await this.pollOutput(
+          meta.outputFile,
+          "0",
+          null,
+          outputContent,
+          { state: {}, sessionId: meta.sessionId ?? null }
+        )
+        sawEnd = result.events.some((e) => e.type === "end")
+      }
+    }
+
     const events = stillRunning || sawEnd
       ? result.events
       : [...result.events, this.synthesizeCrashEvent(result.rawOutput ?? "")]
