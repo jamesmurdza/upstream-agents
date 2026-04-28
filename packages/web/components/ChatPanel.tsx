@@ -559,7 +559,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               rows={1}
               className={cn(
                 "w-full resize-none bg-transparent text-foreground placeholder:text-muted-foreground/50 focus:outline-none",
-                isMobile ? "text-base" : "text-sm"
+                isMobile ? "text-base" : "text-[15px]"
               )}
             />
           </div>
