@@ -88,19 +88,19 @@ export async function GET() {
 
     // User growth over last 30 days
     prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
-      SELECT DATE(created_at) as date, COUNT(*)::bigint as count
+      SELECT DATE("createdAt") as date, COUNT(*)::bigint as count
       FROM "User"
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY DATE(created_at)
+      WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE("createdAt")
       ORDER BY date ASC
     `,
 
     // Activity by day for last 14 days
     prisma.$queryRaw<Array<{ date: Date; action: string; count: bigint }>>`
-      SELECT DATE(created_at) as date, action, COUNT(*)::bigint as count
+      SELECT DATE("createdAt") as date, action, COUNT(*)::bigint as count
       FROM "ActivityLog"
-      WHERE created_at >= NOW() - INTERVAL '14 days'
-      GROUP BY DATE(created_at), action
+      WHERE "createdAt" >= NOW() - INTERVAL '14 days'
+      GROUP BY DATE("createdAt"), action
       ORDER BY date ASC
     `,
   ])
