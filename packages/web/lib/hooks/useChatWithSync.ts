@@ -145,18 +145,35 @@ export function useChatWithSync() {
     if (isHydrated) saveUnseenChatIds(unseenChatIds)
   }, [unseenChatIds, isHydrated])
 
-  // Detect running → non-running transitions
+  // Detect running → non-running transitions and auto-dispatch queued messages
   useEffect(() => {
     if (!isHydrated) return
     const currentIds = new Set<string>()
     const newlyUnseen: string[] = []
+    const toDispatch: { chatId: string; message: { content: string; agent?: string; model?: string }; rest: typeof localChatState.queuedMessages[string] }[] = []
 
     for (const chat of chats) {
       currentIds.add(chat.id)
       const prevStatus = prevStatuses.current.get(chat.id)
-      if (prevStatus === "running" && chat.status !== "running" && chat.id !== currentChatId) {
-        newlyUnseen.push(chat.id)
+
+      // Detect running → non-running transition
+      if (prevStatus === "running" && chat.status !== "running") {
+        // Mark as unseen if not the current chat
+        if (chat.id !== currentChatId) {
+          newlyUnseen.push(chat.id)
+        }
+
+        // Auto-dispatch queued messages if transitioning to ready (not error)
+        if (chat.status === "ready") {
+          const queue = localChatState.queuedMessages[chat.id]
+          const paused = localChatState.queuePaused[chat.id]
+          if (queue && queue.length > 0 && !paused) {
+            const [first, ...rest] = queue
+            toDispatch.push({ chatId: chat.id, message: first, rest: rest.length > 0 ? rest : undefined })
+          }
+        }
       }
+
       prevStatuses.current.set(chat.id, chat.status)
     }
 
@@ -171,7 +188,20 @@ export function useChatWithSync() {
         return next
       })
     }
-  }, [chats, currentChatId, isHydrated])
+
+    // Dispatch queued messages (after updating prevStatuses to avoid re-triggering)
+    for (const { chatId, message, rest } of toDispatch) {
+      setQueuedMessages(chatId, rest)
+      setLocalChatState((prev) => ({
+        ...prev,
+        queuedMessages: { ...prev.queuedMessages, [chatId]: rest },
+      }))
+      // Use setTimeout to avoid calling sendMessage during render
+      setTimeout(() => {
+        sendMessage(message.content, message.agent, message.model, undefined, chatId)
+      }, 0)
+    }
+  }, [chats, currentChatId, isHydrated, localChatState.queuedMessages, localChatState.queuePaused, sendMessage])
 
   // Helper to update query cache
   const updateChatsCache = useCallback((updater: (chats: Chat[]) => Chat[]) => {
