@@ -616,11 +616,14 @@ export function useChatWithSync() {
     }
   }, [currentChatId, chats, session?.accessToken, settings, credentialFlags, updateChatsCache, startStreaming, suggestNameMutation])
 
-  const stopAgent = useCallback(() => {
+  const stopAgent = useCallback(async () => {
     if (!currentChat) return
+
+    // Stop the SSE stream on the client side
     useStreamStore.getState().stopStream(currentChat.id)
     const hasQueue = (currentChat.queuedMessages?.length ?? 0) > 0
 
+    // Optimistically update the UI
     updateChatsCache((old) => old.map((c) =>
       c.id === currentChat.id ? { ...c, status: "ready", queuePaused: hasQueue ? true : c.queuePaused } : c
     ))
@@ -628,6 +631,18 @@ export function useChatWithSync() {
     if (hasQueue) {
       setQueuePaused(currentChat.id, true)
       setLocalChatState((prev) => ({ ...prev, queuePaused: { ...prev.queuePaused, [currentChat.id]: true } }))
+    }
+
+    // Call the stop endpoint to actually kill the agent process
+    // This is fire-and-forget - we've already updated the UI optimistically
+    try {
+      await fetch("/api/agent/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId: currentChat.id }),
+      })
+    } catch (err) {
+      console.error("[stopAgent] Failed to stop agent:", err)
     }
   }, [currentChat, updateChatsCache])
 
