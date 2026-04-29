@@ -13,57 +13,21 @@ import { isAuthError, requireChatStreamAccess } from "@/lib/db/api-helpers"
 import { createGitOperationMessage } from "@/lib/db/git-messages"
 
 /**
- * Auto-push to remote after agent completion.
- * Uses the /api/git/push endpoint for consistency with the rest of the app.
- * Includes retry logic for transient failures.
+ * Auto-push to remote after agent completion
+ * Returns true if push succeeded, false otherwise
  */
 async function autoPush(
-  sandboxId: string,
-  repoName: string,
-  branch: string,
-  githubToken: string,
-  maxRetries = 2
+  sandbox: Awaited<ReturnType<Daytona["get"]>>,
+  repoPath: string,
+  githubToken: string
 ): Promise<{ success: boolean; error?: string }> {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const res = await fetch(`${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/git/push`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sandboxId, repoName, branch, githubToken }),
-      })
-
-      if (res.ok) {
-        return { success: true }
-      }
-
-      const error = await res.json().catch(() => ({}))
-      const message = error.error || `Push failed with status ${res.status}`
-
-      // Retry on transient failures (5xx errors)
-      if (res.status >= 500 && attempt < maxRetries) {
-        console.error(`[autoPush] Attempt ${attempt + 1} failed, retrying:`, message)
-        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
-        continue
-      }
-
-      console.error("[autoPush] Push failed:", message)
-      return { success: false, error: message }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error"
-
-      // Retry on network errors
-      if (attempt < maxRetries) {
-        console.error(`[autoPush] Attempt ${attempt + 1} failed, retrying:`, message)
-        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
-        continue
-      }
-
-      console.error("[autoPush] Push failed:", message)
-      return { success: false, error: message }
-    }
+  try {
+    await sandbox.git.push(repoPath, "x-access-token", githubToken)
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return { success: false, error: message }
   }
-
-  return { success: false, error: "Max retries exceeded" }
 }
 
 // Allow longer streaming connections (5 minutes max)
@@ -244,9 +208,8 @@ export async function GET(req: Request) {
 
                 if (account?.access_token) {
                   const pushResult = await autoPush(
-                    sandboxId,
-                    repoName,
-                    chat.branch,
+                    sandbox,
+                    sessionOpts.repoPath,
                     account.access_token
                   )
 
