@@ -18,7 +18,7 @@
     "@ai-sdk/openai": "^3.0.41",
     "@anthropic-ai/claude-code": "^2.1.74",
     "@auth/prisma-adapter": "^2.11.1",
-    "@daytonaio/sdk": "^0.148.0",
+    "@daytonaio/sdk": "^0.170.0",
     "@neondatabase/serverless": "^1.0.2",
     "@prisma/adapter-neon": "^7.4.2",
     "@prisma/adapter-pg": "^7.6.0",

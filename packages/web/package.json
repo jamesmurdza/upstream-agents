@@ -16,7 +16,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.3.22",
     "@auth/prisma-adapter": "^2.9.1",
-    "@daytonaio/sdk": "^0.148.0",
+    "@daytonaio/sdk": "^0.170.0",
     "@prisma/adapter-neon": "^7.0.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
