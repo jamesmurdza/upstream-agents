@@ -427,6 +427,23 @@ export function useChatWithSync() {
               sessionId: data.sessionId ?? c.sessionId,
             } : c
           ))
+
+          // Fetch any new messages created by the backend (e.g., push failure messages)
+          // This uses delta sync - only fetches messages after the assistant message
+          try {
+            const chatData = await fetchChat(chatId, assistantMessageId)
+            const incomingMessages = chatData.messages.map(toMessageType)
+            if (incomingMessages.length > 0) {
+              updateChatsCache((old) =>
+                old.map((c) => {
+                  if (c.id !== chatId) return c
+                  return { ...c, messages: mergeMessages(c.messages, incomingMessages) }
+                })
+              )
+            }
+          } catch (fetchErr) {
+            console.error("Failed to fetch new messages after stream complete:", fetchErr)
+          }
         } catch (err) {
           console.error("Failed to parse SSE complete:", err)
         }
