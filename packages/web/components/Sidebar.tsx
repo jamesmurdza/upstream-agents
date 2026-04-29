@@ -5,13 +5,43 @@ import { useSession, signIn, signOut } from "next-auth/react"
 import Link from "next/link"
 import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, X, ChevronDown, ChevronRight, FolderGit2, Check, Loader2, HelpCircle, GitMerge, GitBranch, BarChart3 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Chat } from "@/lib/types"
+import type { Chat, Message } from "@/lib/types"
 import { NEW_REPOSITORY } from "@/lib/types"
 import { clearAllStorage } from "@/lib/storage"
 
 // Repository filter options - exported for use in parent components
 export const ALL_REPOSITORIES = "__all__"
 export const NO_REPOSITORY = "__none__"
+
+/**
+ * Check if a chat has a successful merge message after the last user message.
+ * Used to show a checkmark in the sidebar for merged chats.
+ */
+function hasMergedSuccessfully(messages: Message[]): boolean {
+  // Find index of the last user message
+  let lastUserMessageIndex = -1
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") {
+      lastUserMessageIndex = i
+      break
+    }
+  }
+
+  // Look for a successful merge message after the last user message
+  const startIndex = lastUserMessageIndex + 1
+  for (let i = startIndex; i < messages.length; i++) {
+    const msg = messages[i]
+    if (
+      msg.messageType === "git-operation" &&
+      !msg.isError &&
+      /^(Squash )?[Mm]erged .+ into .+\.$/.test(msg.content)
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
 
 const MIN_WIDTH = 140
 const MAX_WIDTH = 400
@@ -828,7 +858,7 @@ function MobileChatItem({ chat, isActive, isDeleting, isUnseen, onSelect, onDele
         <Loader2 className="h-2.5 w-2.5 flex-shrink-0 animate-spin text-foreground/90" />
       ) : isUnseen ? (
         <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-muted-foreground/80" />
-      ) : chat.mergedSuccessfully ? (
+      ) : hasMergedSuccessfully(chat.messages) ? (
         <Check className="h-3 w-3 flex-shrink-0 text-green-600 dark:text-green-500" />
       ) : null}
 
@@ -1246,7 +1276,7 @@ function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, depth = 0, 
               <div className="absolute inset-0 flex items-center justify-center group-hover:opacity-0 transition-opacity pointer-events-none">
                 <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/80" />
               </div>
-            ) : chat.mergedSuccessfully ? (
+            ) : hasMergedSuccessfully(chat.messages) ? (
               <div className="absolute inset-0 flex items-center justify-center group-hover:opacity-0 transition-opacity pointer-events-none">
                 <Check className="h-3 w-3 text-green-600 dark:text-green-500" />
               </div>
