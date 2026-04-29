@@ -359,6 +359,7 @@ export function useChatWithSync() {
     backgroundSessionId: string,
     assistantMessageId: string,
     previewUrlPattern?: string,
+    branch?: string | null,
     abortSignal?: AbortSignal
   ) => {
     const streamStore = useStreamStore.getState()
@@ -410,12 +411,31 @@ export function useChatWithSync() {
         }
       })
 
-      eventSource.addEventListener("complete", (event) => {
+      eventSource.addEventListener("complete", async (event) => {
         if (abortSignal?.aborted) return
         try {
           const data: SSECompleteEvent = JSON.parse(event.data)
           useStreamStore.getState().stopStream(chatId)
 
+          // Auto-push before updating status (use branch parameter directly to avoid stale closure issues)
+          // Keep chat in "running" state until push completes so user sees the loading indicator
+          if (data.status === "completed" && branch) {
+            try {
+              await gitPushMutation.mutateAsync({ sandboxId, repoName, branch })
+            } catch (err) {
+              const errorMsg: Message = {
+                id: nanoid(),
+                role: "assistant",
+                content: `Push failed: ${err instanceof Error ? err.message : "Unknown error"}. You can **force push** to overwrite the remote history.`,
+                messageType: "git-operation",
+                isError: true,
+                timestamp: Date.now()
+              }
+              updateChatsCache((old) => old.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, errorMsg] } : c))
+            }
+          }
+
+          // Now update status to ready/error after push attempt
           updateChatsCache((old) => old.map((c) =>
             c.id === chatId ? {
               ...c,
@@ -426,19 +446,6 @@ export function useChatWithSync() {
               sessionId: data.sessionId ?? c.sessionId,
             } : c
           ))
-
-          // Auto-push
-          if (data.status === "completed") {
-            const chat = chats.find((c) => c.id === chatId)
-            if (chat?.branch && chat.repo !== NEW_REPOSITORY) {
-              gitPushMutation.mutate({ sandboxId, repoName, branch: chat.branch }, {
-                onError: (err) => {
-                  const errorMsg: Message = { id: nanoid(), role: "assistant", content: `Push failed: ${err.message}. You can **force push** to overwrite the remote history.`, messageType: "git-operation", isError: true, timestamp: Date.now() }
-                  updateChatsCache((old) => old.map((c) => c.id === chatId ? { ...c, messages: [...c.messages, errorMsg] } : c))
-                },
-              })
-            }
-          }
         } catch (err) {
           console.error("Failed to parse SSE complete:", err)
         }
@@ -489,7 +496,7 @@ export function useChatWithSync() {
     }
 
     connect()
-  }, [updateChatsCache, chats, gitPushMutation])
+  }, [updateChatsCache, gitPushMutation])
 
   // Send message
   const sendMessage = useCallback(async (content: string, agent?: string, model?: string, files?: File[], targetChatId?: string) => {
@@ -579,7 +586,7 @@ export function useChatWithSync() {
           } : c
         ))
 
-        startStreaming(chatId, data.sandboxId, "project", data.backgroundSessionId, assistantMessage.id, data.previewUrlPattern ?? undefined)
+        startStreaming(chatId, data.sandboxId, "project", data.backgroundSessionId, assistantMessage.id, data.previewUrlPattern ?? undefined, data.branch)
 
         if (isFirstMessage) {
           suggestNameMutation.mutate({ chatId, prompt: content })
@@ -633,7 +640,7 @@ export function useChatWithSync() {
       if (useStreamStore.getState().isStreaming(chat.id)) continue
       const lastAssistantMsg = [...chat.messages].reverse().find((m) => m.role === "assistant")
       if (lastAssistantMsg) {
-        startStreaming(chat.id, chat.sandboxId!, "project", chat.backgroundSessionId!, lastAssistantMsg.id, chat.previewUrlPattern, abortController.signal)
+        startStreaming(chat.id, chat.sandboxId!, "project", chat.backgroundSessionId!, lastAssistantMsg.id, chat.previewUrlPattern, chat.branch, abortController.signal)
       }
     }
 
