@@ -86,6 +86,9 @@ export default function HomePage() {
     resumeQueue,
     updateChatById,
     refetchMessages,
+    drafts,
+    updateDraft,
+    clearDraft,
   } = useChatWithSync()
 
   const [repoSelectOpen, setRepoSelectOpen] = useState(false)
@@ -195,6 +198,10 @@ export default function HomePage() {
   // the chat row that would normally hold these doesn't exist yet.
   const [draftAgent, setDraftAgent] = useState<string | null>(null)
   const [draftModel, setDraftModel] = useState<string | null>(null)
+
+  // Per-chat draft message text (stored in localStorage via useChatWithSync)
+  // For unauthenticated users (draft mode), we use local component state instead.
+  const [draftModeInput, setDraftModeInput] = useState("")
 
   // Repository filter state (shared with Sidebar)
   const [repoFilter, setRepoFilter] = useState<string>(ALL_REPOSITORIES)
@@ -789,6 +796,21 @@ export default function HomePage() {
     [isDraftMode, updateCurrentChat]
   )
 
+  // Per-chat draft handling: in draft mode use local state, otherwise use
+  // localStorage-backed drafts keyed by chatId.
+  const currentDraft = isDraftMode
+    ? draftModeInput
+    : (currentChatId ? (drafts[currentChatId] ?? "") : "")
+
+  const handleDraftChange = useCallback((draft: string) => {
+    if (isDraftMode) {
+      setDraftModeInput(draft)
+      return
+    }
+    if (!currentChatId) return
+    updateDraft(currentChatId, draft)
+  }, [isDraftMode, currentChatId, updateDraft])
+
   return (
     <PaletteProvider
       repos={repos}
@@ -941,6 +963,8 @@ export default function HomePage() {
                 onBranchQueuedMessage={handleBranchQueuedMessage}
                 canBranch={canBranch}
                 isLoadingMessages={isLoadingMessages}
+                draft={currentDraft}
+                onDraftChange={handleDraftChange}
               />
             </div>
             {!isMobile && previewOpen && (

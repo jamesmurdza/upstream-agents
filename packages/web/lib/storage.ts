@@ -2,7 +2,7 @@
  * LocalStorage utilities for Simple Chat
  *
  * Only device-specific state is stored here:
- * - currentChatId, previewItems, queuedMessages, queuePaused
+ * - currentChatId, previewItems, queuedMessages, queuePaused, drafts
  * - unseenChatIds
  *
  * Server data (chats, messages, settings) is managed by TanStack Query.
@@ -29,6 +29,7 @@ export interface LocalState {
   previewItems: Record<string, Chat["previewItem"]>
   queuedMessages: Record<string, Chat["queuedMessages"]>
   queuePaused: Record<string, boolean>
+  drafts: Record<string, string>
 }
 
 // =============================================================================
@@ -46,6 +47,7 @@ const DEFAULT_LOCAL_STATE: LocalState = {
   previewItems: {},
   queuedMessages: {},
   queuePaused: {},
+  drafts: {},
 }
 
 // =============================================================================
@@ -114,16 +116,32 @@ export function setQueuePaused(chatId: string, paused: boolean): void {
   })
 }
 
+export function setDraft(chatId: string, draft: string | undefined): void {
+  const state = loadLocalState()
+  const newDrafts = { ...state.drafts }
+  if (draft === undefined || draft === "") {
+    delete newDrafts[chatId]
+  } else {
+    newDrafts[chatId] = draft
+  }
+  saveLocalState({
+    ...state,
+    drafts: newDrafts,
+  })
+}
+
 export function clearLocalStateForChats(chatIds: string[]): void {
   const localState = loadLocalState()
   const newPreviewItems = { ...localState.previewItems }
   const newQueuedMessages = { ...localState.queuedMessages }
   const newQueuePaused = { ...localState.queuePaused }
+  const newDrafts = { ...localState.drafts }
 
   for (const id of chatIds) {
     delete newPreviewItems[id]
     delete newQueuedMessages[id]
     delete newQueuePaused[id]
+    delete newDrafts[id]
   }
 
   saveLocalState({
@@ -131,6 +149,7 @@ export function clearLocalStateForChats(chatIds: string[]): void {
     previewItems: newPreviewItems,
     queuedMessages: newQueuedMessages,
     queuePaused: newQueuePaused,
+    drafts: newDrafts,
     currentChatId: chatIds.includes(localState.currentChatId ?? "")
       ? null
       : localState.currentChatId,

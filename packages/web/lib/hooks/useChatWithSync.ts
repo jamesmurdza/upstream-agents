@@ -24,6 +24,7 @@ import {
   saveUnseenChatIds,
   setQueuedMessages,
   setQueuePaused,
+  setDraft,
   clearLocalStateForChats,
   collectDescendantIds,
   DEFAULT_SETTINGS,
@@ -105,7 +106,8 @@ export function useChatWithSync() {
     previewItems: Record<string, Chat["previewItem"]>
     queuedMessages: Record<string, Chat["queuedMessages"]>
     queuePaused: Record<string, boolean>
-  }>({ previewItems: {}, queuedMessages: {}, queuePaused: {} })
+    drafts: Record<string, string>
+  }>({ previewItems: {}, queuedMessages: {}, queuePaused: {}, drafts: {} })
 
   const prevStatuses = useRef<Map<string, ChatStatus>>(new Map())
   const sendInFlight = useRef<Set<string>>(new Set())
@@ -120,6 +122,7 @@ export function useChatWithSync() {
       previewItems: localState.previewItems,
       queuedMessages: localState.queuedMessages,
       queuePaused: localState.queuePaused,
+      drafts: localState.drafts,
     })
     setIsHydrated(true)
   }, [])
@@ -258,11 +261,12 @@ export function useChatWithSync() {
         }
         clearLocalStateForChats(result.deletedChatIds)
         setLocalChatState((prev) => {
-          const next = { ...prev, previewItems: { ...prev.previewItems }, queuedMessages: { ...prev.queuedMessages }, queuePaused: { ...prev.queuePaused } }
+          const next = { ...prev, previewItems: { ...prev.previewItems }, queuedMessages: { ...prev.queuedMessages }, queuePaused: { ...prev.queuePaused }, drafts: { ...prev.drafts } }
           for (const id of result.deletedChatIds) {
             delete next.previewItems[id]
             delete next.queuedMessages[id]
             delete next.queuePaused[id]
+            delete next.drafts[id]
           }
           return next
         })
@@ -710,6 +714,29 @@ export function useChatWithSync() {
     setLocalChatState((prev) => ({ ...prev, queuePaused: { ...prev.queuePaused, [currentChat.id]: false } }))
   }, [currentChat])
 
+  // Draft management
+  const updateDraft = useCallback((chatId: string, draft: string) => {
+    setDraft(chatId, draft)
+    setLocalChatState((prev) => {
+      const newDrafts = { ...prev.drafts }
+      if (draft === "") {
+        delete newDrafts[chatId]
+      } else {
+        newDrafts[chatId] = draft
+      }
+      return { ...prev, drafts: newDrafts }
+    })
+  }, [])
+
+  const clearDraft = useCallback((chatId: string) => {
+    setDraft(chatId, undefined)
+    setLocalChatState((prev) => {
+      const newDrafts = { ...prev.drafts }
+      delete newDrafts[chatId]
+      return { ...prev, drafts: newDrafts }
+    })
+  }, [])
+
   // Auto-dispatch queued messages when a chat transitions from running to ready
   useEffect(() => {
     if (!isHydrated) return
@@ -796,5 +823,8 @@ export function useChatWithSync() {
     removeQueuedMessage,
     resumeQueue,
     refetchMessages,
+    drafts: localChatState.drafts,
+    updateDraft,
+    clearDraft,
   }
 }

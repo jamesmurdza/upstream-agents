@@ -50,10 +50,18 @@ interface ChatPanelProps {
   canBranch?: boolean
   /** Whether messages are currently being loaded for this chat */
   isLoadingMessages?: boolean
+  /** Current draft text for this chat */
+  draft?: string
+  /** Callback when draft text changes */
+  onDraftChange?: (draft: string) => void
 }
 
-export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, onForcePush, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false, onBranchWithMessage, onBranchQueuedMessage, canBranch = false, isLoadingMessages = false }: ChatPanelProps) {
-  const [input, setInput] = useState("")
+export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, onForcePush, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false, onBranchWithMessage, onBranchQueuedMessage, canBranch = false, isLoadingMessages = false, draft = "", onDraftChange }: ChatPanelProps) {
+  // Use draft prop as input value (controlled component pattern for per-chat drafts)
+  const input = draft
+  const setInput = useCallback((value: string) => {
+    onDraftChange?.(value)
+  }, [onDraftChange])
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
   const [showModelDropdown, setShowModelDropdown] = useState(false)
