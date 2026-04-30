@@ -53,28 +53,6 @@ export {
   getEnvForModel,
 } from "./agents"
 
-// SSE utilities
-export {
-  // Types
-  type SSEEvent,
-  type StreamController,
-  type StreamOptions,
-  type ProgressEvent,
-  type ErrorEvent,
-  type DoneEvent,
-  type StreamEvent,
-  // Constants
-  SSE_HEADERS,
-  // Server-side
-  createSSEStream,
-  sendProgress,
-  sendError,
-  sendDone,
-  // Client-side
-  parseSSEStream,
-  waitForSSEResult,
-} from "./sse"
-
 // GitHub client utilities
 export {
   // Types
