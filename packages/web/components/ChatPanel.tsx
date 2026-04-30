@@ -153,13 +153,16 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
 
   // Focus prompt when switching chats or when the welcome view transitions to
   // the messages view (which remounts the textarea in a different DOM location).
+  // Also re-focus when messages finish loading (isLoadingMessages becomes false).
   useEffect(() => {
     if (isMobile) return
+    // Don't focus while messages are still loading - the textarea doesn't exist yet
+    if (isLoadingMessages) return
     const t = window.setTimeout(() => {
       focusPrompt(true)
     }, 0)
     return () => window.clearTimeout(t)
-  }, [chat?.id, isCreating, isMobile, focusPrompt])
+  }, [chat?.id, isCreating, isLoadingMessages, isMobile, focusPrompt])
 
   // Auto-resize textarea
   useEffect(() => {
