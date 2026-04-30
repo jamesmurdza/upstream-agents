@@ -119,9 +119,11 @@ function MarkdownContent({ text, isMobile = false }: { text: string; isMobile?: 
           ),
           pre: ({ children }) => (
             <pre className={cn(
-              "overflow-x-auto rounded-md border border-border p-3 !max-w-none",
-              "bg-card dark:bg-muted/50",
-              isMobile && "-mx-2 rounded-lg"
+              "overflow-x-auto rounded-md border border-border/70 p-3",
+              "bg-black/[0.02] dark:bg-white/[0.03]",
+              // Break out of parent container to achieve full width
+              "w-[calc(100%+2rem)] -mx-4",
+              isMobile && "w-[calc(100%+1.5rem)] -mx-3 rounded-lg"
             )}>
               {children}
             </pre>
