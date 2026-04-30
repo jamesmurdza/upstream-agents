@@ -111,6 +111,7 @@ export function useChatWithSync() {
 
   const prevStatuses = useRef<Map<string, ChatStatus>>(new Map())
   const sendInFlight = useRef<Set<string>>(new Set())
+  const queueDispatchInFlight = useRef<Set<string>>(new Set())
   const messagesLoadFailed = useRef<Set<string>>(new Set())
 
   // Hydration
@@ -500,7 +501,9 @@ export function useChatWithSync() {
         } else {
           store.stopStream(chatId)
           updateChatsCache((old) => old.map((c) =>
-            c.id === chatId && c.status === "running" ? { ...c, status: "ready" } : c
+            c.id === chatId && c.status === "running"
+              ? { ...c, status: "ready", backgroundSessionId: undefined }
+              : c
           ))
         }
       }
@@ -620,6 +623,32 @@ export function useChatWithSync() {
     }
   }, [currentChatId, chats, session?.accessToken, settings, credentialFlags, updateChatsCache, startStreaming, suggestNameMutation])
 
+  const dispatchNextQueuedMessage = useCallback((chatId: string, queueOverride?: QueuedMessage[]) => {
+    const chat = chats.find((c) => c.id === chatId)
+    const queue = queueOverride ?? localChatState.queuedMessages[chatId]
+    if (!chat || !queue || queue.length === 0) return false
+    if (localChatState.queuePaused[chatId]) return false
+    if (queueDispatchInFlight.current.has(chatId)) return false
+    if (sendInFlight.current.has(chatId)) return false
+    if (useStreamStore.getState().isStreaming(chatId)) return false
+    if (chat.status !== "ready" || !!chat.backgroundSessionId) return false
+
+    const [first, ...rest] = queue
+    queueDispatchInFlight.current.add(chatId)
+    setQueuedMessages(chatId, rest.length > 0 ? rest : undefined)
+    setLocalChatState((prev) => ({
+      ...prev,
+      queuedMessages: { ...prev.queuedMessages, [chatId]: rest.length > 0 ? rest : undefined },
+    }))
+
+    void sendMessage(first.content, first.agent, first.model, undefined, chatId)
+      .finally(() => {
+        queueDispatchInFlight.current.delete(chatId)
+      })
+
+    return true
+  }, [chats, localChatState.queuedMessages, localChatState.queuePaused, sendMessage])
+
   const stopAgent = useCallback(async () => {
     if (!currentChat) return
 
@@ -629,7 +658,14 @@ export function useChatWithSync() {
 
     // Optimistically update the UI
     updateChatsCache((old) => old.map((c) =>
-      c.id === currentChat.id ? { ...c, status: "ready", queuePaused: hasQueue ? true : c.queuePaused } : c
+      c.id === currentChat.id
+        ? {
+            ...c,
+            status: "ready",
+            backgroundSessionId: undefined,
+            queuePaused: hasQueue ? true : c.queuePaused,
+          }
+        : c
     ))
 
     if (hasQueue) {
@@ -652,7 +688,7 @@ export function useChatWithSync() {
 
   // Resume streaming for running chats
   const runningChatsKey = chats
-    .filter((c) => c.backgroundSessionId && c.sandboxId)
+    .filter((c) => c.status === "running" && c.backgroundSessionId && c.sandboxId)
     .map((c) => `${c.id}:${c.backgroundSessionId}:${c.sandboxId}`)
     .sort()
     .join("|")
@@ -660,7 +696,7 @@ export function useChatWithSync() {
   useEffect(() => {
     if (!isHydrated) return
     const abortController = new AbortController()
-    const runningChats = chats.filter((c) => c.backgroundSessionId && c.sandboxId)
+    const runningChats = chats.filter((c) => c.status === "running" && c.backgroundSessionId && c.sandboxId)
 
     for (const chat of runningChats) {
       if (useStreamStore.getState().isStreaming(chat.id)) continue
@@ -737,34 +773,18 @@ export function useChatWithSync() {
     })
   }, [])
 
-  // Auto-dispatch queued messages when a chat transitions from running to ready
+  // Drain any ready, unpaused queue. The queue is client-owned, so if the
+  // browser sees a ready chat with queued prompts, it should continue dispatching.
   useEffect(() => {
     if (!isHydrated) return
 
     for (const chat of chats) {
-      const prevStatus = prevStatuses.current.get(chat.id)
-      // Only trigger on running → ready/error transition
-      if (prevStatus !== "running" || chat.status === "running") continue
-
       const queue = localChatState.queuedMessages[chat.id]
       const paused = localChatState.queuePaused[chat.id]
-
-      // If there are queued messages and queue is not paused, dispatch the first one
-      if (queue && queue.length > 0 && !paused && chat.status === "ready") {
-        const [first, ...rest] = queue
-        // Update queue state (remove the dispatched message)
-        setQueuedMessages(chat.id, rest.length > 0 ? rest : undefined)
-        setLocalChatState((prev) => ({
-          ...prev,
-          queuedMessages: { ...prev.queuedMessages, [chat.id]: rest.length > 0 ? rest : undefined },
-        }))
-        // Send the message (using setTimeout to avoid calling sendMessage during render)
-        setTimeout(() => {
-          sendMessage(first.content, first.agent, first.model, undefined, chat.id)
-        }, 0)
-      }
+      if (!queue || queue.length === 0 || paused) continue
+      dispatchNextQueuedMessage(chat.id, queue)
     }
-  }, [chats, isHydrated, localChatState.queuedMessages, localChatState.queuePaused, sendMessage])
+  }, [chats, dispatchNextQueuedMessage, isHydrated, localChatState.queuedMessages, localChatState.queuePaused])
 
   // Refetch messages for a specific chat (used after git operations add messages on backend)
   // Uses delta sync - only fetches messages after the last known message ID
