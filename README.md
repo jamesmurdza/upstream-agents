@@ -33,32 +33,37 @@ npm run dev
 ## Architecture
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                           Application                                   │
-│                    ┌──────────────────────┐                            │
-│                    │  @upstream/web       │                            │
-│                    │  - Chat application  │                            │
-│                    │  - Database-backed   │                            │
-│                    └──────────────────────┘                            │
-└─────────────────────────────────────┬──────────────────────────────────┘
-                                      │
-┌─────────────────────────────────────┼──────────────────────────────────┐
-│                         Shared Packages                                 │
-│  ┌──────────────────────┐  ┌───────┴───────┐  ┌──────────────────────┐ │
-│  │  @upstream/agents    │  │ @upstream/    │  │  @upstream/terminal  │ │
-│  │  - Agent SDK         │  │ common        │  │  - PTY terminal      │ │
-│  │  - Claude, Codex...  │  │ - Utilities   │  │  - WebSocket         │ │
-│  │  - Session mgmt      │  │ - Types       │  │  - xterm.js          │ │
-│  └──────────────────────┘  └───────────────┘  └──────────────────────┘ │
-└─────────────────────────────────────┬──────────────────────────────────┘
-                                      │
-                                      ▼
-                           ┌──────────────────────┐
-                           │   Daytona Sandboxes  │
-                           │   - Isolated envs    │
-                           │   - Git repos        │
-                           │   - AI agents        │
-                           └──────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            Application                                   │
+│                     ┌──────────────────────┐                            │
+│                     │  @upstream/web       │                            │
+│                     │  - Chat application  │                            │
+│                     │  - Database-backed   │                            │
+│                     └──────────────────────┘                            │
+└──────────────────────────────────┬──────────────────────────────────────┘
+                                   │
+┌──────────────────────────────────┼──────────────────────────────────────┐
+│                        Shared Packages                                   │
+│  ┌────────────────┐ ┌────────────┴────────────┐ ┌─────────────────────┐ │
+│  │ @upstream/     │ │ @upstream/agents        │ │ @upstream/terminal  │ │
+│  │ common         │ │ - Agent SDK             │ │ - PTY terminal      │ │
+│  │ - Utilities    │ │ - Claude, Codex, etc.   │ │ - WebSocket         │ │
+│  │ - Types        │ │ - Session management    │ │ - xterm.js          │ │
+│  └────────────────┘ └─────────────────────────┘ └─────────────────────┘ │
+│  ┌────────────────┐ ┌─────────────────────────┐                         │
+│  │ @upstream/     │ │ @upstream/              │                         │
+│  │ agent-config   │ │ claude-credentials      │                         │
+│  │ - Safety rules │ │ - OAuth credentials     │                         │
+│  └────────────────┘ └─────────────────────────┘                         │
+└──────────────────────────────────┬──────────────────────────────────────┘
+                                   │
+                                   ▼
+                        ┌──────────────────────┐
+                        │   Daytona Sandboxes  │
+                        │   - Isolated envs    │
+                        │   - Git repos        │
+                        │   - AI agents        │
+                        └──────────────────────┘
 ```
 
 ---
@@ -81,15 +86,16 @@ packages/
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start the `web` development server (port 4000) |
+| `npm run dev` | Start the development server |
 | `npm run build` | Build SDK + web app |
-| `npm run build:sdk` | Build only the SDK package |
-| `npm run build:web` | Build SDK + `web` app |
-| `npm run start` | Start `web` production server |
+| `npm run build:sdk` | Build only the SDK packages |
+| `npm run build:web` | Build SDK + web app |
+| `npm run start` | Start production server |
 | `npm run lint` | ESLint check across all packages |
 | `npm run clean` | Clean build artifacts |
-| `npm run prisma:migrate` | Create + apply migrations for `web` |
-| `npm run prisma:status` | Check migration status for `web` |
+| `npm run prisma:migrate` | Create + apply migrations |
+| `npm run prisma:generate` | Generate Prisma client |
+| `npm run prisma:status` | Check migration status |
 
 For full local development setup (database, environment variables, running the dev server), see [DEVELOPMENT.md](./DEVELOPMENT.md).
 
