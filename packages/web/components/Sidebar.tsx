@@ -43,6 +43,15 @@ function hasMergedSuccessfully(messages: Message[]): boolean {
   return false
 }
 
+function MergedChatCheckmark({ className }: { className?: string }) {
+  return (
+    <Check
+      className={cn("h-3 w-3 text-sidebar-foreground/75 dark:text-zinc-300", className)}
+      strokeWidth={2.4}
+    />
+  )
+}
+
 const MIN_WIDTH = 140
 const MAX_WIDTH = 400
 const COLLAPSED_WIDTH = 64
@@ -859,7 +868,7 @@ function MobileChatItem({ chat, isActive, isDeleting, isUnseen, onSelect, onDele
       ) : isUnseen ? (
         <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-muted-foreground/80" />
       ) : hasMergedSuccessfully(chat.messages) ? (
-        <Check className="h-3 w-3 flex-shrink-0 text-green-600 dark:text-green-500" />
+        <MergedChatCheckmark className="flex-shrink-0" />
       ) : null}
 
       {/* Menu button */}
@@ -1278,7 +1287,7 @@ function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, depth = 0, 
               </div>
             ) : hasMergedSuccessfully(chat.messages) ? (
               <div className="absolute inset-0 flex items-center justify-center group-hover:opacity-0 transition-opacity pointer-events-none">
-                <Check className="h-3 w-3 text-green-600 dark:text-green-500" />
+                <MergedChatCheckmark />
               </div>
             ) : null}
             <button
