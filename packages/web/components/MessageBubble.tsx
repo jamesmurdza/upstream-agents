@@ -121,9 +121,7 @@ function MarkdownContent({ text, isMobile = false }: { text: string; isMobile?: 
             <pre className={cn(
               "overflow-x-auto rounded-md border border-border/70 p-3",
               "bg-white/70 dark:bg-white/[0.03]",
-              // Break out of parent container to achieve full width
-              "w-[calc(100%+2rem)] -mx-4",
-              isMobile && "w-[calc(100%+1.5rem)] -mx-3 rounded-lg"
+              isMobile && "rounded-lg"
             )}>
               {children}
             </pre>
