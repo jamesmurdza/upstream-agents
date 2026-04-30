@@ -17,17 +17,6 @@ https://github.com/user-attachments/assets/ee6de7e9-a32e-45bd-acfa-3da1763b80ea
 
 ---
 
-## Quick Start
-
-```bash
-npm install
-npm run dev
-```
-
-Opens the web app at [http://localhost:4000](http://localhost:4000).
-
----
-
 ## Development
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md) for local setup (database, environment variables) and [TESTING.md](./TESTING.md) for tests.
