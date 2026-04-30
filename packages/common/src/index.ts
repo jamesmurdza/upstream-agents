@@ -173,4 +173,3 @@ export {
   addRecentItem,
   clearRecentItems,
 } from "./search-palette"
-
