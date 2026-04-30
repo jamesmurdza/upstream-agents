@@ -922,7 +922,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           isMobile ? "text-sm px-4" : "text-sm"
         )}>
           <p>
-            Agents are isolated in{" "}
+            Agents live in{" "}
             <a
               href="https://www.daytona.io/"
               target="_blank"
@@ -931,9 +931,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
             >
               Daytona sandboxes
             </a>
-            {" "}and tied to Git branches.
+            {" "}tied to Git branches.
           </p>
-          <p className="mt-1">Options and tools are available using ⌘K.</p>
+          <p className="mt-1">Access additional tools with ⌘K.</p>
         </div>
       </div>
     )
