@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react"
-import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Settings as SettingsIcon, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, GitBranchPlus } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, GitBranch, Key, X, Paperclip } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Chat, Settings, Agent, ModelOption, PendingFile, CredentialFlags } from "@/lib/types"
+import type { Chat, Agent, ModelOption, PendingFile } from "@/lib/types"
 import { nanoid } from "nanoid"
 import { NEW_REPOSITORY, agentModels, agentLabels, getModelLabel, hasCredentialsForModel, getDefaultAgent, getDefaultModelForAgent } from "@/lib/types"
-import { filterSlashCommandsWithConflict, type RebaseConflictState } from "@upstream/common"
+import { filterSlashCommandsWithConflict } from "@upstream/common"
 import { MessageBubble } from "./MessageBubble"
 import { AgentIcon } from "./icons/agent-icons"
 import { MobileSelect } from "./ui/MobileBottomSheet"
@@ -14,54 +14,57 @@ import { SlashCommandMenu, type SlashCommandType } from "./SlashCommandMenu"
 import { Input } from "./ui/input"
 
 import type { HighlightKey } from "./modals/SettingsModal"
+import type { ChatPanelProps } from "./chat/types"
+import {
+  ErrorBanner,
+  ChatHeader,
+  MobileConflictBar,
+  ChatPanelSkeleton,
+  LoadingMessagesSkeleton,
+  WelcomeView,
+  QueueShelf,
+} from "./chat"
 
-interface ChatPanelProps {
-  chat: Chat | null
-  settings: Settings
-  credentialFlags: CredentialFlags
-  onSendMessage: (message: string, agent: string, model: string, files?: File[]) => void
-  onEnqueueMessage?: (message: string, agent?: string, model?: string) => void
-  onRemoveQueuedMessage?: (id: string) => void
-  onResumeQueue?: () => void
-  onStopAgent: () => void
-  onChangeRepo?: () => void
-  onChangeBranch?: () => void
-  onUpdateChat?: (updates: Partial<Chat>) => void
-  onOpenSettings?: (highlightKey?: HighlightKey) => void
-  onSlashCommand?: (command: SlashCommandType) => void
-  onRequireSignIn?: () => void
-  onDeleteChat?: () => void
-  onOpenHelp?: () => void
-  onOpenFile?: (filePath: string) => void
-  /** Callback to open the force-push modal (from push-failure system messages). */
-  onForcePush?: () => void
-  isMobile?: boolean
-  /** Conflict state for merge/rebase */
-  rebaseConflict?: RebaseConflictState
-  /** Callback to abort the current conflict */
-  onAbortConflict?: () => void
-  /** Whether an action is loading (e.g., aborting) */
-  conflictActionLoading?: boolean
-  /** Callback to branch and send a message to the new branch chat */
-  onBranchWithMessage?: (message: string, agent: string, model: string) => void
-  /** Callback to branch a queued message (removes from queue) */
-  onBranchQueuedMessage?: (id: string, message: string, agent?: string, model?: string) => void
-  /** Whether branching is available (has repo and branch) */
-  canBranch?: boolean
-  /** Whether messages are currently being loaded for this chat */
-  isLoadingMessages?: boolean
-  /** Current draft text for this chat */
-  draft?: string
-  /** Callback when draft text changes */
-  onDraftChange?: (draft: string) => void
-}
+export type { ChatPanelProps }
 
-export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, onForcePush, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false, onBranchWithMessage, onBranchQueuedMessage, canBranch = false, isLoadingMessages = false, draft = "", onDraftChange }: ChatPanelProps) {
+export function ChatPanel({
+  chat,
+  settings,
+  credentialFlags,
+  onSendMessage,
+  onEnqueueMessage,
+  onRemoveQueuedMessage,
+  onResumeQueue,
+  onStopAgent,
+  onChangeRepo,
+  onChangeBranch,
+  onUpdateChat,
+  onOpenSettings,
+  onSlashCommand,
+  onRequireSignIn,
+  onDeleteChat,
+  onOpenHelp,
+  onOpenFile,
+  onForcePush,
+  isMobile = false,
+  rebaseConflict,
+  onAbortConflict,
+  conflictActionLoading = false,
+  onBranchWithMessage,
+  onBranchQueuedMessage,
+  canBranch = false,
+  isLoadingMessages = false,
+  draft = "",
+  onDraftChange,
+}: ChatPanelProps) {
   // Use draft prop as input value (controlled component pattern for per-chat drafts)
   const input = draft
-  const setInput = useCallback((value: string) => {
-    onDraftChange?.(value)
-  }, [onDraftChange])
+  const setInput = useCallback(
+    (value: string) => {
+      onDraftChange?.(value)
+    },
+    [onDraftChange]
+  )
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
   const [showAgentDropdown, setShowAgentDropdown] = useState(false)
   const [showModelDropdown, setShowModelDropdown] = useState(false)
@@ -103,12 +106,17 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
 
   // Get current agent/model (from chat, the user's preference, or auto-resolved
   // from credential flags). Uses ?? so we don't trip over the empty string.
-  const currentAgent = (chat?.agent ?? settings.defaultAgent ?? getDefaultAgent(credentialFlags)) as Agent
-  const currentModel = chat?.model ?? settings.defaultModel ?? getDefaultModelForAgent(currentAgent, credentialFlags)
+  const currentAgent = (chat?.agent ??
+    settings.defaultAgent ??
+    getDefaultAgent(credentialFlags)) as Agent
+  const currentModel =
+    chat?.model ??
+    settings.defaultModel ??
+    getDefaultModelForAgent(currentAgent, credentialFlags)
 
   // Check if the selected model has required credentials
   const availableModels = agentModels[currentAgent] ?? []
-  const selectedModelConfig = availableModels.find(m => m.value === currentModel)
+  const selectedModelConfig = availableModels.find((m) => m.value === currentModel)
   const hasRequiredCredentials = selectedModelConfig
     ? hasCredentialsForModel(selectedModelConfig, credentialFlags, currentAgent)
     : true
@@ -137,7 +145,8 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
   const handleScroll = () => {
     const container = messagesContainerRef.current
     if (!container) return
-    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100
+    const isAtBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight < 100
     setUserHasScrolledUp(!isAtBottom)
   }
 
@@ -176,13 +185,13 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
     if (isMobile) return
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement
-      if (!target.closest('[data-dropdown]')) {
+      if (!target.closest("[data-dropdown]")) {
         setShowAgentDropdown(false)
         setShowModelDropdown(false)
       }
     }
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
+    document.addEventListener("click", handleClickOutside)
+    return () => document.removeEventListener("click", handleClickOutside)
   }, [isMobile])
 
   // Close title menu on outside click
@@ -212,7 +221,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
   // the slash menu swaps in a single "Create repository" entry.
   const filteredCommands = useMemo(() => {
     if (hasLinkedRepo) return filterSlashCommandsWithConflict(input, inConflict)
-    const filter = input.startsWith("/") ? input.slice(1).toLowerCase() : input.toLowerCase()
+    const filter = input.startsWith("/")
+      ? input.slice(1).toLowerCase()
+      : input.toLowerCase()
     const repoCmd = { name: "repo", description: "Create repository", icon: "FolderGit2" }
     if (!filter || repoCmd.name.startsWith(filter)) return [repoCmd]
     return []
@@ -231,20 +242,23 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
   }, [conflictMenuOpen])
 
   // Handle slash command selection
-  const handleSlashCommandSelect = useCallback((command: SlashCommandType) => {
-    setSlashMenuOpen(false)
-    setSlashSelectedIndex(0)
-    setInput("")
-    if (command === "repo") {
-      onChangeRepo?.()
-      return
-    }
-    if (command === "abort") {
-      onAbortConflict?.()
-      return
-    }
-    onSlashCommand?.(command)
-  }, [onSlashCommand, onChangeRepo, onAbortConflict])
+  const handleSlashCommandSelect = useCallback(
+    (command: SlashCommandType) => {
+      setSlashMenuOpen(false)
+      setSlashSelectedIndex(0)
+      setInput("")
+      if (command === "repo") {
+        onChangeRepo?.()
+        return
+      }
+      if (command === "abort") {
+        onAbortConflict?.()
+        return
+      }
+      onSlashCommand?.(command)
+    },
+    [onSlashCommand, onChangeRepo, onAbortConflict, setInput]
+  )
 
   const handleSend = () => {
     if (!canSend) return
@@ -273,7 +287,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
     }
 
     // Pass files to sendMessage - upload will happen after sandbox is ready
-    const files = pendingFiles.length > 0 ? pendingFiles.map(pf => pf.file) : undefined
+    const files = pendingFiles.length > 0 ? pendingFiles.map((pf) => pf.file) : undefined
     onSendMessage(input.trim(), currentAgent, currentModel, files)
     setInput("")
     setPendingFiles([])
@@ -288,17 +302,17 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
       onRequireSignIn()
       return
     }
-    const newFiles: PendingFile[] = Array.from(files).map(file => ({
+    const newFiles: PendingFile[] = Array.from(files).map((file) => ({
       id: nanoid(),
       file,
       name: file.name,
       size: file.size,
     }))
-    setPendingFiles(prev => [...prev, ...newFiles])
+    setPendingFiles((prev) => [...prev, ...newFiles])
   }
 
   const removeFile = (id: string) => {
-    setPendingFiles(prev => prev.filter(f => f.id !== id))
+    setPendingFiles((prev) => prev.filter((f) => f.id !== id))
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -347,13 +361,17 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
         case "Enter":
           e.preventDefault()
           if (filteredCommands[slashSelectedIndex]) {
-            handleSlashCommandSelect(filteredCommands[slashSelectedIndex].name as SlashCommandType)
+            handleSlashCommandSelect(
+              filteredCommands[slashSelectedIndex].name as SlashCommandType
+            )
           }
           return
         case "Tab":
           e.preventDefault()
           if (filteredCommands[slashSelectedIndex]) {
-            handleSlashCommandSelect(filteredCommands[slashSelectedIndex].name as SlashCommandType)
+            handleSlashCommandSelect(
+              filteredCommands[slashSelectedIndex].name as SlashCommandType
+            )
           }
           return
         case "Escape":
@@ -394,7 +412,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
       onUpdateChat({ agent, model: newModel })
 
       // Check if the new model requires credentials we don't have
-      const newModelConfig = models.find(m => m.value === newModel)
+      const newModelConfig = models.find((m) => m.value === newModel)
       if (newModelConfig && !hasCredentialsForModel(newModelConfig, credentialFlags, agent)) {
         // Open settings with the required key highlighted
         const requiredKey = newModelConfig.requiresKey
@@ -412,8 +430,11 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
       onUpdateChat({ model })
 
       // Check if the new model requires credentials we don't have
-      const newModelConfig = availableModels.find(m => m.value === model)
-      if (newModelConfig && !hasCredentialsForModel(newModelConfig, credentialFlags, currentAgent)) {
+      const newModelConfig = availableModels.find((m) => m.value === model)
+      if (
+        newModelConfig &&
+        !hasCredentialsForModel(newModelConfig, credentialFlags, currentAgent)
+      ) {
         // Open settings with the required key highlighted
         const requiredKey = newModelConfig.requiresKey
         if (requiredKey && requiredKey !== "none" && onOpenSettings) {
@@ -425,38 +446,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
 
   // No chat selected - show a skeleton while the first chat is being created.
   if (!chat) {
-    return (
-      <div className="flex-1 flex flex-col bg-background min-h-0 animate-pulse">
-        {!isMobile && (
-          <div className="pt-3 pl-[1.625rem] pr-4">
-            <div className="h-6 w-40 rounded bg-muted" />
-          </div>
-        )}
-        <div className="flex-1" />
-        <div className={cn(
-          "w-full mx-auto",
-          isMobile ? "max-w-full px-3 pb-3" : "max-w-[52rem] px-4 pb-4"
-        )}>
-          <div className={cn(
-            "flex flex-col border border-border bg-card shadow-sm",
-            isMobile ? "rounded-xl" : "rounded-2xl"
-          )}>
-            <div className={cn(isMobile ? "px-3 py-3" : "px-4 py-3")}>
-              <div className="h-5 w-1/3 rounded bg-muted" />
-            </div>
-            <div className={cn(
-              "flex items-center gap-2 border-t border-border",
-              isMobile ? "px-3 py-2" : "px-4 py-2"
-            )}>
-              <div className="h-6 w-20 rounded bg-muted" />
-              <div className="h-6 w-24 rounded bg-muted" />
-              <div className="flex-1" />
-              <div className={cn("rounded-md bg-muted", isMobile ? "h-9 w-9" : "h-7 w-7")} />
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <ChatPanelSkeleton isMobile={isMobile} />
   }
 
   const isNewRepo = chat.repo === NEW_REPOSITORY
@@ -469,10 +459,18 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
   // Only show welcome screen if no messages AND not loading messages AND not a child chat
   const isNewChat = chat.messages.length === 0 && !chat.parentChatId && !isLoadingMessages
 
-  const agents: Agent[] = ["claude-code", "opencode", "codex", "gemini", "goose", "pi", "eliza"]
+  const agents: Agent[] = [
+    "claude-code",
+    "opencode",
+    "codex",
+    "gemini",
+    "goose",
+    "pi",
+    "eliza",
+  ]
 
   // Prepare agent options for mobile bottom sheet
-  const agentOptions = agents.map(agent => ({
+  const agentOptions = agents.map((agent) => ({
     value: agent,
     label: agentLabels[agent],
     icon: <AgentIcon agent={agent} className="h-5 w-5" />,
@@ -492,10 +490,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
 
   // Chat input component - responsive design
   const chatInput = (
-    <div className={cn(
-      "w-full mx-auto",
-      isMobile ? "max-w-full" : "max-w-[52rem]"
-    )}>
+    <div className={cn("w-full mx-auto", isMobile ? "max-w-full" : "max-w-[52rem]")}>
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -528,10 +523,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           }}
         />
         {/* Text input area */}
-        <div className={cn(
-          "flex items-end gap-2",
-          isMobile ? "px-3 py-2" : "px-4 py-3"
-        )}>
+        <div className={cn("flex items-end gap-2", isMobile ? "px-3 py-2" : "px-4 py-3")}>
           {/* Textarea wrapper with slash command menu */}
           <div className="relative flex-1">
             {/* Slash Command Menu - positioned above the textarea */}
@@ -563,10 +555,10 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 isCreating
                   ? "Creating sandbox..."
                   : isRunning
-                  ? "Agent is working..."
-                  : isNewChat
-                  ? "Message..."
-                  : "Enter prompt or /merge..."
+                    ? "Agent is working..."
+                    : isNewChat
+                      ? "Message..."
+                      : "Enter prompt or /merge..."
               }
               rows={1}
               className={cn(
@@ -577,10 +569,12 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           </div>
 
           {/* Button container - fixed size to prevent layout shift */}
-          <div className={cn(
-            "shrink-0 flex items-center justify-center",
-            isMobile ? "h-9 w-9" : "h-7 w-7"
-          )}>
+          <div
+            className={cn(
+              "shrink-0 flex items-center justify-center",
+              isMobile ? "h-9 w-9" : "h-7 w-7"
+            )}
+          >
             {isRunning && canQueue ? (
               <button
                 onClick={handleSend}
@@ -600,7 +594,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                   isMobile ? "h-9 w-9" : "h-7 w-7"
                 )}
               >
-                <Square className={cn(isMobile ? "h-3.5 w-3.5" : "h-3 w-3", "fill-current")} />
+                <Square
+                  className={cn(isMobile ? "h-3.5 w-3.5" : "h-3 w-3", "fill-current")}
+                />
               </button>
             ) : canSend ? (
               <button
@@ -618,10 +614,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
 
         {/* Pending files display */}
         {pendingFiles.length > 0 && (
-          <div className={cn(
-            "flex flex-wrap gap-1.5",
-            isMobile ? "px-3 pb-2" : "px-4 pb-2"
-          )}>
+          <div className={cn("flex flex-wrap gap-1.5", isMobile ? "px-3 pb-2" : "px-4 pb-2")}>
             {pendingFiles.map((file) => (
               <div
                 key={file.id}
@@ -630,7 +623,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                   isMobile ? "px-2 py-1 text-sm" : "px-1.5 py-0.5 text-xs"
                 )}
               >
-                <Paperclip className={cn(isMobile ? "h-3.5 w-3.5" : "h-3 w-3", "text-muted-foreground")} />
+                <Paperclip
+                  className={cn(isMobile ? "h-3.5 w-3.5" : "h-3 w-3", "text-muted-foreground")}
+                />
                 <span className="text-foreground truncate max-w-[120px]">{file.name}</span>
                 <span className="text-muted-foreground">({formatFileSize(file.size)})</span>
                 <button
@@ -645,10 +640,12 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
         )}
 
         {/* Bottom row with selectors */}
-        <div className={cn(
-          "flex items-center gap-2",
-          isMobile ? "px-3 py-2 flex-wrap" : "px-4 py-2 gap-4"
-        )}>
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            isMobile ? "px-3 py-2 flex-wrap" : "px-4 py-2 gap-4"
+          )}
+        >
           {/* Repo display/selector */}
           {showRepoButton ? (
             // Can change repo - show as button
@@ -658,7 +655,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                   onClick={onChangeRepo}
                   className={cn(
                     "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
-                    isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-[13px]"
+                    isMobile
+                      ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50"
+                      : "text-[13px]"
                   )}
                 >
                   {isNewRepo ? "Repository" : chat.repo}
@@ -670,7 +669,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                   onClick={onChangeBranch}
                   className={cn(
                     "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
-                    isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-[13px]"
+                    isMobile
+                      ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50"
+                      : "text-[13px]"
                   )}
                 >
                   <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
@@ -691,36 +692,38 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 </button>
               )}
             </div>
-          ) : !isNewRepo && (
-            // Repo is locked — link out to the repo on GitHub instead of a
-            // plain label so the user can jump to it.
-            <div className="flex items-center gap-2">
-              <a
-                href={`https://github.com/${chat.repo}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  "text-muted-foreground hover:text-foreground transition-colors",
-                  isMobile ? "text-sm" : "text-[13px]"
-                )}
-              >
-                {chat.repo}
-              </a>
-              {chat.branch && (
+          ) : (
+            !isNewRepo && (
+              // Repo is locked — link out to the repo on GitHub instead of a
+              // plain label so the user can jump to it.
+              <div className="flex items-center gap-2">
                 <a
-                  href={`https://github.com/${chat.repo}/tree/${chat.branch}`}
+                  href={`https://github.com/${chat.repo}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
-                    "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
+                    "text-muted-foreground hover:text-foreground transition-colors",
                     isMobile ? "text-sm" : "text-[13px]"
                   )}
                 >
-                  <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
-                  {chat.branch}
+                  {chat.repo}
                 </a>
-              )}
-            </div>
+                {chat.branch && (
+                  <a
+                    href={`https://github.com/${chat.repo}/tree/${chat.branch}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
+                      isMobile ? "text-sm" : "text-[13px]"
+                    )}
+                  >
+                    <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+                    {chat.branch}
+                  </a>
+                )}
+              </div>
+            )
           )}
 
           {/* Spacer */}
@@ -779,7 +782,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               onClick={() => setShowModelSheet(true)}
               className={cn(
                 "flex items-center gap-1 text-sm py-1 px-2 rounded-md hover:bg-accent/50 transition-colors cursor-pointer",
-                !hasRequiredCredentials ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-foreground"
+                !hasRequiredCredentials
+                  ? "text-red-500 hover:text-red-600"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {!hasRequiredCredentials && <Key className="h-4 w-4" />}
@@ -797,7 +802,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 }}
                 className={cn(
                   "flex items-center gap-1 text-[13px] transition-colors cursor-pointer",
-                  !hasRequiredCredentials ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-foreground"
+                  !hasRequiredCredentials
+                    ? "text-red-500 hover:text-red-600"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {!hasRequiredCredentials && <Key className="h-3 w-3" />}
@@ -807,7 +814,11 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               {showModelDropdown && (
                 <div className="absolute bottom-full right-0 mb-1 max-h-64 overflow-y-auto bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-52">
                   {availableModels.map((model: ModelOption) => {
-                    const modelHasCredentials = hasCredentialsForModel(model, credentialFlags, currentAgent)
+                    const modelHasCredentials = hasCredentialsForModel(
+                      model,
+                      credentialFlags,
+                      currentAgent
+                    )
                     const needsKey = model.requiresKey !== "none" && !modelHasCredentials
                     return (
                       <button
@@ -827,7 +838,6 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               )}
             </div>
           )}
-
         </div>
       </div>
 
@@ -857,85 +867,13 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
 
   // Loading messages skeleton - check BEFORE isNewChat to prevent flash
   if (isLoadingMessages) {
-    return (
-      <div className="flex-1 flex flex-col bg-background min-h-0 animate-pulse">
-        {/* Header skeleton */}
-        {!isMobile && (
-          <div className="pt-3 pl-[1.625rem] pr-4">
-            <div className="h-6 w-48 rounded bg-muted" />
-          </div>
-        )}
-        {/* Empty messages area */}
-        <div className="flex-1" />
-        {/* Input skeleton */}
-        <div className={cn(
-          "w-full mx-auto",
-          isMobile ? "max-w-full px-3 pb-3" : "max-w-[52rem] px-4 pb-4"
-        )}>
-          <div className={cn(
-            "flex flex-col border border-border bg-card shadow-sm",
-            isMobile ? "rounded-xl" : "rounded-2xl"
-          )}>
-            <div className={cn(isMobile ? "px-3 py-3" : "px-4 py-3")}>
-              <div className="h-5 w-1/4 rounded bg-muted" />
-            </div>
-            <div className={cn(
-              "flex items-center gap-2 border-t border-border",
-              isMobile ? "px-3 py-2" : "px-4 py-2"
-            )}>
-              <div className="h-6 w-20 rounded bg-muted" />
-              <div className="h-6 w-24 rounded bg-muted" />
-              <div className="flex-1" />
-              <div className={cn("rounded-md bg-muted", isMobile ? "h-9 w-9" : "h-7 w-7")} />
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <LoadingMessagesSkeleton isMobile={isMobile} />
   }
 
   // New chat - centered welcome with input
   if (isNewChat) {
     return (
-      <div className={cn(
-        "flex-1 flex flex-col items-center justify-center bg-background relative",
-        isMobile ? "p-4 pb-safe" : "p-4"
-      )}>
-        {onOpenHelp && (
-          <button
-            onClick={onOpenHelp}
-            className="absolute top-3 right-3 p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            title="Help"
-            aria-label="Help"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
-        )}
-        <div className="text-center mb-6">
-          <h2 className={cn("font-semibold", isMobile ? "text-xl" : "text-2xl")}>
-            What would you like to build?
-          </h2>
-        </div>
-        {chatInput}
-        <div className={cn(
-          "text-muted-foreground mt-4 text-center",
-          isMobile ? "text-sm px-4" : "text-sm"
-        )}>
-          <p>
-            Agents live in{" "}
-            <a
-              href="https://www.daytona.io/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-foreground/80 hover:text-foreground transition-colors"
-            >
-              Daytona sandboxes
-            </a>
-            {" "}tied to Git branches.
-          </p>
-          <p className="mt-1">Access additional tools with ⌘K.</p>
-        </div>
-      </div>
+      <WelcomeView chatInput={chatInput} onOpenHelp={onOpenHelp} isMobile={isMobile} />
     )
   }
 
@@ -978,171 +916,40 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
       data-chat-id={chat?.id}
     >
       {/* Header with title - hide on mobile since we have mobile header in page.tsx */}
-      {!isMobile && (
-        <div className="flex items-center justify-between pt-3" style={{ paddingLeft: "1.625rem", paddingRight: "1rem" }}>
-          <div className="flex items-center gap-2">
-            {/* Conflict indicator */}
-            {inConflict && (
-              <div className="relative" ref={conflictMenuRef}>
-                <button
-                  onClick={() => setConflictMenuOpen((v) => !v)}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
-                  title={isMergeConflict ? "Merge conflict" : "Rebase conflict"}
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                </button>
-                {conflictMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 min-w-[220px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
-                    <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
-                      {isMergeConflict ? "Merge" : "Rebase"} conflict in progress
-                    </div>
-                    {rebaseConflict?.conflictedFiles && rebaseConflict.conflictedFiles.length > 0 && (
-                      <div className="px-3 py-2 border-b border-border">
-                        <div className="text-xs text-muted-foreground mb-1">Conflicted files:</div>
-                        <div className="space-y-0.5">
-                          {rebaseConflict.conflictedFiles.slice(0, 5).map((file) => (
-                            <div key={file} className="text-xs text-foreground truncate font-mono">
-                              {file}
-                            </div>
-                          ))}
-                          {rebaseConflict.conflictedFiles.length > 5 && (
-                            <div className="text-xs text-muted-foreground">
-                              +{rebaseConflict.conflictedFiles.length - 5} more
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    <button
-                      onClick={() => {
-                        setConflictMenuOpen(false)
-                        onAbortConflict?.()
-                      }}
-                      disabled={conflictActionLoading}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left text-destructive cursor-pointer disabled:opacity-50"
-                    >
-                      {conflictActionLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <X className="h-3.5 w-3.5" />
-                      )}
-                      {isMergeConflict ? "Abort Merge" : "Abort Rebase"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Title */}
-            {isEditingTitle ? (
-              <Input
-                ref={titleInputRef}
-                type="text"
-                value={editTitleValue}
-                onChange={(e) => setEditTitleValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveTitle()
-                  if (e.key === "Escape") cancelEditingTitle()
-                }}
-                onBlur={saveTitle}
-                className="w-56 font-medium"
-              />
-            ) : (
-              <div className="group/title relative flex items-center gap-[2px]" ref={titleMenuRef}>
-                <button
-                  onClick={startEditingTitle}
-                className="flex h-7 items-center text-sm font-medium text-foreground px-2 rounded-l-md rounded-r-none hover:bg-accent group-hover/title:bg-accent transition-colors cursor-pointer"
-                title="Click to rename"
-              >
-                {chatTitle}
-              </button>
-              <button
-                onClick={() => setTitleMenuOpen((v) => !v)}
-                className="flex h-7 w-6 items-center justify-center rounded-r-md rounded-l-none text-muted-foreground hover:bg-accent hover:text-foreground group-hover/title:bg-accent group-hover/title:text-foreground transition-colors cursor-pointer"
-                aria-label="Chat menu"
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-              {titleMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 min-w-[180px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
-                  <button
-                    onClick={() => {
-                      setTitleMenuOpen(false)
-                      startEditingTitle()
-                    }}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Rename
-                  </button>
-                  {githubBranchUrl && (
-                    <button
-                      onClick={() => {
-                        setTitleMenuOpen(false)
-                        window.open(githubBranchUrl, "_blank", "noopener,noreferrer")
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
-                    >
-                      <Github className="h-3.5 w-3.5" />
-                      Open in GitHub
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setTitleMenuOpen(false)
-                      onOpenSettings?.()
-                    }}
-                    className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
-                  >
-                    <SettingsIcon className="h-3.5 w-3.5" />
-                    Settings
-                  </button>
-                  {onDeleteChat && (
-                    <>
-                      <div className="my-1 border-t border-border" />
-                      <button
-                        onClick={() => {
-                          setTitleMenuOpen(false)
-                          onDeleteChat()
-                        }}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left text-destructive cursor-pointer"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            )}
-          </div>
-        </div>
-      )}
+      <ChatHeader
+        chat={chat}
+        isMobile={isMobile}
+        isEditingTitle={isEditingTitle}
+        editTitleValue={editTitleValue}
+        setEditTitleValue={setEditTitleValue}
+        startEditingTitle={startEditingTitle}
+        saveTitle={saveTitle}
+        cancelEditingTitle={cancelEditingTitle}
+        titleInputRef={titleInputRef}
+        titleMenuOpen={titleMenuOpen}
+        setTitleMenuOpen={setTitleMenuOpen}
+        titleMenuRef={titleMenuRef}
+        inConflict={inConflict}
+        isMergeConflict={isMergeConflict}
+        conflictMenuOpen={conflictMenuOpen}
+        setConflictMenuOpen={setConflictMenuOpen}
+        conflictMenuRef={conflictMenuRef}
+        conflictedFiles={rebaseConflict?.conflictedFiles}
+        onAbortConflict={onAbortConflict}
+        conflictActionLoading={conflictActionLoading}
+        onOpenSettings={() => onOpenSettings?.()}
+        onDeleteChat={onDeleteChat}
+        githubBranchUrl={githubBranchUrl}
+      />
 
       {/* Mobile conflict bar */}
       {isMobile && inConflict && (
-        <div className="flex items-center justify-between px-4 py-2 text-xs bg-amber-500/10 border-b border-amber-500/20">
-          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            <span>{isMergeConflict ? "Merge" : "Rebase"} conflict</span>
-            {rebaseConflict?.conflictedFiles && rebaseConflict.conflictedFiles.length > 0 && (
-              <span className="text-amber-500/70">({rebaseConflict.conflictedFiles.length} files)</span>
-            )}
-          </div>
-          <button
-            onClick={onAbortConflict}
-            disabled={conflictActionLoading}
-            className="flex items-center gap-1 text-destructive hover:text-destructive/80 disabled:opacity-50"
-          >
-            {conflictActionLoading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <X className="h-3.5 w-3.5" />
-            )}
-            Abort
-          </button>
-        </div>
+        <MobileConflictBar
+          isMergeConflict={isMergeConflict}
+          conflictedFilesCount={rebaseConflict?.conflictedFiles?.length ?? 0}
+          onAbort={onAbortConflict}
+          isLoading={conflictActionLoading}
+        />
       )}
 
       {/* Messages */}
@@ -1154,15 +961,15 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           isMobile ? "py-3 px-[27px]" : "py-4 px-[31px]"
         )}
       >
-        <div className={cn(
-          "space-y-4 mx-auto",
-          isMobile ? "max-w-full" : "max-w-3xl space-y-6"
-        )}>
+        <div
+          className={cn(
+            "space-y-4 mx-auto",
+            isMobile ? "max-w-full" : "max-w-3xl space-y-6"
+          )}
+        >
           {chat.messages.map((message, index) => {
             const isLastAssistant =
-              isRunning &&
-              message.role === "assistant" &&
-              index === chat.messages.length - 1
+              isRunning && message.role === "assistant" && index === chat.messages.length - 1
             return (
               <MessageBubble
                 key={message.id}
@@ -1177,117 +984,40 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           })}
           {/* Show loading indicator when sandbox is being created */}
           {isCreating && (
-            <div className="text-2xl text-muted-foreground animate-pulse">
-              ...
-            </div>
+            <div className="text-2xl text-muted-foreground animate-pulse">...</div>
           )}
           {/* Surface the latest agent/streaming error inline so users see why
               their last run stopped. Cleared on the next send. */}
           {chat.status === "error" && chat.errorMessage && (
-            <ErrorBanner
-              key={chat.id}
-              message={chat.errorMessage}
-              isMobile={isMobile}
-            />
+            <ErrorBanner key={chat.id} message={chat.errorMessage} isMobile={isMobile} />
           )}
           {/* Queue shelf — lives at the bottom of the scroll area so it
               scrolls out of view with the conversation. */}
-          {chat.queuedMessages && chat.queuedMessages.length > 0 && (
-            <div className={cn(
-              "border border-b-0 border-border bg-card rounded-t-md -mb-4",
-              isMobile ? "mx-4" : "mx-6"
-            )}>
-              {chat.queuedMessages.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 last:border-b-0"
-                >
-                  <span className="flex-1 min-w-0 truncate text-sm text-foreground/80">{m.content}</span>
-                  {canBranch && onBranchQueuedMessage && (
-                    <button
-                      onClick={() => onBranchQueuedMessage(m.id, m.content, m.agent, m.model)}
-                      className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
-                      aria-label="Branch to new chat"
-                      title="Branch to new chat"
-                    >
-                      <GitBranchPlus className="h-2.5 w-2.5" />
-                    </button>
-                  )}
-                  {onRemoveQueuedMessage && (
-                    <button
-                      onClick={() => onRemoveQueuedMessage(m.id)}
-                      className="p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
-                      aria-label="Remove queued message"
-                    >
-                      <X className="h-2.5 w-2.5" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          <QueueShelf
+            messages={chat.queuedMessages ?? []}
+            canBranch={canBranch}
+            isMobile={isMobile}
+            onBranchQueuedMessage={onBranchQueuedMessage}
+            onRemoveQueuedMessage={onRemoveQueuedMessage}
+          />
           <div ref={messagesEndRef} />
         </div>
       </div>
 
       {/* Input - fixed at bottom on mobile */}
-      <div className={cn(
-        "bg-background",
-        isMobile
-          ? (hasQueued ? "px-[27px] pt-0 pb-3 pb-safe" : "px-[27px] py-3 pb-safe")
-          : (hasQueued ? "px-[31px] pt-0 pb-4" : "px-[31px] pb-4 pt-2")
-      )}>
-        {chatInput}
-      </div>
-
-    </div>
-  )
-}
-
-function ErrorBanner({ message, isMobile }: { message: string; isMobile?: boolean }) {
-  const [expanded, setExpanded] = useState(false)
-  const [overflow, setOverflow] = useState(false)
-  const contentRef = useRef<HTMLDivElement>(null)
-
-  useLayoutEffect(() => {
-    const el = contentRef.current
-    if (!el) return
-    setOverflow(el.scrollHeight > el.clientHeight + 1)
-  }, [message, expanded])
-
-  return (
-    <div
-      data-testid="chat-error-banner"
-      className={cn(
-        // Negative top margin only when there's a preceding sibling, so the
-        // banner sits flush against the last message instead of inheriting
-        // the messages container's space-y gap.
-        "flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 text-destructive",
-        isMobile
-          ? "[&:not(:first-child)]:-mt-4 px-3 py-2 text-sm"
-          : "[&:not(:first-child)]:-mt-6 px-3 py-2 text-[13px]"
-      )}
-    >
-      <AlertTriangle className={cn("shrink-0 mt-0.5", isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-      <div className="min-w-0 flex-1">
-        <div
-          ref={contentRef}
-          className={cn(
-            "break-words whitespace-pre-wrap",
-            !expanded && (isMobile ? "max-h-32 overflow-hidden" : "max-h-24 overflow-hidden")
-          )}
-        >
-          {message}
-        </div>
-        {(overflow || expanded) && (
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="mt-1 underline underline-offset-2 hover:no-underline cursor-pointer"
-          >
-            {expanded ? "Show less" : "Show more"}
-          </button>
+      <div
+        className={cn(
+          "bg-background",
+          isMobile
+            ? hasQueued
+              ? "px-[27px] pt-0 pb-3 pb-safe"
+              : "px-[27px] py-3 pb-safe"
+            : hasQueued
+              ? "px-[31px] pt-0 pb-4"
+              : "px-[31px] pb-4 pt-2"
         )}
+      >
+        {chatInput}
       </div>
     </div>
   )
