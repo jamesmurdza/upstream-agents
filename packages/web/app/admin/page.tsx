@@ -8,7 +8,6 @@ import {
   MessageSquare,
   FolderOpen,
   LogIn,
-  ArrowLeft,
   BarChart3,
   Activity,
   TrendingUp,
@@ -87,13 +86,6 @@ export default function AdminDashboard() {
       {/* Header */}
       <header className="border-b bg-card">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-4">
-          <button
-            onClick={() => router.push("/")}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
           <h1 className="text-xl font-semibold">Admin Dashboard</h1>
         </div>
       </header>
