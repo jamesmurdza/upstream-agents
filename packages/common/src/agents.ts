@@ -26,6 +26,17 @@ export const agentLabels: Record<Agent, string> = {
   "pi": "Pi",
 }
 
+/** Maps agent type to SDK provider name */
+export const agentToProvider: Record<Agent, ProviderName> = {
+  "claude-code": "claude",
+  "opencode": "opencode",
+  "codex": "codex",
+  "eliza": "eliza",
+  "gemini": "gemini",
+  "goose": "goose",
+  "pi": "pi",
+}
+
 // =============================================================================
 // Credentials
 // =============================================================================

@@ -34,6 +34,7 @@ export {
   // Data
   ALL_AGENTS,
   agentLabels,
+  agentToProvider,
   agentModels,
   defaultAgentModel,
   // Functions
@@ -54,7 +55,6 @@ export {
   type GitHubBranch,
   type GitHubCompareResult,
   type GitHubPullRequest,
-  type GitHubSearchReposResponse,
   // Core helpers
   githubFetch,
   isGitHubApiError,
@@ -66,7 +66,6 @@ export {
   compareBranches,
   createRepo,
   createPullRequest,
-  searchRepos,
 } from "./github"
 
 // Branch utilities
