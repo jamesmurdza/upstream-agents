@@ -76,7 +76,7 @@ export function MessageBubble({ message, isStreaming, isMobile = false, repo, on
 function MarkdownContent({ text, isMobile = false }: { text: string; isMobile?: boolean }) {
   return (
     <div className={cn(
-      "prose dark:prose-invert max-w-none",
+      "prose dark:prose-invert max-w-none overflow-hidden",
       // Spacing is controlled via component overrides below; prose-* utilities
       // here only set typography (leading, font-size). This avoids conflicts.
       "prose-p:leading-relaxed",
@@ -114,7 +114,7 @@ function MarkdownContent({ text, isMobile = false }: { text: string; isMobile?: 
             <li>{children}</li>
           ),
           table: ({ children }) => (
-            <div className="overflow-x-auto mt-2 first:mt-0">
+            <div className="overflow-x-auto mt-2 first:mt-0 max-w-full">
               <table className="w-full border-collapse text-sm">{children}</table>
             </div>
           ),
@@ -128,7 +128,7 @@ function MarkdownContent({ text, isMobile = false }: { text: string; isMobile?: 
           ),
           pre: ({ children }) => (
             <pre className={cn(
-              "overflow-x-auto rounded-md border border-border/70 p-3 mt-3 mb-1 first:mt-0",
+              "overflow-x-auto max-w-full rounded-md border border-border/70 p-3 mt-3 mb-1 first:mt-0",
               "bg-white/70 dark:bg-white/[0.03]",
               isMobile && "rounded-lg"
             )}>
@@ -532,7 +532,7 @@ function ToolCallRow({ tool, isMobile = false, onOpenFile }: ToolCallRowProps) {
       {/* Tool output - block quote style with left border */}
       {expanded && tool.output && (
         <pre className={cn(
-          "font-mono whitespace-pre-wrap overflow-x-auto mobile-scroll text-muted-foreground mt-1.5 pl-3 border-l-2 border-border",
+          "font-mono whitespace-pre-wrap overflow-x-auto max-w-full mobile-scroll text-muted-foreground mt-1.5 pl-3 border-l-2 border-border",
           isMobile ? "text-xs max-h-64 ml-5" : "text-[11px] max-h-48 ml-4"
         )}>
           {tool.output}
