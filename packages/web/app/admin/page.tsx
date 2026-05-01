@@ -18,10 +18,10 @@ import {
 import { StatCard } from "@/components/admin/StatCard"
 import { ActivityFeed } from "@/components/admin/ActivityFeed"
 import { UserTable } from "@/components/admin/UserTable"
-import { ActivityChart } from "@/components/admin/charts/ActivityChart"
 import { UserGrowthChart } from "@/components/admin/charts/UserGrowthChart"
 import { TopUsersChart } from "@/components/admin/charts/TopUsersChart"
 import { HourlyActivityChart } from "@/components/admin/charts/HourlyActivityChart"
+import { DailyMessagesChatsChart } from "@/components/admin/charts/DailyMessagesChatsChart"
 import {
   useAdminStatsQuery,
   useAdminActivityQuery,
@@ -92,9 +92,9 @@ export default function AdminDashboard() {
 
   const stats = statsQuery.data?.stats
   const weeklyActiveUsers = statsQuery.data?.weeklyActiveUsers ?? []
-  const activityTrends = statsQuery.data?.activityTrends ?? []
   const topUsers = statsQuery.data?.topUsers ?? []
   const hourlyActivity = statsQuery.data?.hourlyActivity ?? []
+  const dailyMessagesChats = statsQuery.data?.dailyMessagesChats ?? []
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -165,10 +165,10 @@ export default function AdminDashboard() {
               <section className="grid gap-6 lg:grid-cols-2">
                 <div className="rounded-lg border bg-card p-6">
                   <div className="mb-4 flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-muted-foreground" />
-                    <h3 className="font-semibold">Activity Over Time</h3>
+                    <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Daily Messages & Conversations</h3>
                   </div>
-                  <ActivityChart data={activityTrends} />
+                  <DailyMessagesChatsChart data={dailyMessagesChats} />
                 </div>
 
                 <div className="rounded-lg border bg-card p-6">

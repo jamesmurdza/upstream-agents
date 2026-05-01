@@ -33,6 +33,7 @@ export async function GET() {
     topUsersRaw,
     repoActivityRaw,
     hourlyActivityRaw,
+    dailyMessagesChatsRaw,
   ] = await Promise.all([
     // Total users
     prisma.user.count(),
@@ -152,6 +153,34 @@ export async function GET() {
       GROUP BY hour
       ORDER BY hour ASC
     `,
+
+    // Daily messages and chats (last 30 days)
+    prisma.$queryRaw<Array<{ date: Date; messages: bigint; chats: bigint }>>`
+      SELECT
+        d.date,
+        COALESCE(m.count, 0)::bigint as messages,
+        COALESCE(c.count, 0)::bigint as chats
+      FROM (
+        SELECT generate_series(
+          (NOW() - INTERVAL '30 days')::date,
+          NOW()::date,
+          '1 day'::interval
+        )::date as date
+      ) d
+      LEFT JOIN (
+        SELECT DATE("createdAt") as date, COUNT(*)::bigint as count
+        FROM "Message"
+        WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE("createdAt")
+      ) m ON m.date = d.date
+      LEFT JOIN (
+        SELECT DATE("createdAt") as date, COUNT(*)::bigint as count
+        FROM "Chat"
+        WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE("createdAt")
+      ) c ON c.date = d.date
+      ORDER BY d.date ASC
+    `,
   ])
 
   // Format model usage
@@ -201,6 +230,13 @@ export async function GET() {
     count: Number(item.count),
   }))
 
+  // Format daily messages and chats
+  const dailyMessagesChats = dailyMessagesChatsRaw.map((item) => ({
+    date: item.date.toISOString().split("T")[0],
+    messages: Number(item.messages),
+    chats: Number(item.chats),
+  }))
+
   return NextResponse.json({
     stats: {
       totalUsers,
@@ -219,5 +255,6 @@ export async function GET() {
     topUsers,
     repoActivity,
     hourlyActivity,
+    dailyMessagesChats,
   })
 }

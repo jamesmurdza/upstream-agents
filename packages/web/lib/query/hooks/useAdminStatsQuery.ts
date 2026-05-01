@@ -37,6 +37,11 @@ interface AdminStats {
     hour: number
     count: number
   }>
+  dailyMessagesChats: Array<{
+    date: string
+    messages: number
+    chats: number
+  }>
 }
 
 async function fetchAdminStats(): Promise<AdminStats> {
