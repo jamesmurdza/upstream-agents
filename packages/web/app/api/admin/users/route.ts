@@ -10,6 +10,8 @@ import { requireAdmin, isAuthError } from "@/lib/db/api-helpers"
  * - page: Page number (default: 1)
  * - limit: Items per page (default: 20, max: 100)
  * - search: Search by name, email, or GitHub ID (optional)
+ * - sortField: Field to sort by (name, email, createdAt, totalChats, lastActivityAt)
+ * - sortOrder: Sort order (asc, desc) - default: desc
  */
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin()
@@ -19,6 +21,8 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10))
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)))
   const search = searchParams.get("search")
+  const sortField = searchParams.get("sortField") || "createdAt"
+  const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc"
 
   const skip = (page - 1) * limit
 
@@ -33,6 +37,13 @@ export async function GET(request: NextRequest) {
       }
     : {}
 
+  // Build orderBy for Prisma-supported fields
+  type OrderByField = { name?: "asc" | "desc"; email?: "asc" | "desc"; createdAt?: "asc" | "desc" }
+  let orderBy: OrderByField = { createdAt: "desc" }
+  if (sortField === "name" || sortField === "email" || sortField === "createdAt") {
+    orderBy = { [sortField]: sortOrder }
+  }
+
   // Fetch users
   const [users, total] = await Promise.all([
     prisma.user.findMany({
@@ -46,7 +57,7 @@ export async function GET(request: NextRequest) {
         isAdmin: true,
         createdAt: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy,
       skip,
       take: limit,
     }),
@@ -80,22 +91,37 @@ export async function GET(request: NextRequest) {
     lastActivities.map((a) => [a.userId, { createdAt: a.createdAt, action: a.action }])
   )
 
+  let formattedUsers = users.map((user) => {
+    const lastActivity = lastActivityMap.get(user.id)
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      githubId: user.githubId,
+      isAdmin: user.isAdmin,
+      totalChats: chatCountMap.get(user.id) ?? 0,
+      lastActivityAt: lastActivity?.createdAt.toISOString() ?? null,
+      lastActivityAction: lastActivity?.action ?? null,
+      createdAt: user.createdAt.toISOString(),
+    }
+  })
+
+  // Sort by computed fields in memory
+  if (sortField === "totalChats") {
+    formattedUsers.sort((a, b) =>
+      sortOrder === "asc" ? a.totalChats - b.totalChats : b.totalChats - a.totalChats
+    )
+  } else if (sortField === "lastActivityAt") {
+    formattedUsers.sort((a, b) => {
+      const aTime = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0
+      const bTime = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0
+      return sortOrder === "asc" ? aTime - bTime : bTime - aTime
+    })
+  }
+
   return NextResponse.json({
-    users: users.map((user) => {
-      const lastActivity = lastActivityMap.get(user.id)
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        githubId: user.githubId,
-        isAdmin: user.isAdmin,
-        totalChats: chatCountMap.get(user.id) ?? 0,
-        lastActivityAt: lastActivity?.createdAt.toISOString() ?? null,
-        lastActivityAction: lastActivity?.action ?? null,
-        createdAt: user.createdAt.toISOString(),
-      }
-    }),
+    users: formattedUsers,
     pagination: {
       page,
       limit,

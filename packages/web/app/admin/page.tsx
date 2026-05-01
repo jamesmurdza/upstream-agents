@@ -17,9 +17,9 @@ import {
 
 import { StatCard } from "@/components/admin/StatCard"
 import { ActivityFeed } from "@/components/admin/ActivityFeed"
-import { UserTable } from "@/components/admin/UserTable"
+import { UserTable, type SortField, type SortOrder } from "@/components/admin/UserTable"
 import { UserGrowthChart } from "@/components/admin/charts/UserGrowthChart"
-import { TopUsersChart } from "@/components/admin/charts/TopUsersChart"
+import { TopUsersTable } from "@/components/admin/TopUsersTable"
 import { HourlyActivityChart } from "@/components/admin/charts/HourlyActivityChart"
 import { DailyMessagesChatsChart } from "@/components/admin/charts/DailyMessagesChatsChart"
 import {
@@ -47,6 +47,8 @@ export default function AdminDashboard() {
   // User table state
   const [usersPage, setUsersPage] = useState(1)
   const [usersSearch, setUsersSearch] = useState("")
+  const [sortField, setSortField] = useState<SortField>("createdAt")
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
 
   // Activity state
   const [activityPage, setActivityPage] = useState(1)
@@ -54,8 +56,26 @@ export default function AdminDashboard() {
   // Queries
   const statsQuery = useAdminStatsQuery()
   const activityQuery = useAdminActivityQuery({ page: activityPage, limit: 20 })
-  const usersQuery = useAdminUsersQuery({ page: usersPage, search: usersSearch || undefined })
+  const usersQuery = useAdminUsersQuery({
+    page: usersPage,
+    search: usersSearch || undefined,
+    sortField,
+    sortOrder,
+  })
   const updateUserMutation = useUpdateUserMutation()
+
+  // Handle sort change
+  const handleSortChange = (field: SortField) => {
+    if (field === sortField) {
+      // Toggle order if clicking same field
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+    } else {
+      // New field, default to desc
+      setSortField(field)
+      setSortOrder("desc")
+    }
+    setUsersPage(1) // Reset to first page on sort change
+  }
 
   // Redirect if not authenticated or forbidden
   useEffect(() => {
@@ -173,10 +193,10 @@ export default function AdminDashboard() {
 
                 <div className="rounded-lg border bg-card p-6">
                   <div className="mb-4 flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
-                    <h3 className="font-semibold">Peak Hours (Last 14 Days)</h3>
+                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Weekly Active Users</h3>
                   </div>
-                  <HourlyActivityChart data={hourlyActivity} />
+                  <UserGrowthChart data={weeklyActiveUsers} />
                 </div>
               </section>
 
@@ -187,15 +207,15 @@ export default function AdminDashboard() {
                     <Trophy className="h-5 w-5 text-muted-foreground" />
                     <h3 className="font-semibold">Top Active Users (Last 30 Days)</h3>
                   </div>
-                  <TopUsersChart data={topUsers} />
+                  <TopUsersTable data={topUsers} />
                 </div>
 
                 <div className="rounded-lg border bg-card p-6">
                   <div className="mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                    <h3 className="font-semibold">Weekly Active Users</h3>
+                    <Clock className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Peak Hours (Last 14 Days)</h3>
                   </div>
-                  <UserGrowthChart data={weeklyActiveUsers} />
+                  <HourlyActivityChart data={hourlyActivity} />
                 </div>
               </section>
             </>
@@ -217,11 +237,14 @@ export default function AdminDashboard() {
                 }
                 isLoading={usersQuery.isLoading}
                 searchQuery={usersSearch}
+                sortField={sortField}
+                sortOrder={sortOrder}
                 onSearchChange={(search) => {
                   setUsersSearch(search)
                   setUsersPage(1)
                 }}
                 onPageChange={setUsersPage}
+                onSortChange={handleSortChange}
                 onToggleAdmin={(userId, isAdmin) => {
                   updateUserMutation.mutate({ userId, isAdmin })
                 }}

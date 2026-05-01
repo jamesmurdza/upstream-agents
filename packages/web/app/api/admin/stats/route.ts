@@ -114,18 +114,28 @@ export async function GET() {
       ORDER BY date ASC
     `,
 
-    // Top active users (by message count in last 30 days)
+    // Top active users (by message count in last 30 days) - from ActivityLog to include deleted
     prisma.$queryRaw<Array<{ userId: string; name: string | null; image: string | null; messageCount: bigint; chatCount: bigint }>>`
       SELECT
         u.id as "userId",
         u.name,
         u.image,
-        COUNT(DISTINCT m.id)::bigint as "messageCount",
-        COUNT(DISTINCT c.id)::bigint as "chatCount"
+        COALESCE(m.count, 0)::bigint as "messageCount",
+        COALESCE(c.count, 0)::bigint as "chatCount"
       FROM "User" u
-      INNER JOIN "Chat" c ON c."userId" = u.id
-      INNER JOIN "Message" m ON m."chatId" = c.id AND m."createdAt" >= NOW() - INTERVAL '30 days'
-      GROUP BY u.id, u.name, u.image
+      LEFT JOIN (
+        SELECT "userId", COUNT(*)::bigint as count
+        FROM "ActivityLog"
+        WHERE action = 'message_sent' AND "createdAt" >= NOW() - INTERVAL '30 days'
+        GROUP BY "userId"
+      ) m ON m."userId" = u.id
+      LEFT JOIN (
+        SELECT "userId", COUNT(*)::bigint as count
+        FROM "ActivityLog"
+        WHERE action = 'chat_created' AND "createdAt" >= NOW() - INTERVAL '30 days'
+        GROUP BY "userId"
+      ) c ON c."userId" = u.id
+      WHERE COALESCE(m.count, 0) > 0
       ORDER BY "messageCount" DESC
       LIMIT 10
     `,
@@ -143,18 +153,18 @@ export async function GET() {
       LIMIT 10
     `,
 
-    // Hourly activity distribution (last 14 days)
+    // Hourly activity distribution (last 14 days) - from ActivityLog to include deleted
     prisma.$queryRaw<Array<{ hour: number; count: bigint }>>`
       SELECT
         EXTRACT(HOUR FROM "createdAt")::int as hour,
         COUNT(*)::bigint as count
-      FROM "Message"
-      WHERE "createdAt" >= NOW() - INTERVAL '14 days'
+      FROM "ActivityLog"
+      WHERE "createdAt" >= NOW() - INTERVAL '14 days' AND action = 'message_sent'
       GROUP BY hour
       ORDER BY hour ASC
     `,
 
-    // Daily messages and chats (last 30 days)
+    // Daily messages and chats (last 30 days) - from ActivityLog to include deleted
     prisma.$queryRaw<Array<{ date: Date; messages: bigint; chats: bigint }>>`
       SELECT
         d.date,
@@ -169,14 +179,14 @@ export async function GET() {
       ) d
       LEFT JOIN (
         SELECT DATE("createdAt") as date, COUNT(*)::bigint as count
-        FROM "Message"
-        WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+        FROM "ActivityLog"
+        WHERE "createdAt" >= NOW() - INTERVAL '30 days' AND action = 'message_sent'
         GROUP BY DATE("createdAt")
       ) m ON m.date = d.date
       LEFT JOIN (
         SELECT DATE("createdAt") as date, COUNT(*)::bigint as count
-        FROM "Chat"
-        WHERE "createdAt" >= NOW() - INTERVAL '30 days'
+        FROM "ActivityLog"
+        WHERE "createdAt" >= NOW() - INTERVAL '30 days' AND action = 'chat_created'
         GROUP BY DATE("createdAt")
       ) c ON c.date = d.date
       ORDER BY d.date ASC
