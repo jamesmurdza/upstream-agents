@@ -29,10 +29,15 @@ interface AdminUsersResponse {
   pagination: Pagination
 }
 
+export type SortField = "name" | "email" | "totalChats" | "lastActivityAt" | "createdAt"
+export type SortOrder = "asc" | "desc"
+
 interface UseAdminUsersQueryOptions {
   page?: number
   limit?: number
   search?: string
+  sortField?: SortField
+  sortOrder?: SortOrder
 }
 
 async function fetchAdminUsers(
@@ -42,6 +47,8 @@ async function fetchAdminUsers(
   if (options.page) params.set("page", options.page.toString())
   if (options.limit) params.set("limit", options.limit.toString())
   if (options.search) params.set("search", options.search)
+  if (options.sortField) params.set("sortField", options.sortField)
+  if (options.sortOrder) params.set("sortOrder", options.sortOrder)
 
   const response = await fetch(`/api/admin/users?${params}`)
   if (!response.ok) {
@@ -59,7 +66,7 @@ export function useAdminUsersQuery(options: UseAdminUsersQueryOptions = {}) {
   const page = options.page ?? 1
 
   return useQuery({
-    queryKey: queryKeys.admin.users(page, options.search),
+    queryKey: queryKeys.admin.users(page, options.search, options.sortField, options.sortOrder),
     queryFn: () => fetchAdminUsers(options),
     enabled: isAuthenticated,
     staleTime: 30 * 1000, // 30 seconds

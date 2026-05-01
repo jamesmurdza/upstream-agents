@@ -17,7 +17,7 @@ import {
 
 import { StatCard } from "@/components/admin/StatCard"
 import { ActivityFeed } from "@/components/admin/ActivityFeed"
-import { UserTable } from "@/components/admin/UserTable"
+import { UserTable, type SortField, type SortOrder } from "@/components/admin/UserTable"
 import { UserGrowthChart } from "@/components/admin/charts/UserGrowthChart"
 import { TopUsersChart } from "@/components/admin/charts/TopUsersChart"
 import { HourlyActivityChart } from "@/components/admin/charts/HourlyActivityChart"
@@ -47,6 +47,8 @@ export default function AdminDashboard() {
   // User table state
   const [usersPage, setUsersPage] = useState(1)
   const [usersSearch, setUsersSearch] = useState("")
+  const [sortField, setSortField] = useState<SortField>("createdAt")
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc")
 
   // Activity state
   const [activityPage, setActivityPage] = useState(1)
@@ -54,8 +56,26 @@ export default function AdminDashboard() {
   // Queries
   const statsQuery = useAdminStatsQuery()
   const activityQuery = useAdminActivityQuery({ page: activityPage, limit: 20 })
-  const usersQuery = useAdminUsersQuery({ page: usersPage, search: usersSearch || undefined })
+  const usersQuery = useAdminUsersQuery({
+    page: usersPage,
+    search: usersSearch || undefined,
+    sortField,
+    sortOrder,
+  })
   const updateUserMutation = useUpdateUserMutation()
+
+  // Handle sort change
+  const handleSortChange = (field: SortField) => {
+    if (field === sortField) {
+      // Toggle order if clicking same field
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+    } else {
+      // New field, default to desc
+      setSortField(field)
+      setSortOrder("desc")
+    }
+    setUsersPage(1) // Reset to first page on sort change
+  }
 
   // Redirect if not authenticated or forbidden
   useEffect(() => {
@@ -217,11 +237,14 @@ export default function AdminDashboard() {
                 }
                 isLoading={usersQuery.isLoading}
                 searchQuery={usersSearch}
+                sortField={sortField}
+                sortOrder={sortOrder}
                 onSearchChange={(search) => {
                   setUsersSearch(search)
                   setUsersPage(1)
                 }}
                 onPageChange={setUsersPage}
+                onSortChange={handleSortChange}
                 onToggleAdmin={(userId, isAdmin) => {
                   updateUserMutation.mutate({ userId, isAdmin })
                 }}

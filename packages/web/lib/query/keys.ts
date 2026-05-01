@@ -43,8 +43,8 @@ export const queryKeys = {
     stats: () => [...queryKeys.admin.all, "stats"] as const,
     activity: (page: number, filters?: { action?: string; userId?: string }) =>
       [...queryKeys.admin.all, "activity", { page, ...filters }] as const,
-    users: (page: number, search?: string) =>
-      [...queryKeys.admin.all, "users", { page, search }] as const,
+    users: (page: number, search?: string, sortField?: string, sortOrder?: string) =>
+      [...queryKeys.admin.all, "users", { page, search, sortField, sortOrder }] as const,
   },
 }
 

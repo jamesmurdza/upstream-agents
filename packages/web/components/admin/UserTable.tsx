@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { formatDistanceToNow } from "date-fns"
-import { Search, ChevronLeft, ChevronRight, Shield, ShieldOff } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, Shield, ShieldOff, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 
 interface User {
   id: string
@@ -24,16 +24,59 @@ interface Pagination {
   totalPages: number
 }
 
+export type SortField = "name" | "email" | "totalChats" | "lastActivityAt" | "createdAt"
+export type SortOrder = "asc" | "desc"
+
 interface UserTableProps {
   users: User[]
   pagination: Pagination
   isLoading?: boolean
   searchQuery: string
+  sortField: SortField
+  sortOrder: SortOrder
   onSearchChange: (query: string) => void
   onPageChange: (page: number) => void
+  onSortChange: (field: SortField) => void
   onToggleAdmin: (userId: string, isAdmin: boolean) => void
   isUpdating?: string | null
   currentUserId?: string
+}
+
+function SortHeader({
+  label,
+  field,
+  currentField,
+  currentOrder,
+  onSort,
+  align = "left"
+}: {
+  label: string
+  field: SortField
+  currentField: SortField
+  currentOrder: SortOrder
+  onSort: (field: SortField) => void
+  align?: "left" | "center"
+}) {
+  const isActive = currentField === field
+  return (
+    <th className={`px-4 py-3 font-medium ${align === "center" ? "text-center" : "text-left"}`}>
+      <button
+        onClick={() => onSort(field)}
+        className="inline-flex items-center gap-1 hover:text-foreground"
+      >
+        {label}
+        {isActive ? (
+          currentOrder === "asc" ? (
+            <ArrowUp className="h-3 w-3" />
+          ) : (
+            <ArrowDown className="h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
+        )}
+      </button>
+    </th>
+  )
 }
 
 export function UserTable({
@@ -41,8 +84,11 @@ export function UserTable({
   pagination,
   isLoading,
   searchQuery,
+  sortField,
+  sortOrder,
   onSearchChange,
   onPageChange,
+  onSortChange,
   onToggleAdmin,
   isUpdating,
   currentUserId,
@@ -82,11 +128,11 @@ export function UserTable({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium">User</th>
-                <th className="px-4 py-3 text-left font-medium">Email</th>
-                <th className="px-4 py-3 text-center font-medium">Conversations</th>
-                <th className="px-4 py-3 text-left font-medium">Last Active</th>
-                <th className="px-4 py-3 text-left font-medium">Joined</th>
+                <SortHeader label="User" field="name" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
+                <SortHeader label="Email" field="email" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
+                <SortHeader label="Conversations" field="totalChats" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} align="center" />
+                <SortHeader label="Last Active" field="lastActivityAt" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
+                <SortHeader label="Joined" field="createdAt" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
                 <th className="px-4 py-3 text-center font-medium">Admin</th>
               </tr>
             </thead>
