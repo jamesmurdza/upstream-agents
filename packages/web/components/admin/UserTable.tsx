@@ -84,7 +84,7 @@ export function UserTable({
               <tr className="border-b bg-muted/50">
                 <th className="px-4 py-3 text-left font-medium">User</th>
                 <th className="px-4 py-3 text-left font-medium">Email</th>
-                <th className="px-4 py-3 text-center font-medium">Chats</th>
+                <th className="px-4 py-3 text-center font-medium">Conversations</th>
                 <th className="px-4 py-3 text-left font-medium">Last Active</th>
                 <th className="px-4 py-3 text-left font-medium">Joined</th>
                 <th className="px-4 py-3 text-center font-medium">Admin</th>
