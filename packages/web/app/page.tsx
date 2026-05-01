@@ -1086,6 +1086,13 @@ export default function HomePage() {
         open={branchSelectOpen}
         onClose={() => setBranchSelectOpen(false)}
         onSelect={async (branch) => {
+          // For draft chats, update draftChatConfig
+          if (isDraftChatId(currentChatId)) {
+            updateDraftChatConfig({ baseBranch: branch })
+            setBranchSelectOpen(false)
+            return
+          }
+          // For real chats
           if (currentChat && currentChat.messages.length === 0 && !currentChat.sandboxId) {
             // For new chats, update baseBranch (the branch we'll branch from)
             updateCurrentChat({ baseBranch: branch })
@@ -1095,9 +1102,9 @@ export default function HomePage() {
           }
           setBranchSelectOpen(false)
         }}
-        repo={currentChat?.repo?.split("/")[1] || ""}
-        owner={currentChat?.repo?.split("/")[0] || ""}
-        selectedBranch={currentChat?.baseBranch}
+        repo={(isDraftChatId(currentChatId) ? draftChatConfig?.repo : currentChat?.repo)?.split("/")[1] || ""}
+        owner={(isDraftChatId(currentChatId) ? draftChatConfig?.repo : currentChat?.repo)?.split("/")[0] || ""}
+        selectedBranch={isDraftChatId(currentChatId) ? draftChatConfig?.baseBranch : currentChat?.baseBranch}
         isMobile={isMobile}
       />
 
