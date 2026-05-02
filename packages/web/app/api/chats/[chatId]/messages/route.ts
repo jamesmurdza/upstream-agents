@@ -22,6 +22,7 @@ import { logActivityAsync } from "@/lib/db/activity-log"
 import { createBackgroundAgentSession, type Agent } from "@/lib/agent-session"
 import { getClaudeCredentials } from "@/lib/claude-credentials"
 import { getEnvForModel } from "@upstream/common"
+import { decrypt } from "@/lib/db/encryption"
 import {
   createSandboxForChat,
   deleteSandboxQuietly,
@@ -316,7 +317,40 @@ export async function POST(
     }
 
     // ── Stage 4: spin up the background session (does NOT start the agent yet) ──
-    const env = getEnvForModel(payload.model, payload.agent as Agent, credentials)
+    const systemEnv = getEnvForModel(payload.model, payload.agent as Agent, credentials)
+
+    // Fetch user-defined environment variables (repo-level then chat-level, chat takes precedence)
+    const userEnv: Record<string, string> = {}
+
+    // Get repo-level env vars from user
+    if (chat.repo !== NEW_REPOSITORY) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { repoEnvironmentVariables: true },
+      })
+      const repoEnvVars = (user?.repoEnvironmentVariables as Record<string, Record<string, string>>)?.[chat.repo]
+      if (repoEnvVars) {
+        for (const [key, encryptedValue] of Object.entries(repoEnvVars)) {
+          if (encryptedValue) {
+            userEnv[key] = decrypt(encryptedValue)
+          }
+        }
+      }
+    }
+
+    // Get chat-level env vars (overrides repo-level)
+    const chatEnvVars = chat.environmentVariables as Record<string, string> | null
+    if (chatEnvVars) {
+      for (const [key, encryptedValue] of Object.entries(chatEnvVars)) {
+        if (encryptedValue) {
+          userEnv[key] = decrypt(encryptedValue)
+        }
+      }
+    }
+
+    // Merge: system env vars first, then user env vars (user takes precedence)
+    const env = { ...systemEnv, ...userEnv }
+
     const bgSession = await createBackgroundAgentSession(sandbox, {
       repoPath,
       previewUrlPattern: previewUrlPattern ?? undefined,

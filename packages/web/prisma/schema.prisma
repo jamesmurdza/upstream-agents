@@ -31,6 +31,10 @@ model User {
   // { anthropicApiKey, anthropicAuthToken, openaiApiKey, opencodeApiKey, geminiApiKey }
   credentials Json?
 
+  // JSONB for encrypted repository-level environment variables
+  // { "owner/repo": { "KEY1": "encrypted_value1", ... }, ... }
+  repoEnvironmentVariables Json?
+
   chats        Chat[]
   accounts     Account[]
   sessions     Session[]
@@ -116,6 +120,10 @@ model Chat {
 
   // Sync flag for git pull on next execution
   needsSync Boolean @default(false)
+
+  // JSONB for encrypted chat-level environment variables
+  // { "KEY1": "encrypted_value1", ... }
+  environmentVariables Json?
 
   // Relations
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)

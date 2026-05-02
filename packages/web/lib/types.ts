@@ -26,6 +26,27 @@ export {
   hasCredentialsForModel,
 } from "@upstream/common"
 
+// =============================================================================
+// Environment Variables
+// =============================================================================
+
+/** A single environment variable entry (for UI display) */
+export interface EnvVar {
+  id: string
+  key: string
+  value: string
+}
+
+/** Environment variables for chat and repository levels (for UI state) */
+export interface EnvironmentVariables {
+  chat: EnvVar[]
+  repository: EnvVar[]
+}
+
+// =============================================================================
+// Messages
+// =============================================================================
+
 /** Message type for distinguishing system messages from regular chat */
 export type MessageType = "chat" | "git-operation"
 

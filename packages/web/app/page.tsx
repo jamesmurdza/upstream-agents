@@ -15,6 +15,7 @@ import { HelpModal } from "@/components/modals/HelpModal"
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog"
 import { BranchPickerModal } from "@/components/modals/BranchPickerModal"
 import { MergeDialog, RebaseDialog, PRDialog, SquashDialog, ForcePushDialog, useGitDialogs } from "@/components/modals/GitDialogs"
+import { EnvironmentVariablesModal } from "@/components/modals/EnvironmentVariablesModal"
 import { MobileCommandsMenu } from "@/components/MobileCommandsMenu"
 import { clearAllStorage } from "@/lib/storage"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
@@ -110,6 +111,9 @@ export default function HomePage() {
   const [deleteConfirmChatId, setDeleteConfirmChatId] = useState<string | null>(null)
   const [mobileCommandsOpen, setMobileCommandsOpen] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [envVarsModalOpen, setEnvVarsModalOpen] = useState(false)
+  const [envVarsChatEnvVars, setEnvVarsChatEnvVars] = useState<Record<string, string>>({})
+  const [envVarsRepoEnvVars, setEnvVarsRepoEnvVars] = useState<Record<string, string>>({})
   const [collapsedChatIds, setCollapsedChatIds] = useState<Set<string>>(new Set())
   const [previewWidth, setPreviewWidth] = useState(() => {
     if (typeof window === "undefined") return 520
@@ -315,6 +319,54 @@ export default function HomePage() {
     setSettingsOpen(false)
     setSettingsHighlightKey(null)
   }
+
+  // Handler for opening environment variables modal
+  const handleOpenEnvVars = useCallback(async () => {
+    if (!currentChatId || isDraftChatId(currentChatId)) return
+
+    try {
+      // Fetch chat env vars
+      const chatRes = await fetch(`/api/chats/${currentChatId}/env`)
+      const chatData = chatRes.ok ? await chatRes.json() : { environmentVariables: {} }
+
+      // Fetch repo env vars
+      const repoRes = await fetch("/api/user/repo-env")
+      const repoData = repoRes.ok ? await repoRes.json() : { repoEnvironmentVariables: {} }
+
+      const chat = chats.find((c) => c.id === currentChatId)
+      const repoName = chat?.repo !== NEW_REPOSITORY ? chat?.repo : undefined
+
+      setEnvVarsChatEnvVars(chatData.environmentVariables || {})
+      setEnvVarsRepoEnvVars(repoName && repoData.repoEnvironmentVariables?.[repoName] || {})
+      setEnvVarsModalOpen(true)
+    } catch (error) {
+      console.error("Failed to fetch environment variables:", error)
+    }
+  }, [currentChatId, isDraftChatId, chats])
+
+  // Handler for saving environment variables
+  const handleSaveEnvVars = useCallback(async (chatEnvVars: Record<string, string>, repoEnvVars: Record<string, string>) => {
+    if (!currentChatId || isDraftChatId(currentChatId)) return
+
+    const chat = chats.find((c) => c.id === currentChatId)
+    const repoName = chat?.repo !== NEW_REPOSITORY ? chat?.repo : undefined
+
+    // Save chat env vars
+    await fetch(`/api/chats/${currentChatId}/env`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ environmentVariables: chatEnvVars }),
+    })
+
+    // Save repo env vars if applicable
+    if (repoName) {
+      await fetch("/api/user/repo-env", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repo: repoName, environmentVariables: repoEnvVars }),
+      })
+    }
+  }, [currentChatId, isDraftChatId, chats])
 
   // Auto-enter draft mode if user is authenticated but has no chat selected.
   // This replaces the old auto-create behavior - now we just enter draft mode
@@ -1030,6 +1082,7 @@ export default function HomePage() {
                   openPreview({ type: "file", filePath, filename })
                 }}
                 onForcePush={() => gitDialogs.setForcePushOpen(true)}
+                onOpenEnvVars={handleOpenEnvVars}
                 isMobile={isMobile}
                 rebaseConflict={gitDialogs.rebaseConflict}
                 onAbortConflict={gitDialogs.handleAbortConflict}
@@ -1123,6 +1176,17 @@ export default function HomePage() {
           credentialFlags={credentialFlags}
           onSave={updateSettings}
           highlightKey={settingsHighlightKey}
+          isMobile={isMobile}
+        />
+
+        <EnvironmentVariablesModal
+          open={envVarsModalOpen}
+          onClose={() => setEnvVarsModalOpen(false)}
+          chatId={displayCurrentChatId || ""}
+          repoName={displayCurrentChat?.repo !== NEW_REPOSITORY ? displayCurrentChat?.repo : undefined}
+          onSave={handleSaveEnvVars}
+          initialChatEnvVars={envVarsChatEnvVars}
+          initialRepoEnvVars={envVarsRepoEnvVars}
           isMobile={isMobile}
         />
 
