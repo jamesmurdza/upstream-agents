@@ -292,7 +292,7 @@ function AssistantContent({ message, isStreaming, isMobile = false, repo, onOpen
 
   return (
     <div className={cn(
-      "leading-relaxed",
+      "w-full leading-relaxed",
       isMobile ? "space-y-4 text-base" : "space-y-3 text-[15px]"
     )}>
       {mergedBlocks ? (
