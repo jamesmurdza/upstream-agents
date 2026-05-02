@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Plus, Trash2, Variable, FolderGit2, Loader2 } from "lucide-react"
+import { X, Plus, Trash2, FolderGit2, Loader2, Variable } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { focusChatPrompt } from "@/components/ui/modal-header"
 import { Input } from "@/components/ui/input"
@@ -218,19 +218,19 @@ export function EnvironmentVariablesModal({
 
   const renderContent = () => (
     <div className="flex flex-col h-full">
+      {/* Add button at top */}
+      <button
+        type="button"
+        onClick={() => handleAddVariable(activeTab)}
+        className="flex items-center gap-2 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2 cursor-pointer"
+      >
+        <Plus className="h-4 w-4" />
+        Add variable
+      </button>
+
       {/* Variable list */}
       <div className="flex-1 overflow-y-auto">
-        {activeVars.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Variable className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No environment variables</p>
-            <p className="text-xs mt-1">
-              {activeTab === "chat"
-                ? "Variables set here will be available for this chat only"
-                : "Variables set here will be available for all your chats in this repository"}
-            </p>
-          </div>
-        ) : (
+        {activeVars.length > 0 && (
           <div className="space-y-1">
             {activeVars.map((envVar) => (
               <EnvVarRow
@@ -244,16 +244,6 @@ export function EnvironmentVariablesModal({
           </div>
         )}
       </div>
-
-      {/* Add button */}
-      <button
-        type="button"
-        onClick={() => handleAddVariable(activeTab)}
-        className="flex items-center gap-2 w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-2 cursor-pointer"
-      >
-        <Plus className="h-4 w-4" />
-        Add variable
-      </button>
     </div>
   )
 
