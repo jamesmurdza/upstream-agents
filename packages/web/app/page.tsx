@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
 import { nanoid } from "nanoid"
-import { Menu, MoreVertical } from "lucide-react"
+import { Menu, MoreVertical, ChevronDown, Pencil, Github, Trash2 } from "lucide-react"
 import { Sidebar, ALL_REPOSITORIES, NO_REPOSITORY } from "@/components/Sidebar"
 import { ChatPanel } from "@/components/ChatPanel"
 import { PreviewView, type PreviewItem } from "@/components/PreviewView"
@@ -107,6 +107,8 @@ export default function HomePage() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [deleteConfirmChatId, setDeleteConfirmChatId] = useState<string | null>(null)
   const [mobileCommandsOpen, setMobileCommandsOpen] = useState(false)
+  const [mobileTitleMenuOpen, setMobileTitleMenuOpen] = useState(false)
+  const mobileTitleMenuRef = useRef<HTMLDivElement>(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const [envVarsModalOpen, setEnvVarsModalOpen] = useState(false)
   const [envVarsChatEnvVars, setEnvVarsChatEnvVars] = useState<Record<string, string>>({})
@@ -623,6 +625,18 @@ export default function HomePage() {
     sendMessage(message, agent, model, undefined, chatId)
   }, [pendingSend, chats, sendMessage])
 
+  // Close mobile title menu on outside click
+  useEffect(() => {
+    if (!mobileTitleMenuOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (mobileTitleMenuRef.current && !mobileTitleMenuRef.current.contains(e.target as Node)) {
+        setMobileTitleMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [mobileTitleMenuOpen])
+
   // Handler for slash commands - open the corresponding git dialog
   // Start a new chat off the current chat's branch. Defined before
   // handleSlashCommand so "/branch" can call it.
@@ -1043,9 +1057,64 @@ export default function HomePage() {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h1 className="text-base font-semibold truncate flex-1">
-              {displayCurrentChat?.displayName || "Background Agents"}
-            </h1>
+            {/* Title with dropdown menu */}
+            <div className="relative flex-1 min-w-0" ref={mobileTitleMenuRef}>
+              <button
+                onClick={() => displayCurrentChat && setMobileTitleMenuOpen((v) => !v)}
+                className="flex items-center gap-1 text-base font-semibold truncate max-w-full hover:bg-accent active:bg-accent rounded-md px-2 py-1 -ml-2 transition-colors"
+              >
+                <span className="truncate">{displayCurrentChat?.displayName || "Background Agents"}</span>
+                {displayCurrentChat && <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />}
+              </button>
+              {mobileTitleMenuOpen && displayCurrentChat && (
+                <div className="absolute left-0 top-full mt-1 min-w-[210px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
+                  <button
+                    onClick={() => {
+                      setMobileTitleMenuOpen(false)
+                      // Trigger rename - for now just close, rename is complex on mobile
+                      // Could open a modal or inline edit
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent text-left cursor-pointer"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Rename
+                  </button>
+                  {githubBranchUrl && (
+                    <button
+                      onClick={() => {
+                        setMobileTitleMenuOpen(false)
+                        handleOpenInGitHub()
+                      }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent text-left cursor-pointer"
+                    >
+                      <Github className="h-4 w-4" />
+                      Open in GitHub
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setMobileTitleMenuOpen(false)
+                      handleOpenEnvVars()
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent text-left cursor-pointer"
+                  >
+                    <span className="h-4 w-4 flex items-center justify-center text-sm italic font-serif">𝑥</span>
+                    Environment variables
+                  </button>
+                  <div className="my-1 border-t border-border" />
+                  <button
+                    onClick={() => {
+                      setMobileTitleMenuOpen(false)
+                      setDeleteConfirmChatId(displayCurrentChat.id)
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent text-left text-destructive cursor-pointer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
             <button
               onClick={() => setMobileCommandsOpen(true)}
               className="p-2 -mr-2 rounded-lg hover:bg-accent active:bg-accent text-foreground transition-colors touch-target"
