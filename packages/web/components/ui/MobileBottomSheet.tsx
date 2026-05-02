@@ -15,6 +15,8 @@ interface MobileBottomSheetProps {
   showDragHandle?: boolean
   /** Enable swipe to dismiss */
   swipeToDismiss?: boolean
+  /** Higher z-index to layer over other modals/drawers */
+  elevated?: boolean
 }
 
 export function MobileBottomSheet({
@@ -25,6 +27,7 @@ export function MobileBottomSheet({
   height = "auto",
   showDragHandle = true,
   swipeToDismiss = true,
+  elevated = false,
 }: MobileBottomSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -100,7 +103,8 @@ export function MobileBottomSheet({
       {/* Backdrop */}
       <div
         className={cn(
-          "fixed inset-0 z-50 bg-black/15 backdrop-blur-[1px] transition-opacity duration-300",
+          "fixed inset-0 bg-black/15 backdrop-blur-[1px] transition-opacity duration-300",
+          elevated ? "z-[60]" : "z-50",
           open ? "opacity-100" : "opacity-0"
         )}
         onClick={onClose}
@@ -111,7 +115,8 @@ export function MobileBottomSheet({
       <div
         ref={sheetRef}
         className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 bg-popover rounded-t-2xl shadow-xl",
+          "fixed bottom-0 left-0 right-0 bg-popover rounded-t-2xl shadow-xl",
+          elevated ? "z-[60]" : "z-50",
           "transition-transform duration-300 ease-out",
           !isDragging && "transition-transform"
         )}
@@ -225,6 +230,98 @@ export function MobileSelect({
             )}
           </button>
         ))}
+      </div>
+    </MobileBottomSheet>
+  )
+}
+
+// =============================================================================
+// MobileRenameSheet - A bottom sheet for renaming items
+// =============================================================================
+
+interface MobileRenameSheetProps {
+  open: boolean
+  onClose: () => void
+  title?: string
+  initialValue: string
+  onSave: (newValue: string) => void
+  /** Placeholder text for the input */
+  placeholder?: string
+}
+
+export function MobileRenameSheet({
+  open,
+  onClose,
+  title = "Rename",
+  initialValue,
+  onSave,
+  placeholder = "Enter name",
+}: MobileRenameSheetProps) {
+  const [value, setValue] = useState(initialValue)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Reset value when sheet opens with new initialValue
+  useEffect(() => {
+    if (open) {
+      setValue(initialValue)
+      // Focus input after sheet animation
+      setTimeout(() => {
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }, 100)
+    }
+  }, [open, initialValue])
+
+  const handleSave = () => {
+    const trimmed = value.trim()
+    if (trimmed && trimmed !== initialValue) {
+      onSave(trimmed)
+    }
+    onClose()
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      handleSave()
+    } else if (e.key === "Escape") {
+      onClose()
+    }
+  }
+
+  return (
+    <MobileBottomSheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      height="auto"
+      elevated
+    >
+      <div className="p-4 space-y-4">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="w-full px-4 py-3 text-base rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-3 text-base font-medium rounded-lg border border-border hover:bg-accent active:bg-accent transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!value.trim()}
+            className="flex-1 px-4 py-3 text-base font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Save
+          </button>
+        </div>
       </div>
     </MobileBottomSheet>
   )

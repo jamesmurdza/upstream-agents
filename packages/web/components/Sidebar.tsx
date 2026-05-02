@@ -87,6 +87,8 @@ interface SidebarProps {
   onRequestMergeChats?: (sourceId: string, targetId?: string) => void
   /** Pick Rebase from a chat's context menu. */
   onRequestRebaseChat?: (sourceId: string) => void
+  /** Mobile rename - opens a bottom sheet in the parent */
+  onMobileRename?: (chatId: string, currentName: string) => void
 }
 
 export function Sidebar({
@@ -113,6 +115,7 @@ export function Sidebar({
   onToggleChatCollapsed: controlledToggleChatCollapsed,
   onRequestMergeChats,
   onRequestRebaseChat,
+  onMobileRename,
 }: SidebarProps) {
   const { data: session } = useSession()
   const isResizing = useRef(false)
@@ -532,7 +535,7 @@ export function Sidebar({
                   isUnseen={unseenChatIds?.has(chat.id) ?? false}
                   onSelect={() => handleSelectChat(chat.id)}
                   onDelete={() => onDeleteChat(chat.id)}
-                  onRename={(newName) => onRenameChat(chat.id, newName)}
+                  onRequestRename={() => onMobileRename?.(chat.id, chat.displayName || "Untitled")}
                 />
               ))}
             </div>
@@ -823,35 +826,13 @@ interface MobileChatItemProps {
   isUnseen: boolean
   onSelect: () => void
   onDelete: () => void
-  onRename: (newName: string) => void
+  onRequestRename: () => void
 }
 
-function MobileChatItem({ chat, isActive, isDeleting, isUnseen, onSelect, onDelete, onRename }: MobileChatItemProps) {
+function MobileChatItem({ chat, isActive, isDeleting, isUnseen, onSelect, onDelete, onRequestRename }: MobileChatItemProps) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editName, setEditName] = useState("")
   const menuRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
   const displayName = chat.displayName || "Untitled"
-
-  const startEditing = () => {
-    setEditName(displayName)
-    setIsEditing(true)
-    setMenuOpen(false)
-  }
-
-  const saveEdit = () => {
-    const trimmed = editName.trim()
-    if (trimmed && trimmed !== displayName) {
-      onRename(trimmed)
-    }
-    setIsEditing(false)
-  }
-
-  const cancelEdit = () => {
-    setIsEditing(false)
-    setEditName("")
-  }
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -865,32 +846,6 @@ function MobileChatItem({ chat, isActive, isDeleting, isUnseen, onSelect, onDele
     }
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [menuOpen])
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
-    }
-  }, [isEditing])
-
-  if (isEditing) {
-    return (
-      <div className="flex items-center gap-2 rounded-md px-3 py-2 bg-accent">
-        <input
-          ref={inputRef}
-          type="text"
-          value={editName}
-          onChange={(e) => setEditName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") saveEdit()
-            if (e.key === "Escape") cancelEdit()
-          }}
-          onBlur={saveEdit}
-          className="flex-1 min-w-0 bg-transparent text-sm outline-none"
-        />
-      </div>
-    )
-  }
 
   return (
     <div
@@ -937,7 +892,8 @@ function MobileChatItem({ chat, isActive, isDeleting, isUnseen, onSelect, onDele
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                startEditing()
+                setMenuOpen(false)
+                onRequestRename()
               }}
               className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left"
             >

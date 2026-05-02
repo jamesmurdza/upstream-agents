@@ -17,6 +17,7 @@ import { BranchPickerModal } from "@/components/modals/BranchPickerModal"
 import { MergeDialog, RebaseDialog, PRDialog, SquashDialog, ForcePushDialog, useGitDialogs } from "@/components/modals/GitDialogs"
 import { EnvironmentVariablesModal } from "@/components/modals/EnvironmentVariablesModal"
 import { MobileCommandsMenu } from "@/components/MobileCommandsMenu"
+import { MobileRenameSheet } from "@/components/ui/MobileBottomSheet"
 import { clearAllStorage } from "@/lib/storage"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
 import { PaletteProvider } from "@/components/search-palette"
@@ -112,6 +113,7 @@ export default function HomePage() {
   const [mobileCommandsOpen, setMobileCommandsOpen] = useState(false)
   const [mobileTitleMenuOpen, setMobileTitleMenuOpen] = useState(false)
   const mobileTitleMenuRef = useRef<HTMLDivElement>(null)
+  const [mobileRenameChat, setMobileRenameChat] = useState<{ id: string; name: string } | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const [envVarsModalOpen, setEnvVarsModalOpen] = useState(false)
   const [envVarsChatEnvVars, setEnvVarsChatEnvVars] = useState<Record<string, string>>({})
@@ -1059,6 +1061,7 @@ export default function HomePage() {
           onToggleChatCollapsed={toggleChatCollapsed}
           onRequestMergeChats={handleRequestMergeChats}
           onRequestRebaseChat={handleRequestRebaseChat}
+          onMobileRename={(chatId, name) => setMobileRenameChat({ id: chatId, name })}
         />
       )}
 
@@ -1088,8 +1091,7 @@ export default function HomePage() {
                   <button
                     onClick={() => {
                       setMobileTitleMenuOpen(false)
-                      // Trigger rename - for now just close, rename is complex on mobile
-                      // Could open a modal or inline edit
+                      setMobileRenameChat({ id: displayCurrentChat.id, name: displayCurrentChat.displayName || "Untitled" })
                     }}
                     className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent text-left cursor-pointer"
                   >
@@ -1361,6 +1363,20 @@ export default function HomePage() {
         confirmLabel="Delete"
         variant="destructive"
         isMobile={isMobile}
+      />
+
+      {/* Mobile Rename Sheet */}
+      <MobileRenameSheet
+        open={mobileRenameChat !== null}
+        onClose={() => setMobileRenameChat(null)}
+        title="Rename Chat"
+        initialValue={mobileRenameChat?.name ?? ""}
+        onSave={(newName) => {
+          if (mobileRenameChat) {
+            renameChat(mobileRenameChat.id, newName)
+          }
+        }}
+        placeholder="Chat name"
       />
     </div>
     </PaletteProvider>
