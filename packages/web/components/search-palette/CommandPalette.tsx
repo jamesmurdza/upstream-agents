@@ -122,15 +122,15 @@ export function CommandPalette({
             </CommandItem>
           )}
           {onCopyCloneCommand && (
-            <CommandItem value="copy git clone command" onSelect={() => run(onCopyCloneCommand)}>
+            <CommandItem value="copy git clone repository command" onSelect={() => run(onCopyCloneCommand)}>
               <Copy className="mr-2 h-4 w-4 text-muted-foreground" />
-              <span>Copy Git Clone Command</span>
+              <span>Copy Git Clone Repository Command</span>
             </CommandItem>
           )}
           {onCopyCheckoutCommand && (
-            <CommandItem value="copy git checkout command" onSelect={() => run(onCopyCheckoutCommand)}>
+            <CommandItem value="copy git checkout branch command" onSelect={() => run(onCopyCheckoutCommand)}>
               <Copy className="mr-2 h-4 w-4 text-muted-foreground" />
-              <span>Copy Git Checkout Command</span>
+              <span>Copy Git Checkout Branch Command</span>
             </CommandItem>
           )}
           {onOpenInVSCode && (
