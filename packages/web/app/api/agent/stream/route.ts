@@ -23,7 +23,7 @@ async function autoPush(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const git = createSandboxGit(sandbox)
-    await git.push(repoPath, "x-access-token", githubToken)
+    await git.push(repoPath, githubToken)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"

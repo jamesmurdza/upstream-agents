@@ -2,16 +2,23 @@
  * Git command implementations
  *
  * Each function executes git commands in the sandbox via sandbox.process.executeCommand().
- * Credentials are passed ephemerally and never stored in the sandbox.
+ * Credentials are passed via -c flags and never stored in the sandbox.
  */
 
 import type { SandboxProcess, GitStatus } from "./types"
-import { createAuthUrl, stripCredentials, buildAuthFlags } from "./auth"
+import { authFlags } from "./auth"
 import { createGitError } from "./errors"
 import { parseGitStatus } from "./parsers"
 
 /**
- * Helper to execute a command in the sandbox and throw on failure
+ * Escape a shell argument to prevent injection
+ */
+function esc(arg: string): string {
+  return `'${arg.replace(/'/g, "'\\''")}'`
+}
+
+/**
+ * Execute a command in the sandbox and throw on failure
  */
 async function exec(
   process: SandboxProcess,
@@ -26,15 +33,7 @@ async function exec(
 }
 
 /**
- * Escape a shell argument to prevent injection
- */
-function escapeShellArg(arg: string): string {
-  // Use single quotes and escape any single quotes in the string
-  return `'${arg.replace(/'/g, "'\\''")}'`
-}
-
-/**
- * Clone a repository into the sandbox
+ * Clone a repository
  */
 export async function clone(
   process: SandboxProcess,
@@ -42,37 +41,15 @@ export async function clone(
   path: string,
   branch?: string,
   commitId?: string,
-  username?: string,
-  password?: string
+  token?: string
 ): Promise<void> {
-  // Build clone URL (with auth if provided)
-  const cloneUrl =
-    username && password ? createAuthUrl(url, username, password) : url
+  const auth = token ? authFlags(token) : ""
+  const branchFlag = branch ? `-b ${esc(branch)}` : ""
 
-  // Build clone command
-  let cmd = `git clone --single-branch`
-  if (branch) {
-    cmd += ` -b ${escapeShellArg(branch)}`
-  }
-  cmd += ` ${escapeShellArg(cloneUrl)} ${escapeShellArg(path)} 2>&1`
+  await exec(process, `git ${auth} clone --single-branch ${branchFlag} ${esc(url)} ${esc(path)} 2>&1`)
 
-  await exec(process, cmd)
-
-  // If commitId specified, checkout that specific commit
   if (commitId) {
-    await exec(
-      process,
-      `cd ${escapeShellArg(path)} && git checkout ${escapeShellArg(commitId)} 2>&1`
-    )
-  }
-
-  // If we used auth, update remote to strip credentials from .git/config
-  if (username && password) {
-    const cleanUrl = stripCredentials(cloneUrl)
-    await exec(
-      process,
-      `cd ${escapeShellArg(path)} && git remote set-url origin ${escapeShellArg(cleanUrl)} 2>&1`
-    )
+    await exec(process, `cd ${esc(path)} && git checkout ${esc(commitId)} 2>&1`)
   }
 }
 
@@ -84,10 +61,7 @@ export async function createBranch(
   path: string,
   branchName: string
 ): Promise<void> {
-  await exec(
-    process,
-    `cd ${escapeShellArg(path)} && git branch ${escapeShellArg(branchName)} 2>&1`
-  )
+  await exec(process, `cd ${esc(path)} && git branch ${esc(branchName)} 2>&1`)
 }
 
 /**
@@ -98,10 +72,7 @@ export async function checkoutBranch(
   path: string,
   branchName: string
 ): Promise<void> {
-  await exec(
-    process,
-    `cd ${escapeShellArg(path)} && git checkout ${escapeShellArg(branchName)} 2>&1`
-  )
+  await exec(process, `cd ${esc(path)} && git checkout ${esc(branchName)} 2>&1`)
 }
 
 /**
@@ -111,56 +82,40 @@ export async function status(
   process: SandboxProcess,
   path: string
 ): Promise<GitStatus> {
-  // Get porcelain status with branch info
   const porcelainOutput = await exec(
     process,
-    `cd ${escapeShellArg(path)} && git status --porcelain -b 2>&1`
+    `cd ${esc(path)} && git status --porcelain -b 2>&1`
   )
 
-  // Get ahead/behind counts (may fail if no upstream)
   const aheadBehindOutput = await exec(
     process,
-    `cd ${escapeShellArg(path)} && git rev-list --left-right --count @{upstream}...HEAD 2>/dev/null || echo "0 0"`,
-    true // Allow failure
+    `cd ${esc(path)} && git rev-list --left-right --count @{upstream}...HEAD 2>/dev/null || echo "0 0"`,
+    true
   )
 
   return parseGitStatus(porcelainOutput, aheadBehindOutput)
 }
 
 /**
- * Pull changes from remote with authentication
- *
- * Uses git -c flag to pass credentials for a single command invocation.
- * No state to manage, no cleanup needed.
+ * Pull changes from remote
  */
 export async function pull(
   process: SandboxProcess,
   path: string,
-  username?: string,
-  password?: string
+  token?: string
 ): Promise<void> {
-  const authFlags = password ? buildAuthFlags(password, username) : ""
-  await exec(
-    process,
-    `cd ${escapeShellArg(path)} && git ${authFlags} pull 2>&1`
-  )
+  const auth = token ? authFlags(token) : ""
+  await exec(process, `cd ${esc(path)} && git ${auth} pull 2>&1`)
 }
 
 /**
- * Push changes to remote with authentication
- *
- * Uses git -c flag to pass credentials for a single command invocation.
- * No state to manage, no cleanup needed.
+ * Push changes to remote
  */
 export async function push(
   process: SandboxProcess,
   path: string,
-  username?: string,
-  password?: string
+  token?: string
 ): Promise<void> {
-  const authFlags = password ? buildAuthFlags(password, username) : ""
-  await exec(
-    process,
-    `cd ${escapeShellArg(path)} && git ${authFlags} push -u origin HEAD 2>&1`
-  )
+  const auth = token ? authFlags(token) : ""
+  await exec(process, `cd ${esc(path)} && git ${auth} push -u origin HEAD 2>&1`)
 }

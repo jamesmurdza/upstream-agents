@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     // 5. Push to remote
     const repoPath = `${PATHS.SANDBOX_HOME}/${repoName}`
 
-    await git.push(repoPath, "x-access-token", githubToken)
+    await git.push(repoPath, githubToken)
 
     return Response.json({ success: true })
   } catch (error) {

@@ -1,13 +1,12 @@
 # @upstream/daytona-git
 
-Git operations for Daytona sandboxes that execute commands directly via `sandbox.process.executeCommand()` instead of the Daytona Git Toolbox.
+Git operations for Daytona sandboxes via `sandbox.process.executeCommand()`.
 
 ## Why?
 
 - **No toolbox dependency** - Works with any Daytona sandbox
-- **Credentials are ephemeral** - Never stored in the sandbox, only used per-operation
-- **Drop-in replacement** - Same API as Daytona SDK's `sandbox.git`
-- **Full control** - See exactly what git commands are being run
+- **Credentials never stored** - Passed via git `-c` flags per-operation
+- **Simple API** - Just pass the token, no username needed
 
 ## Installation
 
@@ -23,32 +22,28 @@ import { createSandboxGit } from "@upstream/daytona-git"
 
 const daytona = new Daytona({ apiKey })
 const sandbox = await daytona.get(sandboxId)
-
-// Create git interface
 const git = createSandboxGit(sandbox)
 
-// Clone with authentication
+// Clone with auth
 await git.clone(
   "https://github.com/owner/repo.git",
   "/home/daytona/project",
   "main",
   undefined,
-  "x-access-token",  // GitHub username for token auth
-  githubToken         // The actual token
+  githubToken
 )
 
-// Create and switch branches
+// Branch operations
 await git.createBranch("/home/daytona/project", "feature/new-feature")
 await git.checkoutBranch("/home/daytona/project", "feature/new-feature")
 
-// Check status
+// Status
 const status = await git.status("/home/daytona/project")
 console.log(`On branch: ${status.currentBranch}`)
-console.log(`Ahead: ${status.ahead}, Behind: ${status.behind}`)
 
-// Pull and push with auth
-await git.pull("/home/daytona/project", "x-access-token", githubToken)
-await git.push("/home/daytona/project", "x-access-token", githubToken)
+// Pull and push
+await git.pull("/home/daytona/project", githubToken)
+await git.push("/home/daytona/project", githubToken)
 ```
 
 ## API
@@ -57,76 +52,26 @@ await git.push("/home/daytona/project", "x-access-token", githubToken)
 
 Creates a `SandboxGit` interface from a Daytona sandbox.
 
-```typescript
-const git = createSandboxGit(sandbox)
-```
-
-### `SandboxGit` Methods
+### Methods
 
 | Method | Description |
 |--------|-------------|
-| `clone(url, path, branch?, commitId?, username?, password?)` | Clone a repository |
+| `clone(url, path, branch?, commitId?, token?)` | Clone a repository |
 | `createBranch(path, branchName)` | Create a new branch |
 | `checkoutBranch(path, branchName)` | Switch to a branch |
 | `status(path)` | Get repository status |
-| `pull(path, username?, password?)` | Pull from remote |
-| `push(path, username?, password?)` | Push to remote |
-
-### Error Handling
-
-```typescript
-import {
-  createSandboxGit,
-  GitError,
-  GitAuthError,
-  GitNotFoundError
-} from "@anthropic/daytona-git"
-
-try {
-  await git.push(path, "x-access-token", token)
-} catch (error) {
-  if (error instanceof GitAuthError) {
-    console.error("Token expired or invalid")
-  } else if (error instanceof GitNotFoundError) {
-    console.error("Repository not found")
-  } else if (error instanceof GitError) {
-    console.error(`Git failed: ${error.output}`)
-  }
-}
-```
+| `pull(path, token?)` | Pull from remote |
+| `push(path, token?)` | Push to remote |
 
 ## How Credentials Work
 
-Credentials are **never persisted** in the sandbox.
+Credentials are passed via git's `-c` flag:
 
-For `pull` and `push`, credentials are passed via git's `-c` flag:
 ```bash
-git -c http.extraHeader='Authorization: Bearer <token>' push
+git -c http.extraHeader='Authorization: Basic <base64>' push
 ```
 
 This means:
-- No URL manipulation needed
-- No cleanup required
-- No race conditions
-- Credential exists only for that single command invocation
-
-For `clone`, credentials are embedded in the URL temporarily, then stripped from `.git/config` immediately after.
-
-## Migration from Daytona SDK
-
-Replace:
-```typescript
-await sandbox.git.clone(url, path, branch, undefined, "x-access-token", token)
-await sandbox.git.push(path, "x-access-token", token)
-```
-
-With:
-```typescript
-import { createSandboxGit } from "@upstream/daytona-git"
-
-const git = createSandboxGit(sandbox)
-await git.clone(url, path, branch, undefined, "x-access-token", token)
-await git.push(path, "x-access-token", token)
-```
-
-Same API, same arguments.
+- No config files modified
+- No cleanup needed
+- Credential exists only for that command

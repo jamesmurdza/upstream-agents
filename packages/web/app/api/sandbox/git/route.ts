@@ -121,7 +121,7 @@ export async function POST(req: Request) {
             await sandbox.process.executeCommand(`cd ${repoPath} && git fetch origin 2>&1`)
 
             try {
-              await git.pull(repoPath, "x-access-token", githubToken)
+              await git.pull(repoPath, githubToken)
             } catch {
               // best-effort
             }
@@ -193,7 +193,7 @@ export async function POST(req: Request) {
 
         if (isMergingIntoActiveBranch) {
           try {
-            await git.pull(repoPath, "x-access-token", githubToken)
+            await git.pull(repoPath, githubToken)
           } catch {
             // Pull may fail but GitHub merge succeeded
           }
@@ -411,7 +411,7 @@ export async function POST(req: Request) {
         }
 
         try {
-          await git.push(repoPath, "x-access-token", githubToken)
+          await git.push(repoPath, githubToken)
         } catch (pushErr) {
           await sandbox.process.executeCommand(`cd ${repoPath} && git checkout ${currentBranch} 2>&1`)
           await sandbox.process.executeCommand(`cd ${repoPath} && git branch -D ${tempBranch} 2>&1`)

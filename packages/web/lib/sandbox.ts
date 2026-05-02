@@ -96,14 +96,7 @@ export async function createSandboxForChat(
   } else {
     const cloneUrl = `https://github.com/${owner}/${repoApiName}.git`
     const git = createSandboxGit(sandbox)
-    await git.clone(
-      cloneUrl,
-      repoPath,
-      baseBranch,
-      undefined,
-      "x-access-token",
-      githubToken!
-    )
+    await git.clone(cloneUrl, repoPath, baseBranch, undefined, githubToken!)
 
     let gitName = "Simple Chat Agent"
     let gitEmail = "noreply@example.com"
