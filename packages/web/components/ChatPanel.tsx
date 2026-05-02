@@ -1095,7 +1095,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {titleMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 min-w-[180px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
+                <div className="absolute left-0 top-full mt-1 min-w-[210px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
                   <button
                     onClick={() => {
                       setTitleMenuOpen(false)
