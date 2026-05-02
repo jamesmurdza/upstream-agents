@@ -11,10 +11,8 @@ interface MobileBottomSheetProps {
   children: React.ReactNode
   /** Height of the sheet: 'auto' fits content, 'full' is 90vh, or specify a number in vh */
   height?: "auto" | "full" | number
-  /** Show drag handle indicator */
+  /** Show drag handle indicator (also enables swipe on handle to dismiss) */
   showDragHandle?: boolean
-  /** Enable swipe to dismiss */
-  swipeToDismiss?: boolean
   /** Higher z-index to layer over other modals/drawers */
   elevated?: boolean
 }
@@ -26,7 +24,6 @@ export function MobileBottomSheet({
   children,
   height = "auto",
   showDragHandle = true,
-  swipeToDismiss = true,
   elevated = false,
 }: MobileBottomSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -51,15 +48,14 @@ export function MobileBottomSheet({
 
   // Handle touch start
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!swipeToDismiss) return
     setIsDragging(true)
     setStartY(e.touches[0].clientY)
     setDragY(0)
-  }, [swipeToDismiss])
+  }, [])
 
   // Handle touch move
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging || !swipeToDismiss) return
+    if (!isDragging) return
 
     const currentY = e.touches[0].clientY
     const diff = currentY - startY
@@ -68,11 +64,11 @@ export function MobileBottomSheet({
     if (diff > 0) {
       setDragY(diff)
     }
-  }, [isDragging, startY, swipeToDismiss])
+  }, [isDragging, startY])
 
   // Handle touch end
   const handleTouchEnd = useCallback(() => {
-    if (!isDragging || !swipeToDismiss) return
+    if (!isDragging) return
 
     setIsDragging(false)
 
@@ -82,7 +78,7 @@ export function MobileBottomSheet({
     }
 
     setDragY(0)
-  }, [isDragging, dragY, sheetHeight, onClose, swipeToDismiss])
+  }, [isDragging, dragY, sheetHeight, onClose])
 
   // Prevent body scroll when open
   useEffect(() => {
@@ -117,8 +113,7 @@ export function MobileBottomSheet({
         className={cn(
           "fixed bottom-0 left-0 right-0 bg-popover rounded-t-2xl shadow-xl",
           elevated ? "z-[60]" : "z-50",
-          "transition-transform duration-300 ease-out",
-          !isDragging && "transition-transform"
+          !isDragging && "transition-transform duration-300 ease-out"
         )}
         style={{
           ...heightStyle,
@@ -127,10 +122,10 @@ export function MobileBottomSheet({
             : "translateY(100%)",
         }}
       >
-        {/* Drag Handle - touch handlers only on this area */}
+        {/* Drag Handle */}
         {showDragHandle && (
           <div
-            className="flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing"
+            className="flex justify-center pt-3 pb-1"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -139,10 +134,10 @@ export function MobileBottomSheet({
           </div>
         )}
 
-        {/* Header - also supports drag to dismiss */}
+        {/* Header - also draggable to dismiss */}
         {title && (
           <div
-            className="flex items-center justify-between px-4 py-3 border-b border-border cursor-grab active:cursor-grabbing"
+            className="flex items-center justify-between px-4 py-3 border-b border-border"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
