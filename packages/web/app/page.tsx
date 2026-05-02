@@ -305,6 +305,20 @@ export default function HomePage() {
     }
   }, [isMobile])
 
+  // Auto-select first chat on mobile when no chat is selected
+  useEffect(() => {
+    if (isMobile && isHydrated && !currentChatId && chats.length > 0) {
+      // Sort by last activity and select the most recent
+      const sortedChats = [...chats].sort((a, b) =>
+        (b.lastActiveAt ?? b.createdAt) - (a.lastActiveAt ?? a.createdAt)
+      )
+      const firstChat = sortedChats[0]
+      if (firstChat) {
+        selectChat(firstChat.id)
+      }
+    }
+  }, [isMobile, isHydrated, currentChatId, chats, selectChat])
+
 
   // Handler for opening settings (optionally with a highlighted API key field)
   const handleOpenSettings = (highlightKey?: HighlightKey) => {
