@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
-import { X, Plus, Trash2, FolderGit2, Loader2, Variable } from "lucide-react"
+import { X, Plus, Trash2, FolderGit2, Loader2 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { focusChatPrompt } from "@/components/ui/modal-header"
 import { Input } from "@/components/ui/input"
@@ -25,8 +26,19 @@ interface EnvironmentVariablesModalProps {
 
 type TabKey = "chat" | "repository"
 
-const tabs: { key: TabKey; label: string; icon: typeof Variable }[] = [
-  { key: "chat", label: "Chat", icon: Variable },
+/** Custom italic x icon for variables */
+function VariableIcon({ className }: { className?: string }) {
+  return (
+    <span className={cn("flex items-center justify-center italic font-serif", className)}>
+      𝑥
+    </span>
+  )
+}
+
+type TabIcon = LucideIcon | typeof VariableIcon
+
+const tabs: { key: TabKey; label: string; icon: TabIcon }[] = [
+  { key: "chat", label: "Chat", icon: VariableIcon },
   { key: "repository", label: "Repository", icon: FolderGit2 },
 ]
 
