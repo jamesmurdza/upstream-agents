@@ -33,6 +33,26 @@ export const authOptions: NextAuthOptions = {
       }
       if (account) {
         token.accessToken = account.access_token
+
+        // Sync the fresh token to the Account table. The PrismaAdapter only
+        // writes Account rows on the very first link (create, not upsert), so
+        // on re-authorization the DB row keeps the old, revoked token. The
+        // agent stream route reads Account.access_token for auto-push, so we
+        // must keep it current.
+        if (token.sub && account.access_token) {
+          prisma.account
+            .updateMany({
+              where: {
+                userId: token.sub,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+              },
+              data: { access_token: account.access_token },
+            })
+            .catch((err) => {
+              console.error("[auth] Failed to sync access_token to Account table:", err)
+            })
+        }
       }
       return token
     },
