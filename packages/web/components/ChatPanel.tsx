@@ -390,6 +390,11 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
       }
     }
 
+    // Shift+Enter to insert newline (let browser handle it)
+    if (e.key === "Enter" && e.shiftKey) {
+      return
+    }
+
     // Option/Alt+Enter, Command/Meta+Enter, or Ctrl+Enter to branch and send
     if (e.key === "Enter" && (e.altKey || e.metaKey || e.ctrlKey)) {
       e.preventDefault()
