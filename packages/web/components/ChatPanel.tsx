@@ -1775,7 +1775,7 @@ function FilePreviewModal({ file, fileContent, onClose, onRemove, isMobile, getF
   )
 }
 
-// PDF Thumbnail Component - renders first page of PDF as thumbnail
+// PDF Thumbnail Component - renders first page of PDF as thumbnail (top square crop)
 function PdfThumbnail({ file }: { file: File }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [loading, setLoading] = useState(true)
@@ -1803,18 +1803,23 @@ function PdfThumbnail({ file }: { file: File }) {
         const context = canvas.getContext('2d')
         if (!context) return
 
-        // Calculate scale to fit in thumbnail (72x72 or 80x80)
+        // Set thumbnail size and calculate scale to make page width match thumbnail
         const thumbnailSize = 72
         const viewport = page.getViewport({ scale: 1 })
-        const scale = Math.min(
-          thumbnailSize / viewport.width,
-          thumbnailSize / viewport.height
-        )
+
+        // Scale so the page width equals thumbnail size (for a crisp top crop)
+        const scale = thumbnailSize / viewport.width
         const scaledViewport = page.getViewport({ scale })
 
-        canvas.width = scaledViewport.width
-        canvas.height = scaledViewport.height
+        // Set canvas to thumbnail size (square)
+        canvas.width = thumbnailSize
+        canvas.height = thumbnailSize
 
+        // Fill with white background
+        context.fillStyle = '#ffffff'
+        context.fillRect(0, 0, thumbnailSize, thumbnailSize)
+
+        // Render the page directly - it will extend beyond canvas height but be clipped
         await page.render({
           canvasContext: context,
           viewport: scaledViewport
@@ -1849,7 +1854,7 @@ function PdfThumbnail({ file }: { file: File }) {
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-white">
+    <div className="w-full h-full flex items-center justify-center bg-white overflow-hidden">
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -1858,7 +1863,7 @@ function PdfThumbnail({ file }: { file: File }) {
       <canvas
         ref={canvasRef}
         className={cn(
-          "max-w-full max-h-full object-contain",
+          "w-full h-full",
           loading && "opacity-0"
         )}
       />
