@@ -1775,7 +1775,7 @@ function FilePreviewModal({ file, fileContent, onClose, onRemove, isMobile, getF
   )
 }
 
-// PDF Thumbnail Component - renders first page of PDF as thumbnail
+// PDF Thumbnail Component - renders first page of PDF as thumbnail (cropped from top-left)
 function PdfThumbnail({ file }: { file: File }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [loading, setLoading] = useState(true)
@@ -1803,22 +1803,35 @@ function PdfThumbnail({ file }: { file: File }) {
         const context = canvas.getContext('2d')
         if (!context) return
 
-        // Calculate scale to fit in thumbnail (72x72 or 80x80)
+        // Render at a reasonable scale for crisp text, then crop to thumbnail
         const thumbnailSize = 72
-        const viewport = page.getViewport({ scale: 1 })
-        const scale = Math.min(
-          thumbnailSize / viewport.width,
-          thumbnailSize / viewport.height
-        )
-        const scaledViewport = page.getViewport({ scale })
+        const scale = 1.5 // Render at 1.5x for better quality
+        const viewport = page.getViewport({ scale })
 
-        canvas.width = scaledViewport.width
-        canvas.height = scaledViewport.height
+        // Create an offscreen canvas to render the full page
+        const offscreenCanvas = document.createElement('canvas')
+        offscreenCanvas.width = viewport.width
+        offscreenCanvas.height = viewport.height
+        const offscreenContext = offscreenCanvas.getContext('2d')
+        if (!offscreenContext) return
 
         await page.render({
-          canvasContext: context,
-          viewport: scaledViewport
+          canvasContext: offscreenContext,
+          viewport: viewport
         }).promise
+
+        if (cancelled) return
+
+        // Set the visible canvas to thumbnail size
+        canvas.width = thumbnailSize
+        canvas.height = thumbnailSize
+
+        // Draw cropped portion from top-left of the rendered page
+        context.drawImage(
+          offscreenCanvas,
+          0, 0, thumbnailSize, thumbnailSize, // Source: top-left corner
+          0, 0, thumbnailSize, thumbnailSize  // Destination: fill thumbnail
+        )
 
         if (!cancelled) {
           setLoading(false)
@@ -1849,7 +1862,7 @@ function PdfThumbnail({ file }: { file: File }) {
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-white">
+    <div className="w-full h-full flex items-center justify-center bg-white overflow-hidden">
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -1858,7 +1871,7 @@ function PdfThumbnail({ file }: { file: File }) {
       <canvas
         ref={canvasRef}
         className={cn(
-          "max-w-full max-h-full object-contain",
+          "w-full h-full object-cover",
           loading && "opacity-0"
         )}
       />
