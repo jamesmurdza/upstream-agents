@@ -65,6 +65,9 @@ function getItemLabel(item: PreviewItem): string {
   return plugin.getLabel(item)
 }
 
+/** Shared styles for preview item rows (both trigger and menu items) */
+const previewItemRowStyles = "flex items-center gap-1.5 px-1.5 py-1 text-left"
+
 export function PreviewView({
   item,
   sandboxId,
@@ -119,27 +122,41 @@ export function PreviewView({
 
   const Component = plugin.Component
 
+  // Sort items so active item is first (for popup menu display)
+  const sortedItems = hasMultipleItems
+    ? [item, ...allItems.filter((i) => getItemKey(i) !== getItemKey(item))]
+    : []
+
   return (
     <div className={cn("flex flex-col min-h-0 bg-card", className)} style={style}>
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Titlebar */}
         <div className="flex items-center gap-2 px-4 py-3">
-          {/* Title with dropdown (when multiple items) or plain title */}
+          {/* Title with popup menu (when multiple items) or plain title */}
           {hasMultipleItems ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="flex items-center gap-1.5 min-w-0 flex-1 text-left rounded-md px-1.5 py-0.5 -ml-1.5 hover:bg-accent transition-colors cursor-pointer"
+                  className={cn(
+                    previewItemRowStyles,
+                    "min-w-0 rounded-md hover:bg-accent transition-colors cursor-pointer"
+                  )}
                   title="Switch preview"
                   aria-label="Switch between open previews"
                 >
                   <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span className="text-xs font-medium truncate">{getItemLabel(item)}</span>
-                  <ChevronsUpDown className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <ChevronsUpDown className="h-3 w-3 text-muted-foreground shrink-0 ml-0.5" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-[200px]">
-                {allItems.map((previewItem) => {
+              <DropdownMenuContent
+                align="start"
+                side="bottom"
+                sideOffset={-32}
+                alignOffset={-6}
+                className="min-w-[200px]"
+              >
+                {sortedItems.map((previewItem) => {
                   const itemPlugin = getPanelPlugin(previewItem)
                   const ItemIcon = itemPlugin?.getIcon()
                   const isActive = getItemKey(previewItem) === getItemKey(item)
@@ -155,9 +172,9 @@ export function PreviewView({
                         onSelectItem(previewItem)
                       }}
                     >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
                         {ItemIcon && <ItemIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                        <span className="truncate text-xs">{getItemLabel(previewItem)}</span>
+                        <span className="truncate text-xs font-medium">{getItemLabel(previewItem)}</span>
                       </div>
                       {onCloseItem && (
                         <button
@@ -178,7 +195,7 @@ export function PreviewView({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <div className={cn(previewItemRowStyles, "min-w-0")}>
               <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span className="text-xs font-medium truncate">{getItemLabel(item)}</span>
             </div>
