@@ -26,6 +26,7 @@ Agents that run automatically on a schedule, execute a prompt against a repo, an
 | Security scan | acme/api | 1d | ✗ failed |
 
 - Click row → opens chat view for that job
+- Row menu (⋮): Edit, Run Now, Delete
 
 ### Chat View
 - **Header**: Title (left), timestamp dropdown (right)
@@ -34,8 +35,16 @@ Agents that run automatically on a schedule, execute a prompt against a repo, an
 - **Navigation**: Click "Scheduled Jobs" in sidebar to go back to table
 
 ### Edit
-- From table: row menu or click into chat then edit
+- From table row menu only
 - Same form as creation, pre-filled
+
+### Interval Picker
+- Presets: hourly, daily, weekly (as shortcuts)
+- Custom: "Every X [hours/days/weeks]" picker
+
+### Empty State
+- Text: "No scheduled jobs yet"
+- Button: "Create your first job"
 
 ---
 
@@ -72,34 +81,43 @@ Agents that run automatically on a schedule, execute a prompt against a repo, an
 
 ### Flow 5: Edit a Job
 
-1. User is viewing a job (chat view) or in table
-2. Opens edit (via menu or button)
-3. Same modal as create, pre-filled with current config
-4. User modifies interval, prompt, etc.
-5. Clicks "Save"
-6. **Returns to Scheduled Jobs table**
-
-### Flow 6: Pause/Resume a Job
-
-1. From table or job view
-2. User clicks pause/resume action
-3. Job stops/starts running on schedule
-4. Status indicator updates (🟢 → ⏸️)
-
-### Flow 7: Delete a Job
-
-1. From table or job view
-2. User clicks delete
-3. Confirmation prompt
-4. Job and run history removed
+1. From table, user clicks row menu (⋮) → Edit
+2. Same modal as create, pre-filled with current config
+3. User modifies interval, prompt, etc.
+4. Clicks "Save"
 5. **Returns to Scheduled Jobs table**
 
-### Flow 8: Run Now (Manual Trigger)
+### Flow 6: Delete a Job
 
-1. From table or job view
-2. User clicks "Run Now"
-3. Job executes immediately (outside normal schedule)
-4. User can watch progress in chat view
+1. From table, user clicks row menu (⋮) → Delete
+2. Confirmation prompt
+3. Job and run history removed
+
+### Flow 7: Run Now (Manual Trigger)
+
+1. From table, user clicks row menu (⋮) → Run Now
+2. Job executes immediately (outside normal schedule)
+3. User can click into job to watch progress in chat view
+
+---
+
+## Decisions
+
+| Question | Decision |
+|----------|----------|
+| Edit access point | Table row menu only |
+| Run Now access | Table row menu only |
+| Pause/Resume | Not supported - delete and recreate instead |
+| Empty state | Text + "Create your first job" button |
+| Interval picker | Presets (hourly/daily/weekly) + custom "every X hours/days/weeks" |
+| Sandbox reuse | Fresh sandbox every run |
+| Concurrent runs | Skip if previous run still running |
+| Run timeout | 20 minutes |
+| Run retention | Last 50 runs per job |
+| User limits | Max 5 jobs per user |
+| Credentials expire | Run fails, job stays enabled, retry next interval |
+| Repo deleted | Run fails, job auto-disables after 3 consecutive failures |
+| Branch deleted | Run fails, job auto-disables after 3 consecutive failures |
 
 ---
 
@@ -128,6 +146,9 @@ model ScheduledJob {
   // Auto-PR
   autoPR        Boolean  @default(true)
 
+  // Failure tracking
+  consecutiveFailures Int @default(0)
+
   // Timestamps
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -150,6 +171,7 @@ model ScheduledJobRun {
 
   // Results
   sandboxId   String?
+  backgroundSessionId String?
   branch      String?
   commitCount Int       @default(0)
   prUrl       String?
@@ -190,7 +212,7 @@ Chats created for scheduled runs are hidden from the main sidebar (filtered by `
 
 ```
 GET    /api/scheduled-jobs                  # List user's jobs
-POST   /api/scheduled-jobs                  # Create job
+POST   /api/scheduled-jobs                  # Create job (max 5)
 GET    /api/scheduled-jobs/[id]             # Get job with recent runs
 PATCH  /api/scheduled-jobs/[id]             # Update job config
 DELETE /api/scheduled-jobs/[id]             # Delete job + runs
@@ -199,14 +221,13 @@ DELETE /api/scheduled-jobs/[id]             # Delete job + runs
 ### Actions
 
 ```
-POST   /api/scheduled-jobs/[id]/toggle      # Pause/resume
 POST   /api/scheduled-jobs/[id]/run         # Trigger immediate run
 ```
 
 ### Run History
 
 ```
-GET    /api/scheduled-jobs/[id]/runs        # List all runs
+GET    /api/scheduled-jobs/[id]/runs        # List runs (last 50)
 GET    /api/scheduled-jobs/[id]/runs/[runId] # Get run with messages
 ```
 
@@ -219,7 +240,7 @@ GET    /api/scheduled-jobs/[id]/runs/[runId] # Get run with messages
 Two cron jobs running every minute:
 
 1. **Dispatcher**: Finds due jobs, starts execution
-2. **Completion Checker**: Polls running jobs, finalizes when done
+2. **Completion Checker**: Polls running jobs, finalizes when done (+ timeout check)
 
 ### Cron 1: Job Dispatcher
 
@@ -260,14 +281,22 @@ async function handler() {
 `GET /api/cron/check-scheduled-runs`
 
 ```typescript
+const RUN_TIMEOUT_MINUTES = 20
+
 async function handler() {
-  // Find running jobs
   const runs = await prisma.scheduledJobRun.findMany({
     where: { status: "running" },
     include: { job: true }
   })
 
   for (const run of runs) {
+    // Check for timeout
+    const runningMinutes = differenceInMinutes(new Date(), run.startedAt)
+    if (runningMinutes > RUN_TIMEOUT_MINUTES) {
+      await failRun(run, "Run timed out after 20 minutes")
+      continue
+    }
+
     const snapshot = await snapshotBackgroundAgent(run.sandboxId, run.backgroundSessionId)
 
     if (snapshot.status === "completed") {
@@ -277,6 +306,23 @@ async function handler() {
     }
     // else still running, check again next minute
   }
+}
+
+async function failRun(run: ScheduledJobRun, error: string) {
+  await prisma.scheduledJobRun.update({
+    where: { id: run.id },
+    data: { status: "error", completedAt: new Date(), error }
+  })
+
+  // Track consecutive failures, auto-disable after 3
+  const failures = run.job.consecutiveFailures + 1
+  await prisma.scheduledJob.update({
+    where: { id: run.jobId },
+    data: {
+      consecutiveFailures: failures,
+      enabled: failures < 3
+    }
+  })
 }
 ```
 
@@ -316,7 +362,7 @@ async function startJobExecution(job: ScheduledJob, run: ScheduledJobRun) {
     }
   })
 
-  // 2. Create sandbox
+  // 2. Create fresh sandbox
   const sandbox = await createSandbox({
     repo: job.repo,
     branch: job.baseBranch
@@ -401,6 +447,28 @@ async function finalizeRun(run: ScheduledJobRun, snapshot: AgentSnapshot) {
       prNumber
     }
   })
+
+  // 5. Reset consecutive failures on success
+  await prisma.scheduledJob.update({
+    where: { id: run.jobId },
+    data: { consecutiveFailures: 0 }
+  })
+
+  // 6. Prune old runs (keep last 50)
+  const oldRuns = await prisma.scheduledJobRun.findMany({
+    where: { jobId: run.jobId },
+    orderBy: { startedAt: "desc" },
+    skip: 50,
+    select: { id: true, chatId: true }
+  })
+  if (oldRuns.length > 0) {
+    await prisma.chat.deleteMany({
+      where: { id: { in: oldRuns.map(r => r.chatId).filter(Boolean) } }
+    })
+    await prisma.scheduledJobRun.deleteMany({
+      where: { id: { in: oldRuns.map(r => r.id) } }
+    })
+  }
 }
 ```
 
@@ -414,6 +482,15 @@ async function finalizeRun(run: ScheduledJobRun, snapshot: AgentSnapshot) {
 | `ScheduledJobRun` | Stores each execution's results, links to Chat |
 | `Chat.isScheduledRun` | Hides scheduled run chats from sidebar |
 | `/api/cron/dispatch-scheduled-jobs` | Finds due jobs, starts execution |
-| `/api/cron/check-scheduled-runs` | Polls running jobs, finalizes when done |
+| `/api/cron/check-scheduled-runs` | Polls running jobs, handles timeout, finalizes |
 | Clock icon in prompt | Entry point to create scheduled job |
 | Scheduled Jobs sidebar item | Entry point to view/manage jobs |
+
+## Limits
+
+| Limit | Value |
+|-------|-------|
+| Max jobs per user | 5 |
+| Run timeout | 20 minutes |
+| Run history retention | Last 50 runs per job |
+| Auto-disable threshold | 3 consecutive failures |
