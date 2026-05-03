@@ -166,7 +166,12 @@ export function PreviewView({
                         "flex items-center justify-between gap-2 cursor-pointer",
                         isActive && "bg-accent"
                       )}
-                      onSelect={() => {
+                      onSelect={(e) => {
+                        // Keep menu open when clicking the active item
+                        if (isActive) {
+                          e.preventDefault()
+                          return
+                        }
                         onSelectItem(previewItem)
                       }}
                     >
