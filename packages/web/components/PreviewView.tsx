@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { RefreshCw, X, ExternalLink } from "lucide-react"
+import { RefreshCw, X, ExternalLink, ChevronsLeftRight } from "lucide-react"
 import { PATHS } from "@upstream/common"
 import { getPanelPlugin } from "@/lib/plugins/registry"
 import { disposeTerminalSession } from "@/lib/plugins/panels/terminal"
@@ -13,12 +13,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import type { PreviewItem } from "@/lib/plugins/types"
 
 // Re-export types from plugins for backwards compatibility
 export type { PreviewItem } from "@/lib/plugins/types"
 
 export interface PreviewViewProps {
-  item: import("@/lib/plugins/types").PreviewItem | null
+  item: PreviewItem | null
   sandboxId: string | null
   /** Optional — when provided, file titles link to GitHub blob view for that branch. */
   repo?: string | null
@@ -26,6 +33,30 @@ export interface PreviewViewProps {
   onClose?: () => void
   className?: string
   style?: React.CSSProperties
+  /** All open preview items (for tab switching dropdown) */
+  allItems?: PreviewItem[]
+  /** Called when user selects a different preview item from the dropdown */
+  onSelectItem?: (item: PreviewItem) => void
+  /** Called when user closes a specific item from the dropdown */
+  onCloseItem?: (item: PreviewItem) => void
+}
+
+/** Get a unique key for a preview item */
+function getItemKey(item: PreviewItem): string {
+  switch (item.type) {
+    case "file":
+      return `file:${item.filePath}`
+    case "terminal":
+      return `terminal:${item.id}`
+    case "server":
+      return `server:${item.port}`
+  }
+}
+
+/** Get a short label for a preview item */
+function getItemLabel(item: PreviewItem): string {
+  const plugin = getPanelPlugin(item)
+  return plugin?.getLabel(item) ?? "Preview"
 }
 
 export function PreviewView({
@@ -36,6 +67,9 @@ export function PreviewView({
   onClose,
   className,
   style,
+  allItems,
+  onSelectItem,
+  onCloseItem,
 }: PreviewViewProps) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [scale, setScale] = useState(1)
@@ -112,6 +146,59 @@ export function PreviewView({
         <div className="flex items-center gap-2 px-4 py-3">
           <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           {titleNode}
+
+          {/* Preview tabs dropdown - shows all open preview items */}
+          {allItems && allItems.length > 0 && onSelectItem && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                  title="Switch preview"
+                  aria-label="Switch between open previews"
+                >
+                  <ChevronsLeftRight className="h-3.5 w-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[180px]">
+                {allItems.map((previewItem) => {
+                  const itemPlugin = getPanelPlugin(previewItem)
+                  const ItemIcon = itemPlugin?.getIcon()
+                  const isActive = item && getItemKey(previewItem) === getItemKey(item)
+                  return (
+                    <DropdownMenuItem
+                      key={getItemKey(previewItem)}
+                      className={cn(
+                        "flex items-center justify-between gap-2 cursor-pointer",
+                        isActive && "bg-accent"
+                      )}
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        onSelectItem(previewItem)
+                      }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {ItemIcon && <ItemIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                        <span className="truncate text-xs">{getItemLabel(previewItem)}</span>
+                      </div>
+                      {onCloseItem && (
+                        <button
+                          className="flex h-4 w-4 items-center justify-center rounded hover:bg-destructive/20 hover:text-destructive transition-colors shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onCloseItem(previewItem)
+                          }}
+                          title="Close this preview"
+                          aria-label={`Close ${getItemLabel(previewItem)}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Scale dropdown - only for server previews */}
           {item.type === "server" && (

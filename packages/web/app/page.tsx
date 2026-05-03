@@ -142,13 +142,95 @@ export default function HomePage() {
   const availableServers = serversQuery.data ?? []
   // Preview state lives on each Chat, not globally — switching chats shows
   // whatever that chat last had open (or hides the pane if none).
-  const previewItem = (currentChat?.previewItem ?? null) as PreviewItem | null
-  const previewOpen = previewItem !== null
+  // Support for multiple preview items with ability to switch between them.
+  const previewItems = (currentChat?.previewItems ??
+    (currentChat?.previewItem ? [currentChat.previewItem] : [])) as PreviewItem[]
+  const activePreviewIndex = currentChat?.activePreviewIndex ?? 0
+  const previewItem = previewItems[activePreviewIndex] ?? null
+  const previewOpen = previewItems.length > 0
+
+  /** Get a unique key for a preview item */
+  const getPreviewItemKey = useCallback((item: PreviewItem): string => {
+    switch (item.type) {
+      case "file": return `file:${item.filePath}`
+      case "terminal": return `terminal:${item.id}`
+      case "server": return `server:${item.port}`
+    }
+  }, [])
+
+  /** Open a preview item - adds to list if not already present, switches to it if present */
   const openPreview = useCallback((next: PreviewItem) => {
-    updateCurrentChat({ previewItem: next })
-  }, [updateCurrentChat])
+    const existingIndex = previewItems.findIndex(
+      (item) => getPreviewItemKey(item) === getPreviewItemKey(next)
+    )
+    if (existingIndex >= 0) {
+      // Item already exists, just switch to it
+      updateCurrentChat({ activePreviewIndex: existingIndex })
+    } else {
+      // Add new item and switch to it
+      const newItems = [...previewItems, next]
+      updateCurrentChat({
+        previewItems: newItems,
+        activePreviewIndex: newItems.length - 1,
+        // Also update legacy previewItem for backwards compatibility
+        previewItem: next
+      })
+    }
+  }, [previewItems, getPreviewItemKey, updateCurrentChat])
+
+  /** Select a specific preview item from the list */
+  const selectPreviewItem = useCallback((item: PreviewItem) => {
+    const index = previewItems.findIndex(
+      (i) => getPreviewItemKey(i) === getPreviewItemKey(item)
+    )
+    if (index >= 0) {
+      updateCurrentChat({
+        activePreviewIndex: index,
+        previewItem: item // Update legacy field
+      })
+    }
+  }, [previewItems, getPreviewItemKey, updateCurrentChat])
+
+  /** Close a specific preview item from the list */
+  const closePreviewItem = useCallback((item: PreviewItem) => {
+    const index = previewItems.findIndex(
+      (i) => getPreviewItemKey(i) === getPreviewItemKey(item)
+    )
+    if (index < 0) return
+
+    const newItems = previewItems.filter((_, i) => i !== index)
+    let newActiveIndex = activePreviewIndex
+
+    if (newItems.length === 0) {
+      // No items left, close the preview pane
+      updateCurrentChat({
+        previewItems: undefined,
+        activePreviewIndex: undefined,
+        previewItem: undefined
+      })
+    } else {
+      // Adjust active index if needed
+      if (index < activePreviewIndex) {
+        newActiveIndex = activePreviewIndex - 1
+      } else if (index === activePreviewIndex) {
+        // If we closed the active item, select the previous one (or first if at start)
+        newActiveIndex = Math.max(0, index - 1)
+      }
+      updateCurrentChat({
+        previewItems: newItems,
+        activePreviewIndex: newActiveIndex,
+        previewItem: newItems[newActiveIndex]
+      })
+    }
+  }, [previewItems, activePreviewIndex, getPreviewItemKey, updateCurrentChat])
+
+  /** Close all preview items (close the preview pane) */
   const closePreview = useCallback(() => {
-    updateCurrentChat({ previewItem: undefined })
+    updateCurrentChat({
+      previewItems: undefined,
+      activePreviewIndex: undefined,
+      previewItem: undefined
+    })
   }, [updateCurrentChat])
   const resizingPreview = useRef(false)
   const startPreviewResize = useCallback((e: React.MouseEvent) => {
@@ -1199,6 +1281,9 @@ export default function HomePage() {
                   repo={currentChat?.repo && currentChat.repo !== NEW_REPOSITORY ? currentChat.repo : null}
                   branch={currentChat?.branch ?? currentChat?.baseBranch ?? null}
                   onClose={closePreview}
+                  allItems={previewItems}
+                  onSelectItem={selectPreviewItem}
+                  onCloseItem={closePreviewItem}
                 />
               </>
             )}

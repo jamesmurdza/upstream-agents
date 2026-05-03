@@ -32,12 +32,21 @@ export interface DraftChatConfig {
   model: string | null
 }
 
+/** Preview state for a chat */
+export interface PreviewState {
+  items: Chat["previewItems"]
+  activeIndex: number
+}
+
 /**
  * Device-specific state that stays in localStorage (NOT synced to server)
  */
 export interface LocalState {
   currentChatId: string | null
+  /** @deprecated Use previewStates instead */
   previewItems: Record<string, Chat["previewItem"]>
+  /** New preview state with multiple items support */
+  previewStates: Record<string, PreviewState>
   queuedMessages: Record<string, Chat["queuedMessages"]>
   queuePaused: Record<string, boolean>
   drafts: Record<string, string>
@@ -57,6 +66,7 @@ export const DEFAULT_SETTINGS: Settings = {
 const DEFAULT_LOCAL_STATE: LocalState = {
   currentChatId: null,
   previewItems: {},
+  previewStates: {},
   queuedMessages: {},
   queuePaused: {},
   drafts: {},
@@ -110,6 +120,25 @@ export function setPreviewItem(chatId: string, item: Chat["previewItem"]): void 
     ...state,
     previewItems: { ...state.previewItems, [chatId]: item },
   })
+}
+
+export function setPreviewState(chatId: string, previewState: PreviewState | undefined): void {
+  const state = loadLocalState()
+  const newPreviewStates = { ...state.previewStates }
+  if (previewState === undefined) {
+    delete newPreviewStates[chatId]
+  } else {
+    newPreviewStates[chatId] = previewState
+  }
+  saveLocalState({
+    ...state,
+    previewStates: newPreviewStates,
+  })
+}
+
+export function getPreviewState(chatId: string): PreviewState | undefined {
+  const state = loadLocalState()
+  return state.previewStates[chatId]
 }
 
 export function setQueuedMessages(chatId: string, messages: Chat["queuedMessages"]): void {
@@ -168,6 +197,7 @@ export function clearDraftChatConfig(): void {
 export function migrateDraftToRealChat(draftId: string, realId: string): void {
   const state = loadLocalState()
   const newPreviewItems = { ...state.previewItems }
+  const newPreviewStates = { ...state.previewStates }
   const newQueuedMessages = { ...state.queuedMessages }
   const newQueuePaused = { ...state.queuePaused }
   const newDrafts = { ...state.drafts }
@@ -176,6 +206,10 @@ export function migrateDraftToRealChat(draftId: string, realId: string): void {
   if (newPreviewItems[draftId]) {
     newPreviewItems[realId] = newPreviewItems[draftId]
     delete newPreviewItems[draftId]
+  }
+  if (newPreviewStates[draftId]) {
+    newPreviewStates[realId] = newPreviewStates[draftId]
+    delete newPreviewStates[draftId]
   }
   if (newQueuedMessages[draftId]) {
     newQueuedMessages[realId] = newQueuedMessages[draftId]
@@ -194,6 +228,7 @@ export function migrateDraftToRealChat(draftId: string, realId: string): void {
     ...state,
     currentChatId: realId,
     previewItems: newPreviewItems,
+    previewStates: newPreviewStates,
     queuedMessages: newQueuedMessages,
     queuePaused: newQueuePaused,
     drafts: newDrafts,
@@ -204,12 +239,14 @@ export function migrateDraftToRealChat(draftId: string, realId: string): void {
 export function clearLocalStateForChats(chatIds: string[]): void {
   const localState = loadLocalState()
   const newPreviewItems = { ...localState.previewItems }
+  const newPreviewStates = { ...localState.previewStates }
   const newQueuedMessages = { ...localState.queuedMessages }
   const newQueuePaused = { ...localState.queuePaused }
   const newDrafts = { ...localState.drafts }
 
   for (const id of chatIds) {
     delete newPreviewItems[id]
+    delete newPreviewStates[id]
     delete newQueuedMessages[id]
     delete newQueuePaused[id]
     delete newDrafts[id]
@@ -218,6 +255,7 @@ export function clearLocalStateForChats(chatIds: string[]): void {
   saveLocalState({
     ...localState,
     previewItems: newPreviewItems,
+    previewStates: newPreviewStates,
     queuedMessages: newQueuedMessages,
     queuePaused: newQueuePaused,
     drafts: newDrafts,

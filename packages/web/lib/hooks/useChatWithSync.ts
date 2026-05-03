@@ -20,6 +20,7 @@ import {
   loadLocalState,
   setCurrentChatId as persistCurrentChatId,
   setPreviewItem,
+  setPreviewState,
   loadUnseenChatIds,
   saveUnseenChatIds,
   setQueuedMessages,
@@ -32,6 +33,7 @@ import {
   clearDraftChatConfig,
   migrateDraftToRealChat,
   type DraftChatConfig,
+  type PreviewState,
 } from "@/lib/storage"
 import {
   useChatsQuery,
@@ -108,10 +110,11 @@ export function useChatWithSync() {
   const [deletingChatIds, setDeletingChatIds] = useState<Set<string>>(new Set())
   const [localChatState, setLocalChatState] = useState<{
     previewItems: Record<string, Chat["previewItem"]>
+    previewStates: Record<string, PreviewState>
     queuedMessages: Record<string, Chat["queuedMessages"]>
     queuePaused: Record<string, boolean>
     drafts: Record<string, string>
-  }>({ previewItems: {}, queuedMessages: {}, queuePaused: {}, drafts: {} })
+  }>({ previewItems: {}, previewStates: {}, queuedMessages: {}, queuePaused: {}, drafts: {} })
   const [draftChatConfig, setDraftChatConfigState] = useState<DraftChatConfig | undefined>(undefined)
 
   const prevStatuses = useRef<Map<string, ChatStatus>>(new Map())
@@ -127,6 +130,7 @@ export function useChatWithSync() {
     setUnseenChatIds(loadUnseenChatIds())
     setLocalChatState({
       previewItems: localState.previewItems,
+      previewStates: localState.previewStates,
       queuedMessages: localState.queuedMessages,
       queuePaused: localState.queuePaused,
       drafts: localState.drafts,
@@ -138,12 +142,17 @@ export function useChatWithSync() {
   // Derived state
   const chats = useMemo((): Chat[] => {
     const serverChats = chatsQuery.data ?? []
-    return serverChats.map((chat) => ({
-      ...chat,
-      previewItem: localChatState.previewItems[chat.id],
-      queuedMessages: localChatState.queuedMessages[chat.id],
-      queuePaused: localChatState.queuePaused[chat.id],
-    }))
+    return serverChats.map((chat) => {
+      const previewState = localChatState.previewStates[chat.id]
+      return {
+        ...chat,
+        previewItem: localChatState.previewItems[chat.id],
+        previewItems: previewState?.items,
+        activePreviewIndex: previewState?.activeIndex,
+        queuedMessages: localChatState.queuedMessages[chat.id],
+        queuePaused: localChatState.queuePaused[chat.id],
+      }
+    })
   }, [chatsQuery.data, localChatState])
 
   const settings = settingsQuery.data?.settings ?? DEFAULT_SETTINGS
@@ -281,6 +290,7 @@ export function useChatWithSync() {
       migrateDraftToRealChat(draftId, newChat.id)
       setLocalChatState((prev) => {
         const newPreviewItems = { ...prev.previewItems }
+        const newPreviewStates = { ...prev.previewStates }
         const newQueuedMessages = { ...prev.queuedMessages }
         const newQueuePaused = { ...prev.queuePaused }
         const newDrafts = { ...prev.drafts }
@@ -288,6 +298,10 @@ export function useChatWithSync() {
         if (newPreviewItems[draftId]) {
           newPreviewItems[newChat.id] = newPreviewItems[draftId]
           delete newPreviewItems[draftId]
+        }
+        if (newPreviewStates[draftId]) {
+          newPreviewStates[newChat.id] = newPreviewStates[draftId]
+          delete newPreviewStates[draftId]
         }
         if (newQueuedMessages[draftId]) {
           newQueuedMessages[newChat.id] = newQueuedMessages[draftId]
@@ -302,7 +316,7 @@ export function useChatWithSync() {
           delete newDrafts[draftId]
         }
 
-        return { previewItems: newPreviewItems, queuedMessages: newQueuedMessages, queuePaused: newQueuePaused, drafts: newDrafts }
+        return { previewItems: newPreviewItems, previewStates: newPreviewStates, queuedMessages: newQueuedMessages, queuePaused: newQueuePaused, drafts: newDrafts }
       })
 
       // Clear draft config and update current chat ID
@@ -371,9 +385,10 @@ export function useChatWithSync() {
         }
         clearLocalStateForChats(result.deletedChatIds)
         setLocalChatState((prev) => {
-          const next = { ...prev, previewItems: { ...prev.previewItems }, queuedMessages: { ...prev.queuedMessages }, queuePaused: { ...prev.queuePaused }, drafts: { ...prev.drafts } }
+          const next = { ...prev, previewItems: { ...prev.previewItems }, previewStates: { ...prev.previewStates }, queuedMessages: { ...prev.queuedMessages }, queuePaused: { ...prev.queuePaused }, drafts: { ...prev.drafts } }
           for (const id of result.deletedChatIds) {
             delete next.previewItems[id]
+            delete next.previewStates[id]
             delete next.queuedMessages[id]
             delete next.queuePaused[id]
             delete next.drafts[id]
@@ -439,11 +454,33 @@ export function useChatWithSync() {
 
   const updateCurrentChat = useCallback(async (updates: Partial<Chat>) => {
     if (!currentChatId) return
-    const { previewItem, queuedMessages, queuePaused, ...serverUpdates } = updates
+    const { previewItem, previewItems, activePreviewIndex, queuedMessages, queuePaused, ...serverUpdates } = updates
 
+    // Handle legacy previewItem field
     if ("previewItem" in updates) {
       setPreviewItem(currentChatId, previewItem)
       setLocalChatState((prev) => ({ ...prev, previewItems: { ...prev.previewItems, [currentChatId]: previewItem } }))
+    }
+
+    // Handle new previewItems/activePreviewIndex fields
+    if ("previewItems" in updates || "activePreviewIndex" in updates) {
+      const currentState = localChatState.previewStates[currentChatId]
+      const newState: PreviewState | undefined = previewItems === undefined && activePreviewIndex === undefined
+        ? undefined
+        : {
+            items: previewItems ?? currentState?.items ?? [],
+            activeIndex: activePreviewIndex ?? currentState?.activeIndex ?? 0,
+          }
+      setPreviewState(currentChatId, newState)
+      setLocalChatState((prev) => {
+        const newPreviewStates = { ...prev.previewStates }
+        if (newState === undefined) {
+          delete newPreviewStates[currentChatId]
+        } else {
+          newPreviewStates[currentChatId] = newState
+        }
+        return { ...prev, previewStates: newPreviewStates }
+      })
     }
 
     if (Object.keys(serverUpdates).length > 0) {
@@ -453,7 +490,7 @@ export function useChatWithSync() {
         console.error("Failed to update chat:", error)
       }
     }
-  }, [currentChatId, updateChatMutation])
+  }, [currentChatId, localChatState.previewStates, updateChatMutation])
 
   const updateChatById = useCallback(async (chatId: string, updates: Partial<Chat>) => {
     const { previewItem, ...serverUpdates } = updates

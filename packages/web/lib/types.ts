@@ -138,11 +138,23 @@ export interface Chat {
 
   /** What's currently open in the preview pane for this chat, if anything.
    *  Persists across reloads but is scoped per chat so switching chats shows
-   *  that chat's own preview (or hides the pane if it has none). */
+   *  that chat's own preview (or hides the pane if it has none).
+   *  @deprecated Use previewItems instead */
   previewItem?:
     | { type: "file"; filePath: string; filename: string }
     | { type: "terminal"; id: string }
     | { type: "server"; port: number; url: string }
+
+  /** Array of preview items open in this chat's preview pane.
+   *  Multiple items can be open and user can switch between them. */
+  previewItems?: Array<
+    | { type: "file"; filePath: string; filename: string }
+    | { type: "terminal"; id: string }
+    | { type: "server"; port: number; url: string }
+  >
+
+  /** Index of the currently active preview item in previewItems array */
+  activePreviewIndex?: number
 
   // Status
   status: ChatStatus
