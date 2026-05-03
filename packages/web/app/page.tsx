@@ -19,7 +19,7 @@ import { EnvironmentVariablesModal } from "@/components/modals/EnvironmentVariab
 import { MobileCommandsMenu } from "@/components/MobileCommandsMenu"
 import { clearAllStorage } from "@/lib/storage"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
-import { PaletteProvider } from "@/components/search-palette"
+import { PaletteProvider, usePalette } from "@/components/search-palette"
 import { useChatWithSync } from "@/lib/hooks/useChatWithSync"
 import { useMobile } from "@/lib/hooks/useMobile"
 import { useGitHubTokenCheck } from "@/lib/hooks/useGitHubTokenCheck"
@@ -58,6 +58,11 @@ function loadAndClearPendingMessage(): PendingMessage | null {
     }
   }
   return null
+}
+
+function ChatPanelWithPalette(props: React.ComponentProps<typeof ChatPanel>) {
+  const { openCommand } = usePalette()
+  return <ChatPanel {...props} onOpenCommandPalette={openCommand} />
 }
 
 export default function HomePage() {
@@ -964,7 +969,7 @@ export default function HomePage() {
       onCreateRepo={currentChat?.repo === NEW_REPOSITORY ? handleCreateRepo : undefined}
       showGitCommands={!!currentChat && currentChat.repo !== NEW_REPOSITORY}
       onOpenInGitHub={githubBranchUrl ? handleOpenInGitHub : undefined}
-      onOpenSettings={() => handleOpenSettings()}
+      onOpenSettings={handleOpenSettings}
       onToggleSidebar={!isMobile ? () => setSidebarCollapsed((v) => !v) : undefined}
       onSignIn={!session ? () => signIn("github") : undefined}
       onSignOut={session ? () => {
@@ -1130,7 +1135,7 @@ export default function HomePage() {
 
         <div className="flex-1 flex min-h-0">
             <div className="flex-1 flex flex-col min-w-0">
-              <ChatPanel
+              <ChatPanelWithPalette
                 chat={displayCurrentChat}
                 settings={settings}
                 credentialFlags={credentialFlags}

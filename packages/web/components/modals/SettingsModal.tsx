@@ -25,6 +25,8 @@ import {
 
 /** Which provider's API key field to highlight */
 export type HighlightKey = ProviderId | null
+/** Settings modal section identifier */
+export type SectionKey = "general" | "api-keys" | "appearance"
 
 interface SettingsModalProps {
   open: boolean
@@ -37,6 +39,8 @@ interface SettingsModalProps {
   }) => Promise<{ ok: boolean; error?: string }>
   /** Which provider's first API key field to highlight with a red outline */
   highlightKey?: HighlightKey
+  /** Which section to show by default */
+  defaultSection?: SectionKey
   isMobile?: boolean
 }
 
@@ -46,8 +50,6 @@ const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: "dark", label: "Dark", icon: Moon },
 ]
 
-
-type SectionKey = "general" | "api-keys" | "appearance"
 
 const sections: { key: SectionKey; label: string; icon: typeof Bot }[] = [
   { key: "general", label: "General", icon: SettingsIcon },
@@ -168,7 +170,7 @@ function CopyCode({ text }: { text: string }) {
   )
 }
 
-export function SettingsModal({ open, onClose, settings, credentialFlags, onSave, highlightKey, isMobile = false }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, settings, credentialFlags, onSave, highlightKey, defaultSection = "general", isMobile = false }: SettingsModalProps) {
   const { setTheme } = useTheme()
 
   // Refs for API key inputs, keyed by credential id.
@@ -202,7 +204,7 @@ export function SettingsModal({ open, onClose, settings, credentialFlags, onSave
   const [defaultAgent, setDefaultAgent] = useState<Agent>(initialDefaultAgent)
   const [defaultModel, setDefaultModel] = useState(initialDefaultModel)
   const [selectedTheme, setSelectedTheme] = useState<Theme>(settings.theme)
-  const [activeSection, setActiveSection] = useState<SectionKey>("general")
+  const [activeSection, setActiveSection] = useState<SectionKey>(defaultSection)
 
   // Swipe to dismiss state (mobile only)
   const [isDragging, setIsDragging] = useState(false)
@@ -232,9 +234,10 @@ export function SettingsModal({ open, onClose, settings, credentialFlags, onSave
       setDefaultAgent(initialDefaultAgent)
       setDefaultModel(initialDefaultModel)
       setSelectedTheme(settings.theme)
+      setActiveSection(defaultSection)
       setDragY(0)
     }
-  }, [open, settings, credentialFlags, initialDefaultAgent, initialDefaultModel])
+  }, [open, settings, credentialFlags, initialDefaultAgent, initialDefaultModel, defaultSection])
 
   // Switch to API Keys tab when a key is highlighted
   useEffect(() => {

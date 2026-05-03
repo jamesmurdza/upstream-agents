@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react"
-import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, Plus, GitBranchPlus } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, Plus, GitBranchPlus, Command } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Chat, Settings, Agent, ModelOption, PendingFile, CredentialFlags } from "@/lib/types"
 import { nanoid } from "nanoid"
@@ -56,9 +56,11 @@ interface ChatPanelProps {
   draft?: string
   /** Callback when draft text changes */
   onDraftChange?: (draft: string) => void
+  /** Callback to open the command palette */
+  onOpenCommandPalette?: () => void
 }
 
-export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, onForcePush, onOpenEnvVars, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false, onBranchWithMessage, onBranchQueuedMessage, canBranch = false, isLoadingMessages = false, draft = "", onDraftChange }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onOpenSettings, onSlashCommand, onRequireSignIn, onDeleteChat, onOpenHelp, onOpenFile, onForcePush, onOpenEnvVars, isMobile = false, rebaseConflict, onAbortConflict, conflictActionLoading = false, onBranchWithMessage, onBranchQueuedMessage, canBranch = false, isLoadingMessages = false, draft = "", onDraftChange, onOpenCommandPalette }: ChatPanelProps) {
   // Use draft prop as input value (controlled component pattern for per-chat drafts)
   const input = draft
   const setInput = useCallback((value: string) => {
@@ -937,16 +939,28 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
         "flex-1 flex flex-col items-center justify-center bg-background relative",
         isMobile ? "p-4 pb-safe" : "p-4"
       )}>
-        {onOpenHelp && (
-          <button
-            onClick={onOpenHelp}
-            className="absolute top-3 right-3 p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            title="Help"
-            aria-label="Help"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
-        )}
+        <div className="absolute top-3 right-3 flex items-center gap-1">
+          {onOpenCommandPalette && (
+            <button
+              onClick={onOpenCommandPalette}
+              className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Commands"
+              aria-label="Open commands"
+            >
+              <Command className="h-4 w-4" />
+            </button>
+          )}
+          {onOpenHelp && (
+            <button
+              onClick={onOpenHelp}
+              className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Help"
+              aria-label="Help"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <div className="text-center mb-6">
           <h2 className={cn("font-semibold", isMobile ? "text-xl" : "text-2xl")}>
             What would you like to build?
@@ -1151,6 +1165,18 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 </div>
               )}
             </div>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {onOpenCommandPalette && (
+              <button
+                onClick={onOpenCommandPalette}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                title="Commands"
+                aria-label="Open commands"
+              >
+                <Command className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>
