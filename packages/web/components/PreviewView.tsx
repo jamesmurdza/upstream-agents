@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { RefreshCw, X, ExternalLink, ChevronsLeftRight } from "lucide-react"
+import { RefreshCw, X, ExternalLink, ChevronsUpDown } from "lucide-react"
 import { PATHS } from "@upstream/common"
 import { getPanelPlugin } from "@/lib/plugins/registry"
 import { disposeTerminalSession } from "@/lib/plugins/panels/terminal"
@@ -156,7 +156,7 @@ export function PreviewView({
                   title="Switch preview"
                   aria-label="Switch between open previews"
                 >
-                  <ChevronsLeftRight className="h-3.5 w-3.5" />
+                  <ChevronsUpDown className="h-3.5 w-3.5" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-[180px]">
