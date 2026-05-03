@@ -756,7 +756,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.docx,.txt,.csv,.tsv,.html,.htm,.rtf,.epub,image/jpeg,image/png,image/gif,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv,text/tab-separated-values,text/html,text/rtf,application/rtf,application/epub+zip"
+          accept={SUPPORTED_EXTENSIONS.map(ext => `.${ext}`).join(',') + ',image/*,text/*,application/pdf,application/json'}
           className="hidden"
           onChange={(e) => {
             if (e.target.files) {
