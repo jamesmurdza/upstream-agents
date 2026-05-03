@@ -1,15 +1,13 @@
 import { Daytona } from "@daytonaio/sdk"
-import { getServerSession } from "next-auth"
 import { createSandboxGit } from "@upstream/daytona-git"
-import { authOptions } from "@/lib/auth"
 import { PATHS } from "@/lib/constants"
 import { createGitOperationMessage } from "@/lib/db/git-messages"
+import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.accessToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const ghAuth = await requireGitHubAuth()
+  if (isGitHubAuthError(ghAuth)) return ghAuth
+  const githubToken = ghAuth.token
 
   const body = await req.json()
   const { sandboxId, repoPath, action, targetBranch, currentBranch, repoOwner, repoApiName, squash, targetSandboxId, chatId, sourceName, targetName } = body
@@ -22,8 +20,6 @@ export async function POST(req: Request) {
   if (!daytonaApiKey) {
     return Response.json({ error: "Daytona API key not configured" }, { status: 500 })
   }
-
-  const githubToken = session.accessToken
 
   try {
     const daytona = new Daytona({ apiKey: daytonaApiKey })

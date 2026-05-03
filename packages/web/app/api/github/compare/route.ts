@@ -1,12 +1,9 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { compareBranches, isGitHubApiError } from "@upstream/common"
+import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.accessToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const ghAuth = await requireGitHubAuth()
+  if (isGitHubAuthError(ghAuth)) return ghAuth
 
   const body = await req.json()
   const { owner, repo, base, head } = body
@@ -16,7 +13,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const compareData = await compareBranches(session.accessToken, owner, repo, base, head)
+    const compareData = await compareBranches(ghAuth.token, owner, repo, base, head)
     return Response.json({
       ahead_by: compareData.ahead_by,
       behind_by: compareData.behind_by,

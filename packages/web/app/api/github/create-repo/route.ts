@@ -1,16 +1,10 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { createRepo, createFileCommit, type GitHubRepo } from "@upstream/common"
+import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
 
 export async function POST(req: Request) {
-  // 1. Get session and verify auth
-  const session = await getServerSession(authOptions)
-  if (!session?.accessToken) {
-    return Response.json(
-      { error: "Unauthorized - please sign in with GitHub" },
-      { status: 401 }
-    )
-  }
+  // 1. Get GitHub token from DB
+  const ghAuth = await requireGitHubAuth()
+  if (isGitHubAuthError(ghAuth)) return ghAuth
 
   // 2. Parse request body
   const body = await req.json()
@@ -34,7 +28,7 @@ export async function POST(req: Request) {
 
   try {
     // 3. Create the repository
-    const repo: GitHubRepo = await createRepo(session.accessToken, {
+    const repo: GitHubRepo = await createRepo(ghAuth.token, {
       name,
       description: description || undefined,
       isPrivate: isPrivate ?? false,
@@ -43,7 +37,7 @@ export async function POST(req: Request) {
     // 4. Create initial commit so the default branch exists
     // Without this, the repo is empty and cloning with a branch fails
     await createFileCommit(
-      session.accessToken,
+      ghAuth.token,
       repo.owner.login,
       repo.name,
       {

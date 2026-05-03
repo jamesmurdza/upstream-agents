@@ -54,7 +54,7 @@ export function BranchPickerModal({
 
   // Reset state and fetch repo info + branches when modal opens or repo changes
   useEffect(() => {
-    if (open && session?.accessToken && repo && owner) {
+    if (open && session && repo && owner) {
       // Reset all state when opening with a new repo
       setSearch("")
       setError(null)
@@ -64,8 +64,8 @@ export function BranchPickerModal({
 
       // Fetch repo info (for default branch) and branches in parallel
       Promise.all([
-        fetchRepo(session.accessToken, owner, repo),
-        fetchBranches(session.accessToken, owner, repo)
+        fetchRepo(owner, repo),
+        fetchBranches(owner, repo)
       ])
         .then(([repoInfo, fetchedBranches]) => {
           setRepoDefaultBranch(repoInfo.default_branch)
@@ -78,7 +78,7 @@ export function BranchPickerModal({
         .catch((err) => setError(err instanceof Error ? err.message : "Failed to fetch branches"))
         .finally(() => setLoading(false))
     }
-  }, [open, session?.accessToken, repo, owner, selectedBranch])
+  }, [open, session, repo, owner, selectedBranch])
 
   // Focus search field when modal opens
   useEffect(() => {

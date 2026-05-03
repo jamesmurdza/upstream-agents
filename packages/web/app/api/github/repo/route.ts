@@ -1,5 +1,5 @@
-import { getRepoBranches } from "@upstream/common"
 import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
+import { getRepo } from "@upstream/common"
 
 export async function GET(req: Request) {
   const ghAuth = await requireGitHubAuth()
@@ -14,10 +14,10 @@ export async function GET(req: Request) {
   }
 
   try {
-    const branches = await getRepoBranches(ghAuth.token, owner, repo)
-    return Response.json({ branches })
+    const repoData = await getRepo(ghAuth.token, owner, repo)
+    return Response.json({ repo: repoData })
   } catch (error: unknown) {
-    console.error("[github/branches] Error:", error)
+    console.error("[github/repo] Error:", error)
     const message = error instanceof Error ? error.message : "Unknown error"
     return Response.json({ error: message }, { status: 500 })
   }

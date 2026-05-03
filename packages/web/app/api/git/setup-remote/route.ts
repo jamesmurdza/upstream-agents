@@ -1,7 +1,6 @@
 import { Daytona } from "@daytonaio/sdk"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { PATHS } from "@/lib/constants"
+import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
 
 /**
  * Sets up a GitHub remote for an existing local repo in a sandbox and pushes to it.
@@ -19,15 +18,15 @@ export async function POST(req: Request) {
     )
   }
 
-  // 2. Get GitHub token from session
-  const session = await getServerSession(authOptions)
-  if (!session?.accessToken) {
+  // 2. Get GitHub token from DB
+  const ghAuth = await requireGitHubAuth()
+  if (isGitHubAuthError(ghAuth)) {
     return Response.json(
       { error: "Unauthorized - please sign in with GitHub" },
       { status: 401 }
     )
   }
-  const githubToken = session.accessToken
+  const githubToken = ghAuth.token
 
   // 3. Get Daytona API key
   const daytonaApiKey = process.env.DAYTONA_API_KEY
