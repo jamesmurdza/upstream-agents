@@ -1821,22 +1821,9 @@ function PdfThumbnail({ file }: { file: File }) {
 
         // Render the page directly - it will extend beyond canvas height but be clipped
         await page.render({
-          canvasContext: offscreenContext,
-          viewport: viewport
+          canvasContext: context,
+          viewport: scaledViewport
         }).promise
-
-        if (cancelled) return
-
-        // Set the visible canvas to thumbnail size
-        canvas.width = thumbnailSize
-        canvas.height = thumbnailSize
-
-        // Draw cropped portion from top-left of the rendered page
-        context.drawImage(
-          offscreenCanvas,
-          0, 0, thumbnailSize, thumbnailSize, // Source: top-left corner
-          0, 0, thumbnailSize, thumbnailSize  // Destination: fill thumbnail
-        )
 
         if (!cancelled) {
           setLoading(false)
