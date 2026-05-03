@@ -153,10 +153,10 @@ function MarkdownContent({ text, isMobile = false, constrainWidth = true }: { te
             <p className={cn("mt-2 first:mt-0", constrainWidth && "max-w-[95%]")}>{children}</p>
           ),
           ul: ({ children }) => (
-            <ul className={cn("mt-2 first:mt-0 pl-4 list-disc space-y-0.5 [&_ul]:mt-1 [&_ol]:mt-1", constrainWidth && "max-w-[95%]")}>{children}</ul>
+            <ul className={cn("mt-2 first:mt-0 pl-5 list-disc space-y-0.5 [&_ul]:mt-1 [&_ol]:mt-1", constrainWidth && "max-w-[95%]")}>{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className={cn("mt-2 first:mt-0 pl-4 list-decimal space-y-0.5 [&_ul]:mt-1 [&_ol]:mt-1", constrainWidth && "max-w-[95%]")}>{children}</ol>
+            <ol className={cn("mt-2 first:mt-0 pl-5 list-decimal space-y-0.5 [&_ul]:mt-1 [&_ol]:mt-1", constrainWidth && "max-w-[95%]")}>{children}</ol>
           ),
           li: ({ children }) => (
             <li>{children}</li>
