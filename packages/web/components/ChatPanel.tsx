@@ -775,21 +775,6 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           </div>
         )}
 
-        {/* File preview overlay */}
-        {previewFile && (
-          <FilePreviewOverlay
-            file={previewFile}
-            fileContent={fileContents.get(previewFile.id)}
-            onClose={() => setPreviewFile(null)}
-            onRemove={() => {
-              removeFile(previewFile.id)
-              setPreviewFile(null)
-            }}
-            isMobile={isMobile}
-            getFileType={getFileType}
-          />
-        )}
-
         {/* Bottom row with selectors */}
         <div className={cn(
           "flex items-center gap-2",
@@ -1043,45 +1028,61 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
   // New chat - centered welcome with input
   if (isNewChat) {
     return (
-      <div className={cn(
-        "flex-1 flex flex-col items-center justify-center bg-background relative",
-        isMobile ? "p-4 pb-safe" : "p-4"
-      )}>
-        {onOpenHelp && (
-          <button
-            onClick={onOpenHelp}
-            className="absolute top-3 right-3 p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            title="Help"
-            aria-label="Help"
-          >
-            <HelpCircle className="h-4 w-4" />
-          </button>
-        )}
-        <div className="text-center mb-6">
-          <h2 className={cn("font-semibold", isMobile ? "text-xl" : "text-2xl")}>
-            What would you like to build?
-          </h2>
-        </div>
-        {chatInput}
+      <>
         <div className={cn(
-          "text-muted-foreground mt-4 text-center",
-          isMobile ? "text-sm px-4" : "text-sm"
+          "flex-1 flex flex-col items-center justify-center bg-background relative",
+          isMobile ? "p-4 pb-safe" : "p-4"
         )}>
-          <p>
-            Agents live in{" "}
-            <a
-              href="https://www.daytona.io/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-foreground/80 hover:text-foreground transition-colors"
+          {onOpenHelp && (
+            <button
+              onClick={onOpenHelp}
+              className="absolute top-3 right-3 p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Help"
+              aria-label="Help"
             >
-              Daytona sandboxes
-            </a>
-            {" "}tied to Git branches.
-          </p>
-          <p className="mt-1">Access additional tools with ⌘K.</p>
+              <HelpCircle className="h-4 w-4" />
+            </button>
+          )}
+          <div className="text-center mb-6">
+            <h2 className={cn("font-semibold", isMobile ? "text-xl" : "text-2xl")}>
+              What would you like to build?
+            </h2>
+          </div>
+          {chatInput}
+          <div className={cn(
+            "text-muted-foreground mt-4 text-center",
+            isMobile ? "text-sm px-4" : "text-sm"
+          )}>
+            <p>
+              Agents live in{" "}
+              <a
+                href="https://www.daytona.io/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground/80 hover:text-foreground transition-colors"
+              >
+                Daytona sandboxes
+              </a>
+              {" "}tied to Git branches.
+            </p>
+            <p className="mt-1">Access additional tools with ⌘K.</p>
+          </div>
         </div>
-      </div>
+        {/* File preview modal */}
+        {previewFile && (
+          <FilePreviewModal
+            file={previewFile}
+            fileContent={fileContents.get(previewFile.id)}
+            onClose={() => setPreviewFile(null)}
+            onRemove={() => {
+              removeFile(previewFile.id)
+              setPreviewFile(null)
+            }}
+            isMobile={isMobile}
+            getFileType={getFileType}
+          />
+        )}
+      </>
     )
   }
 
@@ -1386,6 +1387,20 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
         {chatInput}
       </div>
 
+      {/* File preview modal */}
+      {previewFile && (
+        <FilePreviewModal
+          file={previewFile}
+          fileContent={fileContents.get(previewFile.id)}
+          onClose={() => setPreviewFile(null)}
+          onRemove={() => {
+            removeFile(previewFile.id)
+            setPreviewFile(null)
+          }}
+          isMobile={isMobile}
+          getFileType={getFileType}
+        />
+      )}
     </div>
   )
 }
@@ -1439,8 +1454,8 @@ function ErrorBanner({ message, isMobile }: { message: string; isMobile?: boolea
   )
 }
 
-// File Preview Overlay Component
-interface FilePreviewOverlayProps {
+// File Preview Modal Component - Full screen centered modal
+interface FilePreviewModalProps {
   file: PendingFile
   fileContent?: string
   onClose: () => void
@@ -1449,9 +1464,10 @@ interface FilePreviewOverlayProps {
   getFileType: (file: File) => 'image' | 'pdf' | 'text' | 'code' | 'other'
 }
 
-function FilePreviewOverlay({ file, fileContent, onClose, onRemove, isMobile, getFileType }: FilePreviewOverlayProps) {
+function FilePreviewModal({ file, fileContent, onClose, onRemove, isMobile, getFileType }: FilePreviewModalProps) {
   const fileType = getFileType(file.file)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (fileType === 'image' || fileType === 'pdf') {
@@ -1472,6 +1488,14 @@ function FilePreviewOverlay({ file, fileContent, onClose, onRemove, isMobile, ge
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [])
+
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes}B`
     if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
@@ -1480,19 +1504,26 @@ function FilePreviewOverlay({ file, fileContent, onClose, onRemove, isMobile, ge
 
   return (
     <div
-      className="absolute inset-x-0 bottom-full mb-2 z-20"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        // Close when clicking outside the modal content
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
       }}
     >
       <div
+        ref={modalRef}
         className={cn(
-          "mx-auto bg-card border border-border rounded-lg shadow-lg overflow-hidden",
-          isMobile ? "max-w-full mx-3" : "max-w-[48rem]"
+          "relative bg-card border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col",
+          isMobile
+            ? "w-[calc(100%-2rem)] max-w-full max-h-[85vh] mx-4"
+            : "w-[min(90vw,56rem)] max-h-[85vh]"
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 shrink-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <span className="text-sm font-medium truncate">{file.name}</span>
             <span className="text-xs text-muted-foreground shrink-0">
@@ -1501,7 +1532,9 @@ function FilePreviewOverlay({ file, fileContent, onClose, onRemove, isMobile, ge
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <button
-              onClick={onRemove}
+              onClick={() => {
+                onRemove()
+              }}
               className="p-1.5 rounded-md text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
               title="Remove file"
             >
@@ -1510,7 +1543,7 @@ function FilePreviewOverlay({ file, fileContent, onClose, onRemove, isMobile, ge
             <button
               onClick={onClose}
               className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
-              title="Close preview"
+              title="Close preview (Esc)"
             >
               <X className="h-4 w-4" />
             </button>
@@ -1518,24 +1551,19 @@ function FilePreviewOverlay({ file, fileContent, onClose, onRemove, isMobile, ge
         </div>
 
         {/* Preview content */}
-        <div
-          className={cn(
-            "overflow-auto",
-            isMobile ? "max-h-[40vh]" : "max-h-[50vh]"
-          )}
-        >
+        <div className="flex-1 overflow-auto">
           {fileType === 'image' && previewUrl && (
-            <div className="flex items-center justify-center p-4 bg-muted/20">
+            <div className="flex items-center justify-center p-6 bg-muted/10 min-h-[200px]">
               <img
                 src={previewUrl}
                 alt={file.name}
-                className="max-w-full max-h-[40vh] object-contain rounded"
+                className="max-w-full max-h-[70vh] object-contain rounded"
               />
             </div>
           )}
 
           {fileType === 'pdf' && previewUrl && (
-            <div className="w-full h-[50vh]">
+            <div className="w-full h-[70vh]">
               <iframe
                 src={previewUrl}
                 title={file.name}
@@ -1545,18 +1573,18 @@ function FilePreviewOverlay({ file, fileContent, onClose, onRemove, isMobile, ge
           )}
 
           {(fileType === 'text' || fileType === 'code') && (
-            <div className="p-3">
+            <div className="p-4">
               {fileContent ? (
                 <pre
                   className={cn(
-                    "text-sm whitespace-pre-wrap break-words font-mono bg-muted/30 rounded-md p-3 overflow-x-auto",
+                    "text-sm whitespace-pre-wrap break-words font-mono bg-muted/30 rounded-md p-4 overflow-x-auto max-h-[65vh]",
                     fileType === 'code' && "text-[13px]"
                   )}
                 >
                   {fileContent}
                 </pre>
               ) : (
-                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
                   Loading content...
                 </div>
@@ -1565,8 +1593,8 @@ function FilePreviewOverlay({ file, fileContent, onClose, onRemove, isMobile, ge
           )}
 
           {fileType === 'other' && (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <FileIcon className="h-12 w-12 mb-3" />
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <FileIcon className="h-16 w-16 mb-4" />
               <p className="text-sm">Preview not available for this file type</p>
               <p className="text-xs mt-1">{file.file.type || 'Unknown type'}</p>
             </div>
