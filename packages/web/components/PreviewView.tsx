@@ -110,6 +110,10 @@ export function PreviewView({
       ? `https://github.com/${repo}/blob/${branch}/${repoRelativePath}`
       : null
 
+  // External URL for opening in new tab (files -> GitHub, servers -> preview URL)
+  const externalUrl = fileGithubUrl ?? (item.type === "server" ? item.url : null)
+  const externalLinkTitle = item.type === "server" ? "Open in new tab" : "Open on GitHub"
+
   const handleRefresh = () => {
     if (item.type === "terminal") {
       disposeTerminalSession(sandboxId)
@@ -230,15 +234,15 @@ export function PreviewView({
             </Select>
           )}
 
-          {/* External link button - for files with GitHub URL */}
-          {fileGithubUrl && (
+          {/* External link button - for files (GitHub) and servers (preview URL) */}
+          {externalUrl && (
             <a
-              href={fileGithubUrl}
+              href={externalUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
-              title="Open on GitHub"
-              aria-label="Open file on GitHub"
+              title={externalLinkTitle}
+              aria-label={externalLinkTitle}
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
