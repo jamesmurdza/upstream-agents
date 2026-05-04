@@ -500,7 +500,7 @@ async function finalizeScheduledRun(
         if (account?.access_token) {
           // Push branch
           const git = createSandboxGit(sandbox)
-          await git.push(repoPath, "x-access-token", account.access_token)
+          await git.push(repoPath, account.access_token)
 
           // Create PR via GitHub API
           const [owner, repoName] = job.repo.split("/")
@@ -544,7 +544,7 @@ async function finalizeScheduledRun(
 
         if (account?.access_token) {
           const git = createSandboxGit(sandbox)
-          await git.push(repoPath, "x-access-token", account.access_token)
+          await git.push(repoPath, account.access_token)
         }
       }
     } catch (err) {
