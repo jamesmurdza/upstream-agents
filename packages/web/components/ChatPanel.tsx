@@ -942,121 +942,135 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           </div>
         )}
 
-        {/* Bottom row with selectors */}
+        {/* Bottom row with selectors - uses container queries to collapse text labels when narrow */}
         <div className={cn(
-          "flex items-center gap-2",
-          isMobile ? "px-3 py-2 flex-wrap" : "px-4 py-2 gap-4"
+          "@container",
+          isMobile ? "flex flex-col gap-2 px-3 py-2" : "flex items-center gap-3 px-4 py-2"
         )}>
-          {/* Attachment button */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              "shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer",
-              isMobile ? "h-7 w-7" : "h-6 w-6"
-            )}
-            title="Attach files"
-            aria-label="Attach files"
-          >
-            <Paperclip className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-          </button>
-
-          {/* Plan mode toggle */}
-          <button
-            type="button"
-            onClick={() => setPlanModeEnabled((v) => !v)}
-            className={cn(
-              "shrink-0 flex items-center gap-1 rounded-md transition-colors cursor-pointer",
-              planModeEnabled
-                ? "bg-primary/15 text-primary hover:bg-primary/20"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent",
-              isMobile ? "h-7 px-2 text-sm" : "h-6 px-1.5 text-sm"
-            )}
-            title={planModeEnabled ? "Plan mode on — agent will plan before acting" : "Plan mode off"}
-            aria-label="Toggle plan mode"
-            aria-pressed={planModeEnabled}
-          >
-            <Brain className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-            <span className={cn(isMobile ? "text-xs" : "text-xs")}>Plan</span>
-          </button>
-
-          {/* Repo display/selector */}
-          {showRepoButton ? (
-            // Can change repo - show as button
-            <div className="flex items-center gap-1">
-              {onChangeRepo && (
-                <button
-                  onClick={onChangeRepo}
-                  className={cn(
-                    "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
-                    isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
-                  )}
-                >
-                  <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-                  {isNewRepo ? "Repository" : chat.repo?.split("/").pop()}
-                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
-                </button>
-              )}
-              {!isNewRepo && onChangeBranch && isNewChat && (
-                <button
-                  onClick={onChangeBranch}
-                  className={cn(
-                    "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
-                    isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
-                  )}
-                >
-                  <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-                  {chat.branch || chat.baseBranch}
-                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-                </button>
-              )}
-              {!isNewRepo && onUpdateChat && canSelectRepo && (
-                <button
-                  onClick={() => onUpdateChat({ repo: NEW_REPOSITORY, baseBranch: "main" })}
-                  className={cn(
-                    "rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer",
-                    isMobile ? "p-1.5" : "p-0.5"
-                  )}
-                  title="Remove repository"
-                >
-                  <X className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
-                </button>
-              )}
-            </div>
-          ) : !isNewRepo && (
-            // Repo is locked — link out to the branch on GitHub
-            <a
-              href={`https://github.com/${chat.repo}/tree/${chat.branch}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
-                isMobile ? "text-sm" : "text-sm"
-              )}
-            >
-              <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-              {chat.repo?.split("/").pop()}
-            </a>
-          )}
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Schedule button */}
-          {onCreateScheduledJob && (
+          {/* Left side items - first row on mobile */}
+          <div className="flex items-center gap-2">
+            {/* Attachment button */}
             <button
-              onClick={onCreateScheduledJob}
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
               className={cn(
-                "flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent/50",
-                isMobile ? "p-2 touch-target" : "p-1"
+                "shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer",
+                isMobile ? "h-7 w-7" : "h-6 w-6"
               )}
-              title="Create scheduled job"
+              title="Attach files"
+              aria-label="Attach files"
             >
-              <Clock className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
+              <Paperclip className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
             </button>
-          )}
 
-          {/* Agent selector */}
+            {/* Schedule button */}
+            {onCreateScheduledJob && (
+              <button
+                onClick={onCreateScheduledJob}
+                className={cn(
+                  "flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent/50",
+                  isMobile ? "p-2 touch-target" : "p-1"
+                )}
+                title="Create scheduled job"
+              >
+                <Clock className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+              </button>
+            )}
+
+            {/* Repo display/selector */}
+            {showRepoButton ? (
+              // Can change repo - show as button
+              <div className="flex items-center gap-1">
+                {onChangeRepo && (
+                  <button
+                    onClick={onChangeRepo}
+                    className={cn(
+                      "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
+                      isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
+                    )}
+                    title={isNewRepo ? "Select repository" : chat.repo}
+                  >
+                    <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
+                      {isNewRepo ? "Repository" : chat.repo?.split("/").pop()}
+                    </span>
+                    <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
+                  </button>
+                )}
+                {!isNewRepo && onChangeBranch && isNewChat && (
+                  <button
+                    onClick={onChangeBranch}
+                    className={cn(
+                      "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
+                      isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
+                    )}
+                    title={chat.branch || chat.baseBranch}
+                  >
+                    <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
+                      {chat.branch || chat.baseBranch}
+                    </span>
+                    <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
+                  </button>
+                )}
+                {!isNewRepo && onUpdateChat && canSelectRepo && (
+                  <button
+                    onClick={() => onUpdateChat({ repo: NEW_REPOSITORY, baseBranch: "main" })}
+                    className={cn(
+                      "rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer",
+                      isMobile ? "p-1.5" : "p-0.5"
+                    )}
+                    title="Remove repository"
+                  >
+                    <X className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+                  </button>
+                )}
+              </div>
+            ) : !isNewRepo && (
+              // Repo is locked — link out to the branch on GitHub
+              <a
+                href={`https://github.com/${chat.repo}/tree/${chat.branch}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
+                  isMobile ? "text-sm" : "text-sm"
+                )}
+                title={chat.repo}
+              >
+                <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
+                  {chat.repo?.split("/").pop()}
+                </span>
+              </a>
+            )}
+
+            {/* Spacer - only on desktop */}
+            {!isMobile && <div className="flex-1" />}
+          </div>
+
+          {/* Right side items - second row on mobile */}
+          <div className="flex items-center gap-2">
+            {/* Plan mode toggle */}
+            <button
+              type="button"
+              onClick={() => setPlanModeEnabled((v) => !v)}
+              className={cn(
+                "shrink-0 flex items-center gap-1 rounded-md transition-colors cursor-pointer",
+                planModeEnabled
+                  ? "bg-primary/15 text-primary hover:bg-primary/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                isMobile ? "h-7 px-2 text-sm" : "h-6 px-1.5 text-sm"
+              )}
+              title={planModeEnabled ? "Plan mode on — agent will plan before acting" : "Plan mode off"}
+              aria-label="Toggle plan mode"
+              aria-pressed={planModeEnabled}
+            >
+              <Brain className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+              <span className={cn("text-sm", !isMobile && "hidden @[32rem]:inline")}>Plan</span>
+            </button>
+
+            {/* Agent selector */}
           {isMobile ? (
             // Mobile: Use bottom sheet
             <button
@@ -1077,10 +1091,11 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                   setShowModelDropdown(false)
                 }}
                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer"
+                title={agentLabels[currentAgent]}
               >
                 <AgentIcon agent={currentAgent} className="h-3.5 w-3.5" />
-                {agentLabels[currentAgent]}
-                <ChevronDown className="h-3.5 w-3.5" />
+                <span className="hidden @[32rem]:inline">{agentLabels[currentAgent]}</span>
+                <ChevronDown className="h-3.5 w-3.5 hidden @[32rem]:block" />
               </button>
               {showAgentDropdown && (
                 <div className="absolute bottom-full right-0 mb-1 bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-40">
@@ -1129,10 +1144,15 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                   "flex items-center gap-1 text-sm transition-colors cursor-pointer",
                   !hasRequiredCredentials ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-foreground"
                 )}
+                title={getModelLabel(currentAgent, currentModel)}
               >
-                {!hasRequiredCredentials && <Key className="h-3.5 w-3.5" />}
-                {getModelLabel(currentAgent, currentModel)}
-                <ChevronDown className="h-3.5 w-3.5" />
+                {!hasRequiredCredentials ? (
+                  <Key className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 @[32rem]:hidden" />
+                )}
+                <span className="hidden @[32rem]:inline">{getModelLabel(currentAgent, currentModel)}</span>
+                <ChevronDown className="h-3.5 w-3.5 hidden @[32rem]:block" />
               </button>
               {showModelDropdown && (
                 <div className="absolute bottom-full right-0 mb-1 max-h-64 overflow-y-auto bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-52">
@@ -1157,6 +1177,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               )}
             </div>
           )}
+          </div>
 
         </div>
       </div>
