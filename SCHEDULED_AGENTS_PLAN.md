@@ -307,12 +307,21 @@ async function handler() {
       sandboxId: { not: null },
       backgroundSessionId: { not: null },
       isScheduledRun: false  // Only interactive chats
+    },
+    include: {
+      messages: {
+        where: { role: "assistant" },
+        orderBy: { timestamp: "desc" },
+        take: 1
+      }
     }
   })
 
   for (const chat of runningChats) {
     const minutesSinceActive = differenceInMinutes(now, chat.lastActiveAt)
-    const totalMinutes = differenceInMinutes(now, chat.updatedAt) // approximation
+    // Get run start time from last assistant message (when agent started)
+    const runStartedAt = chat.messages[0]?.createdAt ?? chat.lastActiveAt
+    const totalMinutes = differenceInMinutes(now, runStartedAt)
 
     // Hard timeout: 25 minutes
     if (totalMinutes > INTERACTIVE_HARD_TIMEOUT) {
@@ -326,12 +335,25 @@ async function handler() {
       continue
     }
 
-    // Still valid — refresh sandbox activity
+    // Check completion (browser may have closed)
     try {
       const sandbox = await daytona.get(chat.sandboxId!)
-      await sandbox.refreshActivity()
+      await sandbox.refreshActivity()  // Keep alive
+
+      const snapshot = await snapshotBackgroundAgent(
+        sandbox,
+        chat.backgroundSessionId!,
+        { repoPath: `${PATHS.SANDBOX_HOME}/project` }
+      )
+
+      if (snapshot.status === "completed") {
+        await finalizeInteractiveChat(chat, sandbox, snapshot)
+      } else if (snapshot.status === "error") {
+        await stopInteractiveAgent(chat, daytona, snapshot.error ?? "Unknown error")
+      }
+      // else still running, check again next cycle
     } catch (err) {
-      console.error(`[agent-monitor] Failed to refresh sandbox:`, err)
+      console.error(`[agent-monitor] Failed to check chat ${chat.id}:`, err)
     }
   }
 
@@ -573,6 +595,113 @@ async function failScheduledRun(run: ScheduledJobRun, error: string) {
   if (failures >= 3) {
     await sendJobDisabledEmail(run.job, error)
   }
+}
+```
+
+---
+
+## Interactive Chat Finalization
+
+When the cron detects a completed interactive chat (browser closed), it finalizes:
+
+```typescript
+async function finalizeInteractiveChat(
+  chat: Chat,
+  sandbox: Sandbox,
+  snapshot: AgentSnapshot
+) {
+  // 1. Update message content (same as SSE stream does)
+  const assistantMessage = await prisma.message.findFirst({
+    where: { chatId: chat.id, role: "assistant" },
+    orderBy: { timestamp: "desc" }
+  })
+
+  if (assistantMessage) {
+    await prisma.message.update({
+      where: { id: assistantMessage.id },
+      data: {
+        content: snapshot.content,
+        toolCalls: snapshot.toolCalls.length > 0 ? snapshot.toolCalls : undefined,
+        contentBlocks: snapshot.contentBlocks.length > 0 ? snapshot.contentBlocks : undefined,
+      }
+    })
+  }
+
+  // 2. Finalize the turn
+  await finalizeTurn(sandbox, chat.backgroundSessionId!, {
+    repoPath: `${PATHS.SANDBOX_HOME}/project`
+  })
+
+  // 3. Auto-push if chat has a branch (reuse existing logic from SSE stream)
+  if (chat.branch && chat.repo && chat.repo !== "__new__") {
+    const account = await prisma.account.findFirst({
+      where: { userId: chat.userId, provider: "github" },
+      select: { access_token: true }
+    })
+
+    if (account?.access_token) {
+      const git = createSandboxGit(sandbox)
+      try {
+        await git.push(`${PATHS.SANDBOX_HOME}/project`, "x-access-token", account.access_token)
+      } catch (err) {
+        // Create error message with force-push action (same as SSE stream)
+        await createGitOperationMessage(
+          chat.id,
+          `Push failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+          true,
+          { action: "force-push" }
+        )
+      }
+    }
+  }
+
+  // 4. Update chat status
+  await prisma.chat.update({
+    where: { id: chat.id },
+    data: {
+      status: "ready",
+      backgroundSessionId: null,
+      sessionId: snapshot.sessionId || undefined,
+      lastActiveAt: new Date()
+    }
+  })
+}
+
+async function stopInteractiveAgent(
+  chat: Chat,
+  daytona: Daytona,
+  reason: string
+) {
+  try {
+    if (chat.sandboxId && chat.backgroundSessionId) {
+      const sandbox = await daytona.get(chat.sandboxId)
+      await sandbox.process.executeCommand(
+        `pkill -f "codeagent-${chat.backgroundSessionId}" 2>/dev/null || true`
+      )
+    }
+  } catch (err) {
+    console.error(`[agent-monitor] Failed to kill agent:`, err)
+  }
+
+  // Update chat status
+  await prisma.chat.update({
+    where: { id: chat.id },
+    data: {
+      status: "error",
+      backgroundSessionId: null
+    }
+  })
+
+  // Create error message
+  await prisma.message.create({
+    data: {
+      chatId: chat.id,
+      role: "assistant",
+      content: `Agent stopped: ${reason}`,
+      timestamp: BigInt(Date.now()),
+      isError: true
+    }
+  })
 }
 ```
 
