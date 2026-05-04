@@ -39,6 +39,8 @@ export interface PreviewViewProps {
   onSelectItem?: (item: PreviewItem) => void
   /** Called when user closes a specific item from the dropdown */
   onCloseItem?: (item: PreviewItem) => void
+  /** All messages in the current chat, for plugins that need live content */
+  messages?: import("@/lib/types").Message[]
 }
 
 /** Get a unique key for a preview item */
@@ -50,6 +52,8 @@ function getItemKey(item: PreviewItem): string {
       return `terminal:${item.id}`
     case "server":
       return `server:${item.port}`
+    case "plan":
+      return `plan:${item.messageId}`
   }
 }
 
@@ -79,6 +83,7 @@ export function PreviewView({
   allItems,
   onSelectItem,
   onCloseItem,
+  messages,
 }: PreviewViewProps) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [scale, setScale] = useState(1)
@@ -290,6 +295,7 @@ export function PreviewView({
             item={item}
             sandboxId={sandboxId}
             scale={scale}
+            messages={messages}
           />
         </div>
       </div>

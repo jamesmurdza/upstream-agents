@@ -716,6 +716,19 @@ export function useChatWithSync() {
         } : c
       ))
 
+      // Auto-open plan preview if planMode is true
+      if (planMode) {
+        const chatPreviewItems = localChatState.previewStates[chatId]?.items ?? []
+        // Avoid duplicates if user rapidly sends plan mode messages
+        if (!chatPreviewItems.find((i) => i.type === "plan" && i.messageId === assistantMessage.id)) {
+          updateChatById(chatId, {
+            previewItems: [...chatPreviewItems, { type: "plan", messageId: assistantMessage.id, content: "" } as import("@/lib/plugins/types").PreviewItem],
+            activePreviewIndex: chatPreviewItems.length,
+            previewPaneHidden: false,
+          })
+        }
+      }
+
       try {
         const payload = {
           message: content,
@@ -791,7 +804,7 @@ export function useChatWithSync() {
     } finally {
       sendInFlight.current.delete(chatId)
     }
-  }, [currentChatId, chats, session, settings, credentialFlags, updateChatsCache, startStreaming, suggestNameMutation, isDraftChatId, materializeDraft])
+  }, [currentChatId, chats, session, settings, credentialFlags, updateChatsCache, startStreaming, suggestNameMutation, isDraftChatId, materializeDraft, localChatState.previewStates, updateChatById])
 
   const dispatchNextQueuedMessage = useCallback((chatId: string, queueOverride?: QueuedMessage[]) => {
     const chat = chats.find((c) => c.id === chatId)

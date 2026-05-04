@@ -169,6 +169,7 @@ export default function HomePage() {
       case "file": return `file:${item.filePath}`
       case "terminal": return `terminal:${item.id}`
       case "server": return `server:${item.port}`
+      case "plan": return `plan:${item.messageId}`
     }
   }, [])
 
@@ -1378,6 +1379,7 @@ export default function HomePage() {
                   allItems={previewItems}
                   onSelectItem={selectPreviewItem}
                   onCloseItem={closePreviewItem}
+                  messages={currentChat?.messages}
                 />
               </>
             )}
