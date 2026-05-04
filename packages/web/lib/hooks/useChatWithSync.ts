@@ -662,7 +662,7 @@ export function useChatWithSync() {
   }, [updateChatsCache])
 
   // Send message
-  const sendMessage = useCallback(async (content: string, agent?: string, model?: string, files?: File[], targetChatId?: string) => {
+  const sendMessage = useCallback(async (content: string, agent?: string, model?: string, files?: File[], targetChatId?: string, planMode?: boolean) => {
     let chatId = targetChatId || currentChatId
     if (!chatId) return
 
@@ -724,6 +724,7 @@ export function useChatWithSync() {
           userMessageId: userMessage.id,
           assistantMessageId: assistantMessage.id,
           newBranch: chat.sandboxId ? undefined : `agent/${generateBranchName()}`,
+          planMode: planMode || undefined,
         }
 
         let response: Response

@@ -46,6 +46,8 @@ export interface RunOptions {
   env?: Record<string, string>
   /** Working directory for the agent process */
   cwd?: string
+  /** When true, agent should use extended thinking / plan mode */
+  planMode?: boolean
 }
 
 /**

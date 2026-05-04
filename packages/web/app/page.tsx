@@ -702,7 +702,7 @@ export default function HomePage() {
   }
 
   // Handler for sending message
-  const handleSendMessage = (message: string, agent: string, model: string, files?: File[]) => {
+  const handleSendMessage = (message: string, agent: string, model: string, files?: File[], planMode?: boolean) => {
     // Always require sign-in to send messages
     if (!session) {
       // Store the pending message in sessionStorage (persists across OAuth redirect)
@@ -727,7 +727,7 @@ export default function HomePage() {
 
     // Set sending state immediately for instant UI feedback
     setIsSendingMessage(true)
-    sendMessage(message, agent, model, files)
+    sendMessage(message, agent, model, files, undefined, planMode)
   }
 
   // After sign-in, replay any pending message saved before the OAuth

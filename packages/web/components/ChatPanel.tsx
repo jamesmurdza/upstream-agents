@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react"
-import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, GitBranchPlus, FileText, FileCode, FileImage, File as FileIcon, Clock, Command } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, GitBranchPlus, FileText, FileCode, FileImage, File as FileIcon, Clock, Command, Brain } from "lucide-react"
 import {
   getFileType,
   formatFileSize,
@@ -30,7 +30,7 @@ interface ChatPanelProps {
   chat: Chat | null
   settings: Settings
   credentialFlags: CredentialFlags
-  onSendMessage: (message: string, agent: string, model: string, files?: File[]) => void
+  onSendMessage: (message: string, agent: string, model: string, files?: File[], planMode?: boolean) => void
   onEnqueueMessage?: (message: string, agent?: string, model?: string) => void
   onRemoveQueuedMessage?: (id: string) => void
   onResumeQueue?: () => void
@@ -98,6 +98,8 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
   // Conflict menu state
   const [conflictMenuOpen, setConflictMenuOpen] = useState(false)
   const conflictMenuRef = useRef<HTMLDivElement>(null)
+  // Plan mode state
+  const [planModeEnabled, setPlanModeEnabled] = useState(false)
   // File upload state
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const [isDraggingOver, setIsDraggingOver] = useState(false)
@@ -344,7 +346,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
 
     // Pass files to sendMessage - upload will happen after sandbox is ready
     const files = pendingFiles.length > 0 ? pendingFiles.map(pf => pf.file) : undefined
-    onSendMessage(input.trim(), currentAgent, currentModel, files)
+    onSendMessage(input.trim(), currentAgent, currentModel, files, planModeEnabled || undefined)
     setInput("")
     setPendingFiles([])
     setFileError(null)
@@ -955,6 +957,25 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
             aria-label="Attach files"
           >
             <Paperclip className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+          </button>
+
+          {/* Plan mode toggle */}
+          <button
+            type="button"
+            onClick={() => setPlanModeEnabled((v) => !v)}
+            className={cn(
+              "shrink-0 flex items-center gap-1 rounded-md transition-colors cursor-pointer",
+              planModeEnabled
+                ? "bg-primary/15 text-primary hover:bg-primary/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent",
+              isMobile ? "h-7 px-2 text-sm" : "h-6 px-1.5 text-sm"
+            )}
+            title={planModeEnabled ? "Plan mode on — agent will plan before acting" : "Plan mode off"}
+            aria-label="Toggle plan mode"
+            aria-pressed={planModeEnabled}
+          >
+            <Brain className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+            <span className={cn(isMobile ? "text-xs" : "text-xs")}>Plan</span>
           </button>
 
           {/* Repo display/selector */}
