@@ -942,10 +942,10 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           </div>
         )}
 
-        {/* Bottom row with selectors */}
+        {/* Bottom row with selectors - uses container queries to collapse text labels when narrow */}
         <div className={cn(
-          "flex items-center gap-2",
-          isMobile ? "px-3 py-2 flex-wrap" : "px-4 py-2 gap-4"
+          "flex items-center gap-2 @container",
+          isMobile ? "px-3 py-2 flex-wrap" : "px-4 py-2 gap-3"
         )}>
           {/* Attachment button */}
           <button
@@ -977,7 +977,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
             aria-pressed={planModeEnabled}
           >
             <Brain className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-            <span className="text-sm">Plan</span>
+            <span className={cn("text-sm", !isMobile && "hidden @[32rem]:inline")}>Plan</span>
           </button>
 
           {/* Repo display/selector */}
@@ -991,10 +991,13 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                     "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
                     isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
                   )}
+                  title={isNewRepo ? "Select repository" : chat.repo}
                 >
                   <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-                  {isNewRepo ? "Repository" : chat.repo?.split("/").pop()}
-                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                  <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
+                    {isNewRepo ? "Repository" : chat.repo?.split("/").pop()}
+                  </span>
+                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
                 </button>
               )}
               {!isNewRepo && onChangeBranch && isNewChat && (
@@ -1004,10 +1007,13 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                     "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
                     isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
                   )}
+                  title={chat.branch || chat.baseBranch}
                 >
                   <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-                  {chat.branch || chat.baseBranch}
-                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                  <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
+                    {chat.branch || chat.baseBranch}
+                  </span>
+                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
                 </button>
               )}
               {!isNewRepo && onUpdateChat && canSelectRepo && (
@@ -1033,9 +1039,12 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
                 isMobile ? "text-sm" : "text-sm"
               )}
+              title={chat.repo}
             >
               <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-              {chat.repo?.split("/").pop()}
+              <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
+                {chat.repo?.split("/").pop()}
+              </span>
             </a>
           )}
 
@@ -1077,10 +1086,11 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                   setShowModelDropdown(false)
                 }}
                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer"
+                title={agentLabels[currentAgent]}
               >
                 <AgentIcon agent={currentAgent} className="h-3.5 w-3.5" />
-                {agentLabels[currentAgent]}
-                <ChevronDown className="h-3.5 w-3.5" />
+                <span className="hidden @[32rem]:inline">{agentLabels[currentAgent]}</span>
+                <ChevronDown className="h-3.5 w-3.5 hidden @[32rem]:block" />
               </button>
               {showAgentDropdown && (
                 <div className="absolute bottom-full right-0 mb-1 bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-40">
@@ -1129,10 +1139,15 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                   "flex items-center gap-1 text-sm transition-colors cursor-pointer",
                   !hasRequiredCredentials ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-foreground"
                 )}
+                title={getModelLabel(currentAgent, currentModel)}
               >
-                {!hasRequiredCredentials && <Key className="h-3.5 w-3.5" />}
-                {getModelLabel(currentAgent, currentModel)}
-                <ChevronDown className="h-3.5 w-3.5" />
+                {!hasRequiredCredentials ? (
+                  <Key className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 @[32rem]:hidden" />
+                )}
+                <span className="hidden @[32rem]:inline">{getModelLabel(currentAgent, currentModel)}</span>
+                <ChevronDown className="h-3.5 w-3.5 hidden @[32rem]:block" />
               </button>
               {showModelDropdown && (
                 <div className="absolute bottom-full right-0 mb-1 max-h-64 overflow-y-auto bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-52">
