@@ -18,6 +18,7 @@ import { MergeDialog, RebaseDialog, PRDialog, SquashDialog, ForcePushDialog, use
 import { EnvironmentVariablesModal } from "@/components/modals/EnvironmentVariablesModal"
 import { MobileCommandsMenu } from "@/components/MobileCommandsMenu"
 import { MobileRenameModal } from "@/components/ui/MobileBottomSheet"
+import { ScheduledJobForm } from "@/components/scheduled-jobs/ScheduledJobForm"
 import { clearAllStorage } from "@/lib/storage"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
 import { PaletteProvider } from "@/components/search-palette"
@@ -118,6 +119,7 @@ export default function HomePage() {
   const [envVarsModalOpen, setEnvVarsModalOpen] = useState(false)
   const [envVarsChatEnvVars, setEnvVarsChatEnvVars] = useState<Record<string, string>>({})
   const [envVarsRepoEnvVars, setEnvVarsRepoEnvVars] = useState<Record<string, string>>({})
+  const [scheduledJobFormOpen, setScheduledJobFormOpen] = useState(false)
   const [collapsedChatIds, setCollapsedChatIds] = useState<Set<string>>(new Set())
   const [previewWidth, setPreviewWidth] = useState(() => {
     if (typeof window === "undefined") return 520
@@ -1268,6 +1270,7 @@ export default function HomePage() {
                 isLoadingMessages={isLoadingMessages}
                 draft={currentDraft}
                 onDraftChange={handleDraftChange}
+                onCreateScheduledJob={() => setScheduledJobFormOpen(true)}
               />
             </div>
             {!isMobile && previewOpen && (
@@ -1424,6 +1427,14 @@ export default function HomePage() {
         onClose={() => setHelpOpen(false)}
         isMobile={isMobile}
       />
+
+      {/* Scheduled Job Form */}
+      {scheduledJobFormOpen && (
+        <ScheduledJobForm
+          onClose={() => setScheduledJobFormOpen(false)}
+          onSuccess={() => setScheduledJobFormOpen(false)}
+        />
+      )}
 
       {/* Mobile Commands Menu */}
       {isMobile && (
