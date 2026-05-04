@@ -944,128 +944,133 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
 
         {/* Bottom row with selectors - uses container queries to collapse text labels when narrow */}
         <div className={cn(
-          "flex items-center gap-2 @container",
-          isMobile ? "px-3 py-2 flex-wrap" : "px-4 py-2 gap-3"
+          "@container",
+          isMobile ? "flex flex-col gap-2 px-3 py-2" : "flex items-center gap-3 px-4 py-2"
         )}>
-          {/* Attachment button */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              "shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer",
-              isMobile ? "h-7 w-7" : "h-6 w-6"
-            )}
-            title="Attach files"
-            aria-label="Attach files"
-          >
-            <Paperclip className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-          </button>
-
-          {/* Schedule button */}
-          {onCreateScheduledJob && (
+          {/* Left side items - first row on mobile */}
+          <div className="flex items-center gap-2">
+            {/* Attachment button */}
             <button
-              onClick={onCreateScheduledJob}
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
               className={cn(
-                "flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent/50",
-                isMobile ? "p-2 touch-target" : "p-1"
+                "shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer",
+                isMobile ? "h-7 w-7" : "h-6 w-6"
               )}
-              title="Create scheduled job"
+              title="Attach files"
+              aria-label="Attach files"
             >
-              <Clock className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+              <Paperclip className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
             </button>
-          )}
 
-          {/* Repo display/selector */}
-          {showRepoButton ? (
-            // Can change repo - show as button
-            <div className="flex items-center gap-1">
-              {onChangeRepo && (
-                <button
-                  onClick={onChangeRepo}
-                  className={cn(
-                    "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
-                    isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
-                  )}
-                  title={isNewRepo ? "Select repository" : chat.repo}
-                >
-                  <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-                  <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
-                    {isNewRepo ? "Repository" : chat.repo?.split("/").pop()}
-                  </span>
-                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
-                </button>
-              )}
-              {!isNewRepo && onChangeBranch && isNewChat && (
-                <button
-                  onClick={onChangeBranch}
-                  className={cn(
-                    "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
-                    isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
-                  )}
-                  title={chat.branch || chat.baseBranch}
-                >
-                  <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-                  <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
-                    {chat.branch || chat.baseBranch}
-                  </span>
-                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
-                </button>
-              )}
-              {!isNewRepo && onUpdateChat && canSelectRepo && (
-                <button
-                  onClick={() => onUpdateChat({ repo: NEW_REPOSITORY, baseBranch: "main" })}
-                  className={cn(
-                    "rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer",
-                    isMobile ? "p-1.5" : "p-0.5"
-                  )}
-                  title="Remove repository"
-                >
-                  <X className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
-                </button>
-              )}
-            </div>
-          ) : !isNewRepo && (
-            // Repo is locked — link out to the branch on GitHub
-            <a
-              href={`https://github.com/${chat.repo}/tree/${chat.branch}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
-                isMobile ? "text-sm" : "text-sm"
-              )}
-              title={chat.repo}
-            >
-              <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-              <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
-                {chat.repo?.split("/").pop()}
-              </span>
-            </a>
-          )}
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Plan mode toggle */}
-          <button
-            type="button"
-            onClick={() => setPlanModeEnabled((v) => !v)}
-            className={cn(
-              "shrink-0 flex items-center gap-1 rounded-md transition-colors cursor-pointer",
-              planModeEnabled
-                ? "bg-primary/15 text-primary hover:bg-primary/20"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent",
-              isMobile ? "h-7 px-2 text-sm" : "h-6 px-1.5 text-sm"
+            {/* Schedule button */}
+            {onCreateScheduledJob && (
+              <button
+                onClick={onCreateScheduledJob}
+                className={cn(
+                  "flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent/50",
+                  isMobile ? "p-2 touch-target" : "p-1"
+                )}
+                title="Create scheduled job"
+              >
+                <Clock className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+              </button>
             )}
-            title={planModeEnabled ? "Plan mode on — agent will plan before acting" : "Plan mode off"}
-            aria-label="Toggle plan mode"
-            aria-pressed={planModeEnabled}
-          >
-            <Brain className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-            <span className={cn("text-sm", !isMobile && "hidden @[32rem]:inline")}>Plan</span>
-          </button>
 
-          {/* Agent selector */}
+            {/* Repo display/selector */}
+            {showRepoButton ? (
+              // Can change repo - show as button
+              <div className="flex items-center gap-1">
+                {onChangeRepo && (
+                  <button
+                    onClick={onChangeRepo}
+                    className={cn(
+                      "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
+                      isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
+                    )}
+                    title={isNewRepo ? "Select repository" : chat.repo}
+                  >
+                    <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
+                      {isNewRepo ? "Repository" : chat.repo?.split("/").pop()}
+                    </span>
+                    <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
+                  </button>
+                )}
+                {!isNewRepo && onChangeBranch && isNewChat && (
+                  <button
+                    onClick={onChangeBranch}
+                    className={cn(
+                      "flex items-center gap-1 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer",
+                      isMobile ? "text-sm py-1 px-2 rounded-md hover:bg-accent/50" : "text-sm"
+                    )}
+                    title={chat.branch || chat.baseBranch}
+                  >
+                    <GitBranch className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
+                      {chat.branch || chat.baseBranch}
+                    </span>
+                    <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
+                  </button>
+                )}
+                {!isNewRepo && onUpdateChat && canSelectRepo && (
+                  <button
+                    onClick={() => onUpdateChat({ repo: NEW_REPOSITORY, baseBranch: "main" })}
+                    className={cn(
+                      "rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer",
+                      isMobile ? "p-1.5" : "p-0.5"
+                    )}
+                    title="Remove repository"
+                  >
+                    <X className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+                  </button>
+                )}
+              </div>
+            ) : !isNewRepo && (
+              // Repo is locked — link out to the branch on GitHub
+              <a
+                href={`https://github.com/${chat.repo}/tree/${chat.branch}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors",
+                  isMobile ? "text-sm" : "text-sm"
+                )}
+                title={chat.repo}
+              >
+                <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
+                  {chat.repo?.split("/").pop()}
+                </span>
+              </a>
+            )}
+
+            {/* Spacer - only on desktop */}
+            {!isMobile && <div className="flex-1" />}
+          </div>
+
+          {/* Right side items - second row on mobile */}
+          <div className="flex items-center gap-2">
+            {/* Plan mode toggle */}
+            <button
+              type="button"
+              onClick={() => setPlanModeEnabled((v) => !v)}
+              className={cn(
+                "shrink-0 flex items-center gap-1 rounded-md transition-colors cursor-pointer",
+                planModeEnabled
+                  ? "bg-primary/15 text-primary hover:bg-primary/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                isMobile ? "h-7 px-2 text-sm" : "h-6 px-1.5 text-sm"
+              )}
+              title={planModeEnabled ? "Plan mode on — agent will plan before acting" : "Plan mode off"}
+              aria-label="Toggle plan mode"
+              aria-pressed={planModeEnabled}
+            >
+              <Brain className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+              <span className={cn("text-sm", !isMobile && "hidden @[32rem]:inline")}>Plan</span>
+            </button>
+
+            {/* Agent selector */}
           {isMobile ? (
             // Mobile: Use bottom sheet
             <button
@@ -1172,6 +1177,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               )}
             </div>
           )}
+          </div>
 
         </div>
       </div>
