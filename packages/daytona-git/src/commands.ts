@@ -156,13 +156,33 @@ export async function pull(
 
 /**
  * Push changes to remote
+ *
+ * Fix 1: Uses explicit branch name instead of HEAD to avoid refspec errors
+ * Fix 2: Skips push in detached HEAD state (conflict mode) since there's no branch to push
  */
 export async function push(
   process: SandboxProcess,
   path: string,
   token?: string
 ): Promise<void> {
-  const pushCmd = `push -u origin HEAD 2>&1`
+  // Get the current branch name
+  const branchName = (
+    await exec(
+      process,
+      `cd ${esc(path)} && git rev-parse --abbrev-ref HEAD 2>&1`,
+      true
+    )
+  ).trim()
+
+  // Skip push in detached HEAD state (conflict mode)
+  if (branchName === "HEAD") {
+    throw new Error(
+      "Cannot push in detached HEAD state (conflict mode). Resolve conflicts and checkout a branch first."
+    )
+  }
+
+  // Use explicit branch name instead of HEAD to avoid refspec errors
+  const pushCmd = `push -u origin ${esc(branchName)} 2>&1`
   if (token) {
     await exec(process, `cd ${esc(path)} && ${withAuth(token, pushCmd)}`)
   } else {
