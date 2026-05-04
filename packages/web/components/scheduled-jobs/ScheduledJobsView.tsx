@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { Clock, Plus, MoreHorizontal, Play, Pencil, Trash2, AlertCircle, Check, X, ArrowLeft, ChevronDown, ExternalLink, Github, GitPullRequest, CheckCircle2, XCircle, Circle, RefreshCw } from "lucide-react"
+import { Clock, Plus, MoreHorizontal, Play, Pencil, Trash2, AlertCircle, Check, X, ArrowLeft, ChevronDown, ExternalLink, GitPullRequest, CheckCircle2, XCircle, Circle, RefreshCw } from "lucide-react"
 import { format, formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { ScheduledJobForm } from "@/components/scheduled-jobs/ScheduledJobForm"
@@ -126,7 +126,6 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, showLis
   const [selectedRun, setSelectedRun] = useState<ScheduledJobRun | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [titleMenuOpen, setTitleMenuOpen] = useState(false)
 
   // Notify parent when job selection changes
   useEffect(() => {
@@ -306,39 +305,10 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, showLis
         {/* Detail Header - styled like chat header */}
         <div className="flex items-center justify-between pt-3 shrink-0" style={{ paddingLeft: "1.625rem", paddingRight: "1rem" }}>
           <div className="flex items-center gap-2">
-            {/* Title with dropdown menu - styled like chat title */}
-            <div className="group/title relative flex items-center gap-[2px]">
-              <span className="flex h-7 items-center text-sm font-medium text-foreground px-2 rounded-l-md rounded-r-none hover:bg-accent group-hover/title:bg-accent transition-colors cursor-default">
-                {selectedJob.name}
-              </span>
-              <button
-                onClick={() => setTitleMenuOpen((v) => !v)}
-                className="flex h-7 w-6 items-center justify-center rounded-r-md rounded-l-none text-muted-foreground hover:bg-accent hover:text-foreground group-hover/title:bg-accent group-hover/title:text-foreground transition-colors cursor-pointer"
-                aria-label="Job menu"
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-              {titleMenuOpen && selectedRun?.prUrl && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setTitleMenuOpen(false)}
-                  />
-                  <div className="absolute left-0 top-full mt-1 min-w-[160px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
-                    <button
-                      onClick={() => {
-                        setTitleMenuOpen(false)
-                        window.open(selectedRun.prUrl!, "_blank", "noopener,noreferrer")
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
-                    >
-                      <Github className="h-3.5 w-3.5" />
-                      Open PR #{selectedRun.prNumber}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+            {/* Title - styled like chat title */}
+            <span className="flex h-7 items-center text-sm font-medium text-foreground px-2 rounded-md hover:bg-accent transition-colors cursor-default">
+              {selectedJob.name}
+            </span>
           </div>
 
           {/* Run selector dropdown */}
