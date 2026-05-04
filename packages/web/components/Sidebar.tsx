@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, X, ChevronDown, ChevronRight, FolderGit2, Check, Loader2, HelpCircle, GitMerge, GitBranch, BarChart3 } from "lucide-react"
+import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, X, ChevronDown, ChevronRight, FolderGit2, Check, Loader2, HelpCircle, GitMerge, GitBranch, BarChart3, Clock } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import type { Chat, Message } from "@/lib/types"
 import { NEW_REPOSITORY } from "@/lib/types"
@@ -118,6 +119,7 @@ export function Sidebar({
   onMobileRename,
 }: SidebarProps) {
   const { data: session } = useSession()
+  const router = useRouter()
   const isResizing = useRef(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
@@ -601,7 +603,7 @@ export function Sidebar({
       </div>
 
       {/* New Chat Button */}
-      <div className={cn("pb-2", collapsed ? "px-0 flex justify-center" : "px-2")}>
+      <div className={cn("pb-1", collapsed ? "px-0 flex justify-center" : "px-2")}>
         <button
           onClick={onNewChat}
           className={cn(
@@ -611,6 +613,20 @@ export function Sidebar({
         >
           <Plus className="h-4 w-4 text-muted-foreground" />
           {!collapsed && <span className="text-sm text-foreground">New Chat</span>}
+        </button>
+      </div>
+
+      {/* Scheduled Jobs Button */}
+      <div className={cn("pb-2", collapsed ? "px-0 flex justify-center" : "px-2")}>
+        <button
+          onClick={() => router.push("/scheduled-jobs")}
+          className={cn(
+            "flex items-center gap-2 rounded-md transition-colors hover:bg-accent/50 cursor-pointer",
+            collapsed ? "p-1.5" : "w-full px-2 py-2"
+          )}
+        >
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          {!collapsed && <span className="text-sm text-foreground">Scheduled Jobs</span>}
         </button>
       </div>
 
