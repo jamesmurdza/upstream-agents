@@ -83,6 +83,7 @@ export interface UseGitDialogsResult {
 
   // Conflict state
   rebaseConflict: RebaseConflictState
+  setRebaseConflict: (state: RebaseConflictState) => void
   checkRebaseStatus: () => Promise<void>
 }
 
@@ -1416,6 +1417,7 @@ export function useGitDialogs({ chat, onAddMessageToBranch, resolveChatName, get
     handleForcePush,
     handleAbortConflict,
     rebaseConflict,
+    setRebaseConflict,
     checkRebaseStatus,
   }
 }

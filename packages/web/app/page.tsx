@@ -104,6 +104,7 @@ export default function HomePage() {
     draftChatConfig,
     isDraftChatId,
     updateDraftChatConfig,
+    setOnConflictStateChange,
   } = useChatWithSync()
 
   const [repoSelectOpen, setRepoSelectOpen] = useState(false)
@@ -390,6 +391,15 @@ export default function HomePage() {
     },
     refetchMessages,
   })
+
+  // Connect conflict state updates from SSE to gitDialogs
+  // This ensures the warning icon updates after agent resolves conflicts
+  useEffect(() => {
+    setOnConflictStateChange((state) => {
+      gitDialogs.setRebaseConflict(state)
+    })
+    return () => setOnConflictStateChange(null)
+  }, [setOnConflictStateChange, gitDialogs.setRebaseConflict])
 
   // Close mobile sidebar when switching to desktop
   useEffect(() => {
