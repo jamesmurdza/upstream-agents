@@ -119,6 +119,26 @@ export async function fetch(
 }
 
 /**
+ * Fetch a specific branch and ensure its remote tracking ref is created.
+ * This is needed for single-branch clones where `git fetch origin <branch>`
+ * alone does not create `origin/<branch>`.
+ */
+export async function fetchBranch(
+  process: SandboxProcess,
+  path: string,
+  branch: string,
+  token?: string
+): Promise<void> {
+  const refspec = `+refs/heads/${branch}:refs/remotes/origin/${branch}`
+  const fetchCmd = `fetch origin ${refspec} 2>&1`
+  if (token) {
+    await exec(process, `cd ${esc(path)} && ${withAuth(token, fetchCmd)}`)
+  } else {
+    await exec(process, `cd ${esc(path)} && git ${fetchCmd}`)
+  }
+}
+
+/**
  * Pull changes from remote
  */
 export async function pull(
