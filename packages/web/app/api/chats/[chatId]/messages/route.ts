@@ -445,6 +445,7 @@ export async function POST(
           model: payload.model,
           toolCalls: [],
           contentBlocks: [],
+          metadata: payload.planMode ? { isPlan: true } : undefined,
         },
         update: {},
       })

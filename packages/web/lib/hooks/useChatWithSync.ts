@@ -703,7 +703,7 @@ export function useChatWithSync() {
       const selectedModel = model ?? chat.model ?? settings.defaultModel ?? getDefaultModelForAgent(selectedAgent, credentialFlags)
 
       const userMessage: Message = { id: nanoid(), role: "user", content, timestamp: Date.now() }
-      const assistantMessage: Message = { id: nanoid(), role: "assistant", content: "", timestamp: Date.now() + 1, toolCalls: [], contentBlocks: [] }
+      const assistantMessage: Message = { id: nanoid(), role: "assistant", content: "", timestamp: Date.now() + 1, toolCalls: [], contentBlocks: [], metadata: planMode ? { isPlan: true } : undefined }
 
       // Optimistic update
       updateChatsCache((old) => old.map((c) =>

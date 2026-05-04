@@ -1355,6 +1355,7 @@ export default function HomePage() {
                   onDraftChange={handleDraftChange}
                   onCreateScheduledJob={() => setScheduledJobFormOpen(true)}
                   isSending={isSendingMessage}
+                  onOpenPlan={(messageId) => openPreview({ type: "plan", messageId, content: "" })}
                 />
               )}
             </div>
