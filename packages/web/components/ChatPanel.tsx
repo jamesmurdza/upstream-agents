@@ -977,7 +977,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
             aria-pressed={planModeEnabled}
           >
             <Brain className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-            <span className={cn(isMobile ? "text-xs" : "text-xs")}>Plan</span>
+            <span className="text-sm">Plan</span>
           </button>
 
           {/* Repo display/selector */}
@@ -994,7 +994,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 >
                   <Github className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
                   {isNewRepo ? "Repository" : chat.repo?.split("/").pop()}
-                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3 w-3")} />
+                  <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
                 </button>
               )}
               {!isNewRepo && onChangeBranch && isNewChat && (
@@ -1052,7 +1052,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               )}
               title="Create scheduled job"
             >
-              <Clock className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
+              <Clock className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
             </button>
           )}
 
