@@ -586,6 +586,11 @@ export default function HomePage() {
     setPreviewPaneHidden(true) // Close preview pane
   }
 
+  // Handler for scheduled job selection (memoized to prevent infinite loops)
+  const handleJobSelect = useCallback((job: { id: string; name: string } | null) => {
+    setSelectedScheduledJob(job ? { id: job.id, name: job.name } : null)
+  }, [])
+
   // Handler for the repo button in the ChatPanel header. Routes to the Select
   // modal when the chat can still choose an existing repo, otherwise to Create
   // (the only other option for a locked NEW_REPOSITORY chat). The two modals
@@ -1276,7 +1281,7 @@ export default function HomePage() {
                 <ScheduledJobsView
                   onOpenForm={() => setScheduledJobFormOpen(true)}
                   refreshKey={scheduledJobsRefreshKey}
-                  onJobSelect={(job) => setSelectedScheduledJob(job ? { id: job.id, name: job.name } : null)}
+                  onJobSelect={handleJobSelect}
                 />
               ) : (
                 <ChatPanel

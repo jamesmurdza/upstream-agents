@@ -290,7 +290,7 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect }: Sched
     return (
       <div className="flex-1 flex flex-col min-h-0">
         {/* Detail Header - styled like chat header */}
-        <header className="flex items-center justify-between border-b border-border px-4 py-2 shrink-0 h-12">
+        <div className="flex items-center justify-between pt-3 shrink-0" style={{ paddingLeft: "1.625rem", paddingRight: "1rem" }}>
           <div className="flex items-center gap-2">
             {/* Title with dropdown menu - styled like chat title */}
             <div className="group/title relative flex items-center gap-[2px]">
@@ -395,7 +395,7 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect }: Sched
               </>
             )}
           </div>
-        </header>
+        </div>
 
         {/* Detail Content */}
         <main className="flex-1 overflow-auto">
