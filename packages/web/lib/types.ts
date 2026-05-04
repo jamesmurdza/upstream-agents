@@ -259,6 +259,12 @@ export interface SSECompleteEvent {
   sessionId?: string
   error?: string
   cursor: number
+  /** Conflict state after agent completion - allows frontend to update warning icon */
+  conflictState?: {
+    inRebase: boolean
+    inMerge: boolean
+    conflictedFiles: string[]
+  }
 }
 
 export interface SSEHeartbeatEvent {

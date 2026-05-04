@@ -121,6 +121,9 @@ export function useChatWithSync() {
   const messagesLoadFailed = useRef<Set<string>>(new Set())
   const materializingDraft = useRef<boolean>(false)
 
+  // Callback for conflict state changes from SSE complete events
+  const onConflictStateChangeRef = useRef<((state: { inRebase: boolean; inMerge: boolean; conflictedFiles: string[] }) => void) | null>(null)
+
   // Hydration
   useEffect(() => {
     const localState = loadLocalState()
@@ -591,6 +594,11 @@ export function useChatWithSync() {
             } : c
           ))
 
+          // Notify about conflict state change (e.g., to update warning icon after agent resolves conflicts)
+          if (data.conflictState && onConflictStateChangeRef.current) {
+            onConflictStateChangeRef.current(data.conflictState)
+          }
+
           // Fetch any new messages created by the backend (e.g., push failure messages)
           // This uses delta sync - only fetches messages after the assistant message
           try {
@@ -986,6 +994,13 @@ export function useChatWithSync() {
     ? currentChat.messages.length === 0 && (currentChat.messageCount ?? 0) > 0
     : false
 
+  // Set callback for conflict state changes from SSE complete events
+  const setOnConflictStateChange = useCallback((
+    callback: ((state: { inRebase: boolean; inMerge: boolean; conflictedFiles: string[] }) => void) | null
+  ) => {
+    onConflictStateChangeRef.current = callback
+  }, [])
+
   return {
     chats,
     currentChat,
@@ -1019,5 +1034,7 @@ export function useChatWithSync() {
     draftChatConfig,
     isDraftChatId,
     updateDraftChatConfig,
+    // Conflict state callback
+    setOnConflictStateChange,
   }
 }

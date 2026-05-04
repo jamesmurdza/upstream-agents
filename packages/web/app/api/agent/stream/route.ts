@@ -13,6 +13,37 @@ import { isAuthError, requireChatStreamAccess } from "@/lib/db/api-helpers"
 import { createGitOperationMessage } from "@/lib/db/git-messages"
 
 /**
+ * Check if the repository is in a conflict state (merge or rebase in progress)
+ */
+async function isInConflictState(
+  sandbox: Awaited<ReturnType<Daytona["get"]>>,
+  repoPath: string
+): Promise<boolean> {
+  try {
+    // Check for rebase in progress
+    const rebaseCheck = await sandbox.process.executeCommand(
+      `test -d ${repoPath}/.git/rebase-merge -o -d ${repoPath}/.git/rebase-apply && echo "yes" || echo "no"`
+    )
+    if (rebaseCheck.result.trim() === "yes") {
+      return true
+    }
+
+    // Check for merge in progress
+    const mergeHeadCheck = await sandbox.process.executeCommand(
+      `test -f ${repoPath}/.git/MERGE_HEAD && echo "yes" || echo "no"`
+    )
+    if (mergeHeadCheck.result.trim() === "yes") {
+      return true
+    }
+
+    return false
+  } catch {
+    // If we can't determine conflict state, assume no conflict
+    return false
+  }
+}
+
+/**
  * Auto-push to remote after agent completion
  * Returns true if push succeeded, false otherwise
  */
@@ -20,8 +51,14 @@ async function autoPush(
   sandbox: Awaited<ReturnType<Daytona["get"]>>,
   repoPath: string,
   githubToken: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
   try {
+    // Skip auto-push if in conflict state (merge or rebase in progress)
+    const inConflict = await isInConflictState(sandbox, repoPath)
+    if (inConflict) {
+      return { success: true, skipped: true }
+    }
+
     const git = createSandboxGit(sandbox)
     await git.push(repoPath, githubToken)
     return { success: true }
@@ -221,11 +258,39 @@ export async function GET(req: Request) {
               }
             }
 
+            // Check conflict state to include in complete event
+            // This allows the frontend to update the warning icon after agent resolves conflicts
+            let conflictState: { inRebase: boolean; inMerge: boolean; conflictedFiles: string[] } | undefined
+            try {
+              const rebaseCheck = await sandbox.process.executeCommand(
+                `test -d ${sessionOpts.repoPath}/.git/rebase-merge -o -d ${sessionOpts.repoPath}/.git/rebase-apply && echo "yes" || echo "no"`
+              )
+              const inRebase = rebaseCheck.result.trim() === "yes"
+
+              const mergeHeadCheck = await sandbox.process.executeCommand(
+                `test -f ${sessionOpts.repoPath}/.git/MERGE_HEAD && echo "yes" || echo "no"`
+              )
+              const inMerge = mergeHeadCheck.result.trim() === "yes"
+
+              let conflictedFiles: string[] = []
+              if (inRebase || inMerge) {
+                const conflictResult = await sandbox.process.executeCommand(
+                  `cd ${sessionOpts.repoPath} && git diff --name-only --diff-filter=U 2>&1`
+                )
+                conflictedFiles = conflictResult.result.trim().split("\n").filter(Boolean)
+              }
+
+              conflictState = { inRebase, inMerge, conflictedFiles }
+            } catch {
+              // Best effort - don't fail the complete event if we can't check conflict state
+            }
+
             sendEvent("complete", {
               status: lastSnap.status,
               sessionId: lastSnap.sessionId,
               error: lastSnap.error,
               cursor,
+              conflictState,
             })
             closeStream()
             return
