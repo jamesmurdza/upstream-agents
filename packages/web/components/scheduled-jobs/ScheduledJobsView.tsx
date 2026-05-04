@@ -471,7 +471,7 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, showLis
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* List Header - styled like chat header */}
-      <div className="flex items-center justify-between pt-3 shrink-0" style={{ paddingLeft: "1.625rem", paddingRight: "1rem" }}>
+      <div className="flex items-center justify-between pt-3 shrink-0" style={{ paddingLeft: "1.625rem", paddingRight: "1.625rem" }}>
         <div className="flex items-center gap-2">
           <span className="flex h-7 items-center text-sm font-medium text-foreground px-2 rounded-md hover:bg-accent transition-colors cursor-default">
             Scheduled Jobs
@@ -479,7 +479,7 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, showLis
         </div>
         <button
           onClick={handleCreate}
-          className="flex items-center gap-2 rounded-md bg-primary px-3 py-1 text-sm text-primary-foreground hover:bg-primary/90 transition-colors"
+          className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-4 w-4" />
           New Job
