@@ -770,14 +770,14 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 <div
                   key={pf.id}
                   className={cn(
-                    "relative group cursor-pointer rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors overflow-hidden",
+                    "relative group cursor-pointer rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors",
                     isMobile ? "w-[120px] h-[120px]" : "w-[108px] h-[108px]"
                   )}
                   onClick={() => setPreviewFile(pf)}
                   title={`${pf.name} (${formatFileSize(pf.size)})`}
                 >
                   {/* File preview content */}
-                  <div className="w-full h-full flex items-center justify-center">
+                  <div className="w-full h-full flex items-center justify-center overflow-hidden rounded-lg">
                     {fileType === 'image' ? (
                       <ImageThumbnail file={pf.file} />
                     ) : fileType === 'pdf' ? (
@@ -794,15 +794,15 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                     )}
                   </div>
 
-                  {/* Remove button - top right corner */}
+                  {/* Remove button - top left corner, centered over corner */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       removeFile(pf.id)
                     }}
                     className={cn(
-                      "absolute top-0.5 right-0.5 flex items-center justify-center rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors shadow-sm",
-                      isMobile ? "h-5 w-5" : "h-4 w-4"
+                      "absolute flex items-center justify-center rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer",
+                      isMobile ? "h-5 w-5 -top-2 -left-2" : "h-4 w-4 -top-1.5 -left-1.5"
                     )}
                     aria-label={`Remove ${pf.name}`}
                   >
