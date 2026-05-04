@@ -68,6 +68,8 @@ interface MessagePayload {
   assistantMessageId: string
   /** Branch name for the new sandbox if one is being created. Generated server-side if omitted. */
   newBranch?: string
+  /** When true, agent should plan before acting */
+  planMode?: boolean
 }
 
 interface SuccessResponse {
@@ -387,6 +389,7 @@ export async function POST(
       agent: payload.agent as Agent,
       model: payload.model,
       env: Object.keys(env).length > 0 ? env : undefined,
+      planMode: payload.planMode,
     })
 
     // ── Stage 5: persist messages + chat status (transactional) ────────────
@@ -442,6 +445,7 @@ export async function POST(
           model: payload.model,
           toolCalls: [],
           contentBlocks: [],
+          metadata: payload.planMode ? { isPlan: true } : undefined,
         },
         update: {},
       })

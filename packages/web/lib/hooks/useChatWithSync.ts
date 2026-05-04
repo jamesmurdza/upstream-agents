@@ -670,7 +670,7 @@ export function useChatWithSync() {
   }, [updateChatsCache])
 
   // Send message
-  const sendMessage = useCallback(async (content: string, agent?: string, model?: string, files?: File[], targetChatId?: string) => {
+  const sendMessage = useCallback(async (content: string, agent?: string, model?: string, files?: File[], targetChatId?: string, planMode?: boolean) => {
     let chatId = targetChatId || currentChatId
     if (!chatId) return
 
@@ -711,7 +711,7 @@ export function useChatWithSync() {
       const selectedModel = model ?? chat.model ?? settings.defaultModel ?? getDefaultModelForAgent(selectedAgent, credentialFlags)
 
       const userMessage: Message = { id: nanoid(), role: "user", content, timestamp: Date.now() }
-      const assistantMessage: Message = { id: nanoid(), role: "assistant", content: "", timestamp: Date.now() + 1, toolCalls: [], contentBlocks: [] }
+      const assistantMessage: Message = { id: nanoid(), role: "assistant", content: "", timestamp: Date.now() + 1, toolCalls: [], contentBlocks: [], metadata: planMode ? { isPlan: true } : undefined }
 
       // Optimistic update
       updateChatsCache((old) => old.map((c) =>
@@ -724,6 +724,19 @@ export function useChatWithSync() {
         } : c
       ))
 
+      // Auto-open plan preview if planMode is true
+      if (planMode) {
+        const chatPreviewItems = localChatState.previewStates[chatId]?.items ?? []
+        // Avoid duplicates if user rapidly sends plan mode messages
+        if (!chatPreviewItems.find((i) => i.type === "plan" && i.messageId === assistantMessage.id)) {
+          updateChatById(chatId, {
+            previewItems: [...chatPreviewItems, { type: "plan", messageId: assistantMessage.id, content: "" } as import("@/lib/plugins/types").PreviewItem],
+            activePreviewIndex: chatPreviewItems.length,
+            previewPaneHidden: false,
+          })
+        }
+      }
+
       try {
         const payload = {
           message: content,
@@ -732,6 +745,7 @@ export function useChatWithSync() {
           userMessageId: userMessage.id,
           assistantMessageId: assistantMessage.id,
           newBranch: chat.sandboxId ? undefined : `agent/${generateBranchName()}`,
+          planMode: planMode || undefined,
         }
 
         let response: Response
@@ -798,7 +812,7 @@ export function useChatWithSync() {
     } finally {
       sendInFlight.current.delete(chatId)
     }
-  }, [currentChatId, chats, session, settings, credentialFlags, updateChatsCache, startStreaming, suggestNameMutation, isDraftChatId, materializeDraft])
+  }, [currentChatId, chats, session, settings, credentialFlags, updateChatsCache, startStreaming, suggestNameMutation, isDraftChatId, materializeDraft, localChatState.previewStates, updateChatById])
 
   const dispatchNextQueuedMessage = useCallback((chatId: string, queueOverride?: QueuedMessage[]) => {
     const chat = chats.find((c) => c.id === chatId)

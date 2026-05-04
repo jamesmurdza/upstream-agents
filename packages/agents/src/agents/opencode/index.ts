@@ -47,6 +47,11 @@ export const opencodeAgent: AgentDefinition = {
       parts.push("-s", quote(options.sessionId))
     }
 
+    // Enable extended thinking when plan mode is active
+    if (options.planMode) {
+      parts.push("--thinking")
+    }
+
     // The "--" sentinel signals end-of-options to the OpenCode's argument parser
     if (options.prompt) {
       parts.push("--")

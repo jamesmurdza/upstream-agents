@@ -67,6 +67,8 @@ export interface AgentSessionOptions {
   agent?: Agent
   model?: string
   env?: Record<string, string>
+  /** When true, agent should plan before acting */
+  planMode?: boolean
 }
 
 // =============================================================================
@@ -87,10 +89,33 @@ export async function createBackgroundAgentSession(
   sandbox: DaytonaSandbox,
   options: AgentSessionOptions
 ): Promise<BackgroundAgentSession> {
-  const systemPrompt = buildSystemPrompt(
+  let systemPrompt = buildSystemPrompt(
     options.repoPath,
     options.previewUrlPattern
   )
+
+  // When plan mode is enabled, append planning instructions to the system
+  // prompt. This is the universal mechanism — works for every agent because
+  // it's just text the model sees. Agent-specific CLI flags (e.g. Claude's
+  // thinking mode) are injected separately at the SDK layer.
+  if (options.planMode) {
+    systemPrompt += `
+
+## Plan Mode
+
+You are in PLAN MODE. Before taking any actions:
+1. Analyze the request thoroughly
+2. Create a detailed implementation plan in markdown format
+3. Present the plan to the user
+4. Do NOT execute any file writes, edits, or shell commands
+5. Wait for the user to review and approve the plan
+
+Your plan should include:
+- Summary of what needs to be done
+- Files to be created or modified (with brief descriptions)
+- Step-by-step implementation order
+- Any risks or trade-offs to consider`
+  }
 
   // Map agent type to SDK provider name
   const agent = options.agent || "opencode"

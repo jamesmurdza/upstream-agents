@@ -44,6 +44,8 @@ export interface SessionOptions {
   env?: Record<string, string>
   /** Working directory for the agent process */
   cwd?: string
+  /** When true, agent should use extended thinking / plan mode */
+  planMode?: boolean
 }
 
 /**
@@ -177,6 +179,7 @@ async function createSessionWithId(
     systemPrompt: options.systemPrompt,
     env: options.env,
     cwd: options.cwd,
+    planMode: options.planMode,
   })
 
   // Write initial meta for reattachment

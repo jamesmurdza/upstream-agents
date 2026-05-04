@@ -8,6 +8,7 @@ export type PreviewItem =
   | { type: "file"; filePath: string; filename: string }
   | { type: "terminal"; id: string }
   | { type: "server"; port: number; url: string }
+  | { type: "plan"; content: string; messageId: string }
 
 /**
  * Props passed to every panel plugin component.
@@ -17,6 +18,8 @@ export interface PanelProps {
   sandboxId: string | null
   /** Optional scale factor for preview (e.g., 0.5, 0.75, 1) */
   scale?: number
+  /** All messages in the current chat, for plugins that need live content */
+  messages?: import("@/lib/types").Message[]
 }
 
 /**

@@ -170,6 +170,7 @@ export default function HomePage() {
       case "file": return `file:${item.filePath}`
       case "terminal": return `terminal:${item.id}`
       case "server": return `server:${item.port}`
+      case "plan": return `plan:${item.messageId}`
     }
   }, [])
 
@@ -712,7 +713,7 @@ export default function HomePage() {
   }
 
   // Handler for sending message
-  const handleSendMessage = (message: string, agent: string, model: string, files?: File[]) => {
+  const handleSendMessage = (message: string, agent: string, model: string, files?: File[], planMode?: boolean) => {
     // Always require sign-in to send messages
     if (!session) {
       // Store the pending message in sessionStorage (persists across OAuth redirect)
@@ -737,7 +738,7 @@ export default function HomePage() {
 
     // Set sending state immediately for instant UI feedback
     setIsSendingMessage(true)
-    sendMessage(message, agent, model, files)
+    sendMessage(message, agent, model, files, undefined, planMode)
   }
 
   // After sign-in, replay any pending message saved before the OAuth
@@ -1364,6 +1365,7 @@ export default function HomePage() {
                   onDraftChange={handleDraftChange}
                   onCreateScheduledJob={() => setScheduledJobFormOpen(true)}
                   isSending={isSendingMessage}
+                  onOpenPlan={(messageId) => openPreview({ type: "plan", messageId, content: "" })}
                 />
               )}
             </div>
@@ -1388,6 +1390,7 @@ export default function HomePage() {
                   allItems={previewItems}
                   onSelectItem={selectPreviewItem}
                   onCloseItem={closePreviewItem}
+                  messages={currentChat?.messages}
                 />
               </>
             )}
