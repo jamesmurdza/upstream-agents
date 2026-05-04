@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { Clock, Plus, MoreHorizontal, Play, Pencil, Trash2, AlertCircle, Check, X, ArrowLeft, ChevronDown, ExternalLink } from "lucide-react"
+import { Clock, Plus, MoreHorizontal, Play, Pencil, Trash2, AlertCircle, Check, X, ArrowLeft, ChevronDown, ExternalLink, Github } from "lucide-react"
 import { format, formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { ScheduledJobForm } from "@/components/scheduled-jobs/ScheduledJobForm"
@@ -311,6 +311,18 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect }: Sched
                     onClick={() => setTitleMenuOpen(false)}
                   />
                   <div className="absolute left-0 top-full mt-1 min-w-[160px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
+                    {selectedRun?.prUrl && (
+                      <button
+                        onClick={() => {
+                          setTitleMenuOpen(false)
+                          window.open(selectedRun.prUrl!, "_blank", "noopener,noreferrer")
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
+                      >
+                        <Github className="h-3.5 w-3.5" />
+                        Open PR #{selectedRun.prNumber}
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setTitleMenuOpen(false)
@@ -401,32 +413,6 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect }: Sched
         <main className="flex-1 overflow-auto">
           {selectedRun ? (
             <div className="max-w-4xl mx-auto p-6">
-              {/* Run info */}
-              <div className="mb-6 flex items-center gap-4 text-sm text-muted-foreground">
-                <span>
-                  Started {formatDistanceToNow(selectedRun.startedAt, { addSuffix: true })}
-                </span>
-                {selectedRun.completedAt && (
-                  <span>
-                    Completed {formatDistanceToNow(selectedRun.completedAt, { addSuffix: true })}
-                  </span>
-                )}
-                {selectedRun.commitCount > 0 && (
-                  <span>{selectedRun.commitCount} commit{selectedRun.commitCount !== 1 ? "s" : ""}</span>
-                )}
-                {selectedRun.prUrl && (
-                  <a
-                    href={selectedRun.prUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-primary hover:underline"
-                  >
-                    PR #{selectedRun.prNumber}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
-              </div>
-
               {/* Error display */}
               {selectedRun.error && (
                 <div className="mb-6 rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
