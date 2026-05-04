@@ -1031,6 +1031,12 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               </a>
             )}
 
+            {/* Spacer - only on desktop */}
+            {!isMobile && <div className="flex-1" />}
+          </div>
+
+          {/* Right side items - second row on mobile */}
+          <div className={cn("flex items-center gap-2", isMobile && "w-full justify-end")}>
             {/* Schedule button */}
             {onCreateScheduledJob && (
               <button
@@ -1045,12 +1051,6 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               </button>
             )}
 
-            {/* Spacer - only on desktop */}
-            {!isMobile && <div className="flex-1" />}
-          </div>
-
-          {/* Right side items - second row on mobile */}
-          <div className={cn("flex items-center gap-2", isMobile && "w-full justify-end")}>
             {/* Plan mode toggle */}
             <button
               type="button"
