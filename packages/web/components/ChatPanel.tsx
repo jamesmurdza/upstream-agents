@@ -212,14 +212,23 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
     return () => window.clearTimeout(t)
   }, [chat?.id, isCreating, isMobile, focusPrompt])
 
-  // Auto-resize textarea
+  // Auto-resize textarea - use requestAnimationFrame to batch DOM reads/writes
+  // and avoid layout thrashing on every keystroke
   useEffect(() => {
     const textarea = textareaRef.current
-    if (textarea) {
+    if (!textarea) return
+
+    // Use rAF to batch DOM operations and avoid synchronous layout
+    const rafId = requestAnimationFrame(() => {
+      // Store current scroll position to avoid scroll jumps
+      const scrollTop = textarea.scrollTop
       textarea.style.height = "auto"
       const maxHeight = isMobile ? 120 : 200
       textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + "px"
-    }
+      textarea.scrollTop = scrollTop
+    })
+
+    return () => cancelAnimationFrame(rafId)
   }, [input, isMobile])
 
   // Close dropdowns when clicking outside (desktop only)
@@ -770,14 +779,14 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 <div
                   key={pf.id}
                   className={cn(
-                    "relative group cursor-pointer rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors overflow-hidden",
+                    "relative group cursor-pointer rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors",
                     isMobile ? "w-[120px] h-[120px]" : "w-[108px] h-[108px]"
                   )}
                   onClick={() => setPreviewFile(pf)}
                   title={`${pf.name} (${formatFileSize(pf.size)})`}
                 >
                   {/* File preview content */}
-                  <div className="w-full h-full flex items-center justify-center">
+                  <div className="w-full h-full flex items-center justify-center overflow-hidden rounded-lg">
                     {fileType === 'image' ? (
                       <ImageThumbnail file={pf.file} />
                     ) : fileType === 'pdf' ? (
@@ -794,15 +803,15 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                     )}
                   </div>
 
-                  {/* Remove button - top right corner */}
+                  {/* Remove button - top left corner, centered over corner */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       removeFile(pf.id)
                     }}
                     className={cn(
-                      "absolute top-0.5 right-0.5 flex items-center justify-center rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors shadow-sm",
-                      isMobile ? "h-5 w-5" : "h-4 w-4"
+                      "absolute flex items-center justify-center rounded-full bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer",
+                      isMobile ? "h-5 w-5 -top-2 -left-2" : "h-4 w-4 -top-1.5 -left-1.5"
                     )}
                     aria-label={`Remove ${pf.name}`}
                   >
@@ -1683,15 +1692,6 @@ function FilePreviewModal({ file, fileContent, onClose, onRemove, isMobile }: Fi
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => {
-                onRemove()
-              }}
-              className="p-1.5 rounded-md text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-              title="Remove file"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
             <button
               onClick={onClose}
               className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
