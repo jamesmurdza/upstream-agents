@@ -643,20 +643,10 @@ export function Sidebar({
               : "hover:bg-accent/50"
           )}
         >
-          <Clock className={cn("h-4 w-4", scheduledJobsActive ? "text-foreground" : "text-muted-foreground")} />
+          <Clock className={cn("h-4 w-4", scheduledJobsActive && !selectedScheduledJob ? "text-foreground" : "text-muted-foreground")} />
           {!collapsed && <span className="text-sm text-foreground">Scheduled Jobs</span>}
         </button>
       </div>
-
-      {/* Selected Scheduled Job (indented under Scheduled Jobs, like nested chats) */}
-      {!collapsed && selectedScheduledJob && (
-        <div
-          className="flex items-center gap-2 mx-2 pr-2 py-1.5 rounded-md bg-accent text-accent-foreground text-sm truncate"
-          style={{ paddingLeft: "calc(0.5rem + 32px)" }}
-        >
-          <span className="truncate">{selectedScheduledJob.name}</span>
-        </div>
-      )}
 
       <div className="pb-2" />
 
