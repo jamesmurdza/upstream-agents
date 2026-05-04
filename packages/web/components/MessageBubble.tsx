@@ -307,7 +307,7 @@ function AssistantContent({ message, isStreaming, isMobile = false, repo, onOpen
   if (message.metadata?.isPlan) {
     return (
       <div className={cn("w-full py-1", isMobile ? "text-base" : "text-[14px]")}>
-        <div className="flex items-center gap-3 p-3 border border-border rounded-lg bg-card shadow-sm max-w-sm">
+        <div className="flex items-center gap-3 p-3 border border-border rounded-lg bg-card shadow-sm w-full max-w-2xl">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <Brain className="h-4 w-4" />
           </div>
