@@ -980,7 +980,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                     <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
                       {isNewRepo ? "Repository" : chat.repo?.split("/").pop()}
                     </span>
-                    <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
+                    <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
                   </button>
                 )}
                 {!isNewRepo && onChangeBranch && isNewChat && (
@@ -996,7 +996,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                     <span className={cn(!isMobile && "hidden @[32rem]:inline")}>
                       {chat.branch || chat.baseBranch}
                     </span>
-                    <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5", !isMobile && "hidden @[32rem]:block")} />
+                    <ChevronDown className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
                   </button>
                 )}
                 {!isNewRepo && onUpdateChat && canSelectRepo && (
@@ -1095,7 +1095,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               >
                 <AgentIcon agent={currentAgent} className="h-3.5 w-3.5" />
                 <span className="hidden @[32rem]:inline">{agentLabels[currentAgent]}</span>
-                <ChevronDown className="h-3.5 w-3.5 hidden @[32rem]:block" />
+                <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {showAgentDropdown && (
                 <div className="absolute bottom-full right-0 mb-1 bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-40">
@@ -1146,13 +1146,9 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                 )}
                 title={getModelLabel(currentAgent, currentModel)}
               >
-                {!hasRequiredCredentials ? (
-                  <Key className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5 @[32rem]:hidden" />
-                )}
+                {!hasRequiredCredentials && <Key className="h-3.5 w-3.5" />}
                 <span className="hidden @[32rem]:inline">{getModelLabel(currentAgent, currentModel)}</span>
-                <ChevronDown className="h-3.5 w-3.5 hidden @[32rem]:block" />
+                <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {showModelDropdown && (
                 <div className="absolute bottom-full right-0 mb-1 max-h-64 overflow-y-auto bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-52">
