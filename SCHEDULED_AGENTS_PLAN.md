@@ -194,15 +194,22 @@ model ScheduledJobRun {
 model Chat {
   // ... existing fields ...
 
-  // Hide scheduled run chats from sidebar
-  isScheduledRun  Boolean  @default(false)
-
-  // Link back to run
+  // Link back to scheduled run (if this chat belongs to one)
   scheduledJobRun ScheduledJobRun?
 }
 ```
 
-Chats created for scheduled runs are hidden from the main sidebar (filtered by `isScheduledRun: false`). They're only accessible via the Scheduled Jobs table.
+Chats linked to a `ScheduledJobRun` are hidden from the main sidebar by filtering on the relation:
+
+```typescript
+// Sidebar query - only show interactive chats
+const chats = await prisma.chat.findMany({
+  where: {
+    userId,
+    scheduledJobRun: null  // No linked run = interactive chat
+  }
+})
+```
 
 ---
 
@@ -233,61 +240,25 @@ GET    /api/scheduled-jobs/[id]/runs/[runId] # Get run with messages
 
 ---
 
-## Cron Jobs
+## Cron Job
 
 ### Overview
 
-Two cron jobs handle all agent lifecycle management:
+A single cron job handles all agent lifecycle management:
 
 | Cron | Frequency | Purpose |
 |------|-----------|---------|
-| `dispatch-scheduled-jobs` | Every 1 min | Start due scheduled jobs |
-| `agent-monitor` | Every 2 min | Keepalive, completion check, timeout for ALL agents |
+| `agent-lifecycle` | Every 1 min | Dispatch scheduled jobs + monitor ALL agents |
 
-### Cron 1: Job Dispatcher
+### Cron: Agent Lifecycle
 
-`GET /api/cron/dispatch-scheduled-jobs`
+`GET /api/cron/agent-lifecycle`
 
-Finds scheduled jobs that are due and starts them.
-
-```typescript
-async function handler() {
-  // Find due jobs
-  const jobs = await prisma.scheduledJob.findMany({
-    where: {
-      enabled: true,
-      nextRunAt: { lte: new Date() },
-      // Not already running
-      runs: { none: { status: "running" } }
-    }
-  })
-
-  for (const job of jobs) {
-    // Create run record (claims the job)
-    const run = await prisma.scheduledJobRun.create({
-      data: { jobId: job.id, status: "running" }
-    })
-
-    // Update next run time
-    await prisma.scheduledJob.update({
-      where: { id: job.id },
-      data: { nextRunAt: addMinutes(new Date(), job.intervalMinutes) }
-    })
-
-    // Start execution (fire-and-forget)
-    await startJobExecution(job, run)
-  }
-}
-```
-
-### Cron 2: Agent Monitor (Unified)
-
-`GET /api/cron/agent-monitor`
-
-Handles ALL running agents (both interactive chats and scheduled jobs):
-- **Keepalive**: Calls `sandbox.refreshActivity()` to prevent Daytona auto-stop
-- **Completion check**: Detects when agents finish, finalizes results
-- **Timeout**: Stops agents that exceed time limits
+Handles everything:
+1. **Dispatch**: Starts due scheduled jobs
+2. **Keepalive**: Calls `sandbox.refreshActivity()` to prevent Daytona auto-stop
+3. **Completion check**: Detects when agents finish, finalizes results
+4. **Timeout**: Stops agents that exceed time limits
 
 ```typescript
 const INTERACTIVE_INACTIVITY_TIMEOUT = 10  // minutes
@@ -299,14 +270,38 @@ async function handler() {
   const daytona = new Daytona({ apiKey: process.env.DAYTONA_API_KEY! })
 
   // =========================================
-  // 1. Handle Interactive Chats
+  // 1. Dispatch Due Scheduled Jobs
+  // =========================================
+  const dueJobs = await prisma.scheduledJob.findMany({
+    where: {
+      enabled: true,
+      nextRunAt: { lte: now },
+      runs: { none: { status: "running" } }
+    }
+  })
+
+  for (const job of dueJobs) {
+    const run = await prisma.scheduledJobRun.create({
+      data: { jobId: job.id, status: "running" }
+    })
+
+    await prisma.scheduledJob.update({
+      where: { id: job.id },
+      data: { nextRunAt: addMinutes(now, job.intervalMinutes) }
+    })
+
+    await startJobExecution(job, run)
+  }
+
+  // =========================================
+  // 2. Monitor Interactive Chats
   // =========================================
   const runningChats = await prisma.chat.findMany({
     where: {
       status: "running",
       sandboxId: { not: null },
       backgroundSessionId: { not: null },
-      isScheduledRun: false  // Only interactive chats
+      scheduledJobRun: null  // Only interactive chats (no linked run)
     },
     include: {
       messages: {
@@ -319,46 +314,29 @@ async function handler() {
 
   for (const chat of runningChats) {
     const minutesSinceActive = differenceInMinutes(now, chat.lastActiveAt)
-    // Get run start time from last assistant message (when agent started)
     const runStartedAt = chat.messages[0]?.createdAt ?? chat.lastActiveAt
     const totalMinutes = differenceInMinutes(now, runStartedAt)
 
-    // Hard timeout: 25 minutes
     if (totalMinutes > INTERACTIVE_HARD_TIMEOUT) {
-      await stopInteractiveAgent(chat, daytona, "Run exceeded 25 minute limit")
+      await stopAgent(chat.sandboxId!, chat.backgroundSessionId!, daytona)
+      await markChatError(chat.id, "Run exceeded 25 minute limit")
       continue
     }
 
-    // Inactivity timeout: 10 minutes since browser activity
     if (minutesSinceActive > INTERACTIVE_INACTIVITY_TIMEOUT) {
-      await stopInteractiveAgent(chat, daytona, "No activity for 10 minutes")
+      await stopAgent(chat.sandboxId!, chat.backgroundSessionId!, daytona)
+      await markChatError(chat.id, "No activity for 10 minutes")
       continue
     }
 
-    // Check completion (browser may have closed)
-    try {
-      const sandbox = await daytona.get(chat.sandboxId!)
-      await sandbox.refreshActivity()  // Keep alive
-
-      const snapshot = await snapshotBackgroundAgent(
-        sandbox,
-        chat.backgroundSessionId!,
-        { repoPath: `${PATHS.SANDBOX_HOME}/project` }
-      )
-
-      if (snapshot.status === "completed") {
-        await finalizeInteractiveChat(chat, sandbox, snapshot)
-      } else if (snapshot.status === "error") {
-        await stopInteractiveAgent(chat, daytona, snapshot.error ?? "Unknown error")
-      }
-      // else still running, check again next cycle
-    } catch (err) {
-      console.error(`[agent-monitor] Failed to check chat ${chat.id}:`, err)
-    }
+    await monitorAgent(chat.sandboxId!, chat.backgroundSessionId!, daytona, {
+      onComplete: (snapshot) => finalizeInteractiveChat(chat, snapshot),
+      onError: (error) => markChatError(chat.id, error)
+    })
   }
 
   // =========================================
-  // 2. Handle Scheduled Job Runs
+  // 3. Monitor Scheduled Job Runs
   // =========================================
   const runningJobs = await prisma.scheduledJobRun.findMany({
     where: { status: "running" },
@@ -368,32 +346,65 @@ async function handler() {
   for (const run of runningJobs) {
     const runningMinutes = differenceInMinutes(now, run.startedAt)
 
-    // Hard timeout: 20 minutes
     if (runningMinutes > SCHEDULED_HARD_TIMEOUT) {
+      await stopAgent(run.sandboxId!, run.backgroundSessionId!, daytona)
       await failScheduledRun(run, "Run timed out after 20 minutes")
       continue
     }
 
-    // Check completion
-    try {
-      const sandbox = await daytona.get(run.sandboxId!)
-      await sandbox.refreshActivity()  // Keep alive
+    await monitorAgent(run.sandboxId!, run.backgroundSessionId!, daytona, {
+      onComplete: (snapshot) => finalizeScheduledRun(run, snapshot),
+      onError: (error) => failScheduledRun(run, error)
+    })
+  }
+}
+```
 
-      const snapshot = await snapshotBackgroundAgent(
-        sandbox,
-        run.backgroundSessionId!,
-        { repoPath: `${PATHS.SANDBOX_HOME}/project` }
-      )
+### Shared Monitor Logic
 
-      if (snapshot.status === "completed") {
-        await finalizeScheduledRun(run, snapshot)
-      } else if (snapshot.status === "error") {
-        await failScheduledRun(run, snapshot.error ?? "Unknown error")
-      }
-      // else still running, check again next cycle
-    } catch (err) {
-      console.error(`[agent-monitor] Error checking run ${run.id}:`, err)
+```typescript
+async function monitorAgent(
+  sandboxId: string,
+  backgroundSessionId: string,
+  daytona: Daytona,
+  handlers: {
+    onComplete: (snapshot: AgentSnapshot) => Promise<void>
+    onError: (error: string) => Promise<void>
+  }
+) {
+  try {
+    const sandbox = await daytona.get(sandboxId)
+    await sandbox.refreshActivity()  // Keep alive
+
+    const snapshot = await snapshotBackgroundAgent(
+      sandbox,
+      backgroundSessionId,
+      { repoPath: `${PATHS.SANDBOX_HOME}/project` }
+    )
+
+    if (snapshot.status === "completed") {
+      await handlers.onComplete(snapshot)
+    } else if (snapshot.status === "error") {
+      await handlers.onError(snapshot.error ?? "Unknown error")
     }
+    // else still running, check again next cycle
+  } catch (err) {
+    console.error(`[agent-lifecycle] Monitor error:`, err)
+  }
+}
+
+async function stopAgent(
+  sandboxId: string,
+  backgroundSessionId: string,
+  daytona: Daytona
+) {
+  try {
+    const sandbox = await daytona.get(sandboxId)
+    await sandbox.process.executeCommand(
+      `pkill -f "codeagent-${backgroundSessionId}" 2>/dev/null || true`
+    )
+  } catch (err) {
+    console.error(`[agent-lifecycle] Failed to stop agent:`, err)
   }
 }
 ```
@@ -414,12 +425,8 @@ From [Daytona SDK docs](https://www.daytona.io/docs/en/typescript-sdk/sandbox/):
 {
   "crons": [
     {
-      "path": "/api/cron/dispatch-scheduled-jobs",
+      "path": "/api/cron/agent-lifecycle",
       "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/agent-monitor",
-      "schedule": "*/2 * * * *"
     }
   ]
 }
@@ -440,7 +447,7 @@ const sandbox = await daytona.create({
 })
 ```
 
-The `agent-monitor` cron runs every 2 minutes, well within the 5-minute window to keep sandboxes alive.
+The `agent-lifecycle` cron runs every minute, well within the 5-minute window to keep sandboxes alive.
 
 ---
 
@@ -448,7 +455,7 @@ The `agent-monitor` cron runs every 2 minutes, well within the 5-minute window t
 
 ```typescript
 async function startJobExecution(job: ScheduledJob, run: ScheduledJobRun) {
-  // 1. Create chat for this run (hidden from sidebar)
+  // 1. Create chat for this run
   const chat = await prisma.chat.create({
     data: {
       userId: job.userId,
@@ -456,25 +463,30 @@ async function startJobExecution(job: ScheduledJob, run: ScheduledJobRun) {
       baseBranch: job.baseBranch,
       agent: job.agent,
       model: job.model,
-      isScheduledRun: true
     }
   })
 
-  // 2. Create fresh sandbox
-  const sandbox = await createSandbox({
+  // 2. Link chat to run (hides from sidebar via scheduledJobRun relation)
+  await prisma.scheduledJobRun.update({
+    where: { id: run.id },
+    data: { chatId: chat.id }
+  })
+
+  // 3. Create fresh sandbox
+  const sandbox = await createSandboxForChat({
     repo: job.repo,
     branch: job.baseBranch
   })
 
-  // 3. Create unique branch for this run
+  // 4. Create unique branch for this run
   const branch = `scheduled/${job.id}/${format(new Date(), "yyyyMMdd-HHmmss")}`
-  await sandbox.exec(`git checkout -b ${branch}`)
+  await sandbox.process.executeCommand(`git checkout -b ${branch}`)
 
-  // 4. Get user credentials
+  // 5. Get user credentials
   const user = await prisma.user.findUnique({ where: { id: job.userId } })
   const credentials = decrypt(user.credentials)
 
-  // 5. Start agent session
+  // 6. Start agent session
   const session = await createBackgroundAgentSession({
     sandbox,
     agent: job.agent,
@@ -483,11 +495,10 @@ async function startJobExecution(job: ScheduledJob, run: ScheduledJobRun) {
     credentials
   })
 
-  // 6. Store session info for completion checker
+  // 7. Store session info for monitoring
   await prisma.scheduledJobRun.update({
     where: { id: run.id },
     data: {
-      chatId: chat.id,
       sandboxId: sandbox.id,
       backgroundSessionId: session.id,
       branch
@@ -667,25 +678,10 @@ async function finalizeInteractiveChat(
   })
 }
 
-async function stopInteractiveAgent(
-  chat: Chat,
-  daytona: Daytona,
-  reason: string
-) {
-  try {
-    if (chat.sandboxId && chat.backgroundSessionId) {
-      const sandbox = await daytona.get(chat.sandboxId)
-      await sandbox.process.executeCommand(
-        `pkill -f "codeagent-${chat.backgroundSessionId}" 2>/dev/null || true`
-      )
-    }
-  } catch (err) {
-    console.error(`[agent-monitor] Failed to kill agent:`, err)
-  }
-
+async function markChatError(chatId: string, reason: string) {
   // Update chat status
   await prisma.chat.update({
-    where: { id: chat.id },
+    where: { id: chatId },
     data: {
       status: "error",
       backgroundSessionId: null
@@ -695,7 +691,7 @@ async function stopInteractiveAgent(
   // Create error message
   await prisma.message.create({
     data: {
-      chatId: chat.id,
+      chatId,
       role: "assistant",
       content: `Agent stopped: ${reason}`,
       timestamp: BigInt(Date.now()),
@@ -719,20 +715,20 @@ async function stopInteractiveAgent(
 ```
 0 min    User sends message, agent starts
 5 min    User closes browser
-7 min    agent-monitor: lastActiveAt = 5 min ago (< 10) ✓ → refreshActivity()
-9 min    agent-monitor: lastActiveAt = 5 min ago (< 10) ✓ → refreshActivity()
+6 min    agent-lifecycle: lastActiveAt = 5 min ago (< 10) ✓ → refreshActivity()
+7 min    agent-lifecycle: lastActiveAt = 5 min ago (< 10) ✓ → refreshActivity()
 ...
-16 min   agent-monitor: lastActiveAt = 5 min ago (11 > 10) ✗ → STOP (inactivity)
+16 min   agent-lifecycle: lastActiveAt = 5 min ago (11 > 10) ✗ → STOP (inactivity)
 ```
 
 **Timeline example (scheduled):**
 
 ```
 0 min    Cron dispatches job, agent starts
-2 min    agent-monitor: runningMinutes = 2 (< 20) ✓ → refreshActivity()
-4 min    agent-monitor: runningMinutes = 4 (< 20) ✓ → refreshActivity()
+1 min    agent-lifecycle: runningMinutes = 1 (< 20) ✓ → refreshActivity()
+2 min    agent-lifecycle: runningMinutes = 2 (< 20) ✓ → refreshActivity()
 ...
-21 min   agent-monitor: runningMinutes = 21 (> 20) ✗ → STOP (hard timeout)
+21 min   agent-lifecycle: runningMinutes = 21 (> 20) ✗ → STOP (hard timeout)
 ```
 
 ---
@@ -743,9 +739,8 @@ async function stopInteractiveAgent(
 |-----------|---------|
 | `ScheduledJob` | Stores job config, schedule, next run time |
 | `ScheduledJobRun` | Stores each execution's results, links to Chat |
-| `Chat.isScheduledRun` | Hides scheduled run chats from sidebar |
-| `/api/cron/dispatch-scheduled-jobs` | Finds due jobs, starts execution |
-| `/api/cron/agent-monitor` | Keepalive + completion + timeout for ALL agents |
+| `Chat.scheduledJobRun` relation | Hides scheduled run chats from sidebar (filter where `scheduledJobRun: null`) |
+| `/api/cron/agent-lifecycle` | Dispatches scheduled jobs + monitors ALL agents (keepalive, completion, timeout) |
 | `sandbox.refreshActivity()` | Resets Daytona inactivity timer |
 | Clock icon in prompt | Entry point to create scheduled job |
 | Scheduled Jobs sidebar item | Entry point to view/manage jobs |
@@ -755,7 +750,7 @@ async function stopInteractiveAgent(
 | Limit | Value |
 |-------|-------|
 | Daytona autoStopInterval | 5 minutes |
-| Agent monitor cron | Every 2 minutes |
+| Agent lifecycle cron | Every 1 minute |
 | Interactive inactivity timeout | 10 minutes |
 | Interactive hard timeout | 25 minutes |
 | Scheduled hard timeout | 20 minutes |
