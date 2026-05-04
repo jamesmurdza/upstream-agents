@@ -12,7 +12,7 @@
  *
  * Environment variables:
  *   CRON_SECRET  - Bearer token for cron endpoints (default: "dev-secret")
- *   BASE_URL     - Base URL for the dev server (default: "http://localhost:3000")
+ *   BASE_URL     - Base URL for the dev server (default: "http://localhost:4000")
  *   VERCEL_JSON  - Path to vercel.json (default: "./vercel.json")
  */
 
