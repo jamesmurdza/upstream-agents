@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react"
-import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, GitBranchPlus, FileText, FileCode, FileImage, File as FileIcon, Clock, Command, Brain } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, Plus, FileText, FileCode, FileImage, File as FileIcon, Clock, Command, Brain } from "lucide-react"
 import {
   getFileType,
   formatFileSize,
@@ -1600,7 +1600,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                       aria-label="Branch to new chat"
                       title="Branch to new chat"
                     >
-                      <GitBranchPlus className="h-2.5 w-2.5" />
+                      <Plus className="h-2.5 w-2.5" />
                     </button>
                   )}
                   {onRemoveQueuedMessage && (
