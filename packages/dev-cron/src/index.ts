@@ -17,8 +17,28 @@
  */
 
 import { readFileSync, existsSync } from "fs"
-import { join, resolve } from "path"
+import { join, resolve, dirname } from "path"
 import { cronToMs, formatInterval } from "./parser.js"
+
+/**
+ * Find the repository root by looking for package.json with workspaces
+ */
+function findRepoRoot(): string {
+  let dir = process.cwd()
+  while (dir !== "/") {
+    const pkgPath = join(dir, "package.json")
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"))
+        if (pkg.workspaces) {
+          return dir
+        }
+      } catch {}
+    }
+    dir = dirname(dir)
+  }
+  return process.cwd()
+}
 
 interface VercelCron {
   path: string
@@ -34,11 +54,14 @@ const BASE_URL = process.env.BASE_URL || "http://localhost:3000"
 const VERCEL_JSON = process.env.VERCEL_JSON || "./vercel.json"
 
 function loadVercelConfig(): VercelConfig {
+  const repoRoot = findRepoRoot()
+
   // Try multiple paths to find vercel.json
   const paths = [
     resolve(process.cwd(), VERCEL_JSON),
     resolve(process.cwd(), "vercel.json"),
-    resolve(process.cwd(), "packages/web/vercel.json"),
+    resolve(repoRoot, "vercel.json"),
+    resolve(repoRoot, "packages/web/vercel.json"),
   ]
 
   for (const configPath of paths) {
