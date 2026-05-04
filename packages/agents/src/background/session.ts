@@ -300,22 +300,25 @@ class BackgroundSessionImpl implements BackgroundSession {
         }
       }
 
-      // Not in startup grace, but give a brief window for I/O flush
-      await new Promise((resolve) => setTimeout(resolve, 200))
+      // Not in startup grace, but give a brief window for I/O flush.
+      // Retry up to 3 times with 200ms delay to handle slow file system flushes.
+      for (let attempt = 0; attempt < 3 && !sawEnd; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 200))
 
-      // Re-read session state and output
-      const recheck = await this.readSessionState()
-      stillRunning = recheck.stillRunning
-      if (recheck.outputContent !== outputContent) {
-        outputContent = recheck.outputContent
-        result = await this.pollOutput(
-          meta.outputFile,
-          "0",
-          null,
-          outputContent,
-          { state: {}, sessionId: meta.sessionId ?? null }
-        )
-        sawEnd = result.events.some((e) => e.type === "end")
+        // Re-read session state and output
+        const recheck = await this.readSessionState()
+        stillRunning = recheck.stillRunning
+        if (recheck.outputContent !== outputContent) {
+          outputContent = recheck.outputContent
+          result = await this.pollOutput(
+            meta.outputFile,
+            "0",
+            null,
+            outputContent,
+            { state: {}, sessionId: meta.sessionId ?? null }
+          )
+          sawEnd = result.events.some((e) => e.type === "end")
+        }
       }
     }
 
