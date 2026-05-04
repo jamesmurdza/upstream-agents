@@ -1050,7 +1050,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           </div>
 
           {/* Right side items - second row on mobile */}
-          <div className="flex items-center gap-2">
+          <div className={cn("flex items-center gap-2", isMobile && "justify-end")}>
             {/* Plan mode toggle */}
             <button
               type="button"
