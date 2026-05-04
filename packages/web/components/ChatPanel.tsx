@@ -948,7 +948,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           isMobile ? "flex flex-col gap-2 px-3 py-2" : "flex items-center gap-3 px-4 py-2"
         )}>
           {/* Left side items - first row on mobile */}
-          <div className="flex items-center gap-2">
+          <div className={cn("flex items-center gap-2", isMobile && "w-full")}>
             {/* Attachment button */}
             <button
               type="button"
@@ -1050,7 +1050,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           </div>
 
           {/* Right side items - second row on mobile */}
-          <div className={cn("flex items-center gap-2", isMobile && "justify-end")}>
+          <div className={cn("flex items-center gap-2", isMobile && "w-full justify-end")}>
             {/* Plan mode toggle */}
             <button
               type="button"
