@@ -963,20 +963,6 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
               <Paperclip className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
             </button>
 
-            {/* Schedule button */}
-            {onCreateScheduledJob && (
-              <button
-                onClick={onCreateScheduledJob}
-                className={cn(
-                  "flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent/50",
-                  isMobile ? "p-2 touch-target" : "p-1"
-                )}
-                title="Create scheduled job"
-              >
-                <Clock className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-              </button>
-            )}
-
             {/* Repo display/selector */}
             {showRepoButton ? (
               // Can change repo - show as button
@@ -1043,6 +1029,20 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
                   {chat.repo?.split("/").pop()}
                 </span>
               </a>
+            )}
+
+            {/* Schedule button */}
+            {onCreateScheduledJob && (
+              <button
+                onClick={onCreateScheduledJob}
+                className={cn(
+                  "flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent/50",
+                  isMobile ? "p-2 touch-target" : "p-1"
+                )}
+                title="Create scheduled job"
+              >
+                <Clock className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+              </button>
             )}
 
             {/* Spacer - only on desktop */}
