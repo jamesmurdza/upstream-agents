@@ -65,20 +65,7 @@ function getLastRunText(job: ScheduledJob): string {
 }
 
 function formatRunLabel(run: ScheduledJobRun): string {
-  const date = format(run.startedAt, "MMM d, h:mm a")
-  if (run.status === "completed" && run.prUrl) {
-    return `${date} - PR #${run.prNumber}`
-  }
-  if (run.status === "completed") {
-    return `${date} - No changes`
-  }
-  if (run.status === "error") {
-    return `${date} - Failed`
-  }
-  if (run.status === "running") {
-    return `${date} - Running`
-  }
-  return date
+  return format(run.startedAt, "MMM d, h:mm a")
 }
 
 // =============================================================================
