@@ -345,7 +345,7 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, showLis
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-accent transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-accent transition-colors cursor-pointer"
             >
               {selectedRun ? (
                 <>
