@@ -18,7 +18,17 @@ https://github.com/user-attachments/assets/ee6de7e9-a32e-45bd-acfa-3da1763b80ea
 
 ---
 
-## Development
+## Prerequisites
+
+- Node.js 18+
+
+## Quick start
+
+```bash
+npm install
+npm run build:sdk
+npm run dev
+```
 
 See [DEVELOPMENT.md](./DEVELOPMENT.md) for local setup (database, environment variables) and [TESTING.md](./TESTING.md) for tests.
 
