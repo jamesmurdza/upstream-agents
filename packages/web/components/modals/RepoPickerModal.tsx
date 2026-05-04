@@ -121,15 +121,15 @@ export function RepoPickerModal({ open, onClose, onSelect, isMobile = false, mod
   // Fetch repos on open — only when the select tab is available; otherwise we
   // never show the repo list and the loading spinner would flash for nothing.
   useEffect(() => {
-    if (open && session?.accessToken && allowSelect) {
+    if (open && session && allowSelect) {
       setLoading(true)
       setError(null)
-      fetchRepos(session.accessToken)
+      fetchRepos()
         .then(setRepos)
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false))
     }
-  }, [open, session?.accessToken, allowSelect])
+  }, [open, session, allowSelect])
 
   // Reset state on close/open - set correct initial tab
   // Also reset when modal opens to ensure correct tab based on current allowSelect/allowCreate values
@@ -164,7 +164,7 @@ export function RepoPickerModal({ open, onClose, onSelect, isMobile = false, mod
 
   // Handle branch-only mode with preselected repo - skip to branch selection
   useEffect(() => {
-    if (open && isBranchOnly && preselectedRepo && session?.accessToken) {
+    if (open && isBranchOnly && preselectedRepo && session) {
       setSelectedRepo(preselectedRepo)
       setSelectedBranch(preselectedRepo.default_branch)
       setStep("branch")
@@ -172,12 +172,12 @@ export function RepoPickerModal({ open, onClose, onSelect, isMobile = false, mod
       setError(null)
       setShowBranchDropdown(true)
 
-      fetchBranches(session.accessToken, preselectedRepo.owner.login, preselectedRepo.name)
+      fetchBranches(preselectedRepo.owner.login, preselectedRepo.name)
         .then(setBranches)
         .catch((err) => setError(err instanceof Error ? err.message : "Failed to fetch branches"))
         .finally(() => setLoading(false))
     }
-  }, [open, isBranchOnly, preselectedRepo, session?.accessToken])
+  }, [open, isBranchOnly, preselectedRepo, session])
 
   // Handle repo selection - one-click: select repo with default branch immediately
   // User can change branch later via the branch button in the chat header

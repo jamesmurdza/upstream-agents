@@ -693,7 +693,7 @@ export function useChatWithSync() {
     sendInFlight.current.add(chatId)
 
     try {
-      if (!session?.accessToken) return
+      if (!session) return
 
       const isFirstMessage = chat.messages.length === 0
       const selectedAgent = (agent ?? chat.agent ?? settings.defaultAgent ?? getDefaultAgent(credentialFlags)) as Agent
@@ -787,7 +787,7 @@ export function useChatWithSync() {
     } finally {
       sendInFlight.current.delete(chatId)
     }
-  }, [currentChatId, chats, session?.accessToken, settings, credentialFlags, updateChatsCache, startStreaming, suggestNameMutation, isDraftChatId, materializeDraft])
+  }, [currentChatId, chats, session, settings, credentialFlags, updateChatsCache, startStreaming, suggestNameMutation, isDraftChatId, materializeDraft])
 
   const dispatchNextQueuedMessage = useCallback((chatId: string, queueOverride?: QueuedMessage[]) => {
     const chat = chats.find((c) => c.id === chatId)

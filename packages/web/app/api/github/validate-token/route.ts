@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { getUser, isGitHubApiError } from "@upstream/common"
+import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
 
 /**
- * Validates whether the GitHub access token stored in the JWT is still
+ * Validates whether the GitHub access token stored in the database is still
  * accepted by GitHub. Called once per page load by the client to detect
  * revoked / expired tokens early.
  *
@@ -14,13 +13,13 @@ import { getUser, isGitHubApiError } from "@upstream/common"
  * force re-auth during outages.
  */
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.accessToken) {
+  const ghAuth = await requireGitHubAuth()
+  if (isGitHubAuthError(ghAuth)) {
     return NextResponse.json({ valid: false })
   }
 
   try {
-    await getUser(session.accessToken)
+    await getUser(ghAuth.token)
     return NextResponse.json({ valid: true })
   } catch (error: unknown) {
     if (isGitHubApiError(error) && error.status === 401) {

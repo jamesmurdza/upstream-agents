@@ -1,8 +1,7 @@
 import { Daytona } from "@daytonaio/sdk"
-import { getServerSession } from "next-auth"
 import { createSandboxGit } from "@upstream/daytona-git"
-import { authOptions } from "@/lib/auth"
 import { PATHS } from "@/lib/constants"
+import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
 
 export async function POST(req: Request) {
   // 1. Parse request body
@@ -14,14 +13,14 @@ export async function POST(req: Request) {
   }
 
   // 2. Get GitHub token from request body first (for API access)
-  // Fall back to session token (for browser access)
+  // Fall back to DB token (for browser access)
   let githubToken = body.githubToken
   if (!githubToken) {
-    const session = await getServerSession(authOptions)
-    if (!session?.accessToken) {
+    const ghAuth = await requireGitHubAuth()
+    if (isGitHubAuthError(ghAuth)) {
       return Response.json({ error: "Unauthorized - provide githubToken in body or sign in" }, { status: 401 })
     }
-    githubToken = session.accessToken
+    githubToken = ghAuth.token
   }
 
   // 3. Get Daytona API key

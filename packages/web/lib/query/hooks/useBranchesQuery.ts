@@ -12,17 +12,14 @@ import { fetchBranches, type GitHubBranch } from "@/lib/github"
  * @param repo - Repository name
  */
 export function useBranchesQuery(owner: string, repo: string) {
-  const { data: session } = useSession()
+  const { status } = useSession()
 
   return useQuery({
     queryKey: queryKeys.github.branches(owner, repo),
     queryFn: async (): Promise<GitHubBranch[]> => {
-      if (!session?.accessToken) {
-        throw new Error("No access token available")
-      }
-      return fetchBranches(session.accessToken, owner, repo)
+      return fetchBranches(owner, repo)
     },
-    enabled: !!session?.accessToken && !!owner && !!repo,
+    enabled: status === "authenticated" && !!owner && !!repo,
     staleTime: 30 * 1000, // 30 seconds
   })
 }

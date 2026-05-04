@@ -1,5 +1,3 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import {
   compareBranches,
   createPullRequest,
@@ -7,6 +5,7 @@ import {
   formatPRTitleFromBranch,
   formatPRBodyFromCommits,
 } from "@upstream/common"
+import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
 import { createGitOperationMessage } from "@/lib/db/git-messages"
 
 /** PR description format options */
@@ -36,10 +35,9 @@ function generatePRBodyByType(commits: string[], descriptionType: PRDescriptionT
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.accessToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const ghAuth = await requireGitHubAuth()
+  if (isGitHubAuthError(ghAuth)) return ghAuth
+  const githubToken = ghAuth.token
 
   const body = await req.json()
   const { owner, repo, head, base, descriptionType = "short", chatId } = body
@@ -52,7 +50,7 @@ export async function POST(req: Request) {
     // Get commits between base and head for PR body
     let commitMessages: string[] = []
     try {
-      const compareData = await compareBranches(session.accessToken, owner, repo, base, head)
+      const compareData = await compareBranches(githubToken, owner, repo, base, head)
       const commits = compareData.commits || []
       if (commits.length > 0) {
         commitMessages = commits.map((c) => c.commit.message)
@@ -66,7 +64,7 @@ export async function POST(req: Request) {
     const prBody = generatePRBodyByType(commitMessages, descriptionType as PRDescriptionType)
 
     // Create the PR
-    const prData = await createPullRequest(session.accessToken, owner, repo, {
+    const prData = await createPullRequest(githubToken, owner, repo, {
       title,
       body: prBody,
       head,

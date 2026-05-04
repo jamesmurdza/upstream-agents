@@ -1,16 +1,14 @@
 import { Daytona } from "@daytonaio/sdk"
 import { NextRequest } from "next/server"
 import { Prisma } from "@prisma/client"
-import { getServerSession } from "next-auth"
 import { randomUUID } from "crypto"
-
-import { authOptions } from "@/lib/auth"
 import { PATHS } from "@/lib/constants"
 import { NEW_REPOSITORY } from "@/lib/types"
 import { prisma } from "@/lib/db/prisma"
 import {
   badRequest,
   getChatWithAuth,
+  getGitHubToken,
   getUserCredentials,
   internalError,
   isAuthError,
@@ -117,8 +115,7 @@ export async function POST(
   const daytonaApiKey = process.env.DAYTONA_API_KEY
   if (!daytonaApiKey) return serverConfigError("DAYTONA_API_KEY")
 
-  const session = await getServerSession(authOptions)
-  const githubToken = session?.accessToken
+  const githubToken = await getGitHubToken(userId)
 
   let credentials = await getUserCredentials(userId)
 
@@ -171,7 +168,7 @@ export async function POST(
         repo: chat.repo,
         baseBranch: chat.baseBranch ?? "main",
         newBranch,
-        githubToken,
+        githubToken: githubToken ?? undefined,
         userId,
       })
       sandboxId = created.sandboxId

@@ -27,18 +27,15 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, account }) {
-      // On initial sign in, persist user id and access token
+      // On initial sign in, persist user id
       if (user) {
         token.sub = user.id
       }
       if (account) {
-        token.accessToken = account.access_token
-
         // Sync the fresh token to the Account table. The PrismaAdapter only
         // writes Account rows on the very first link (create, not upsert), so
-        // on re-authorization the DB row keeps the old, revoked token. The
-        // agent stream route reads Account.access_token for auto-push, so we
-        // must keep it current.
+        // on re-authorization the DB row keeps the old, revoked token. All
+        // routes that need the GitHub token read it from the Account table.
         if (token.sub && account.access_token) {
           prisma.account
             .updateMany({
@@ -57,7 +54,7 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      // Send user id and access token to client
+      // Send user id to client
       if (session.user && token.sub) {
         session.user.id = token.sub
 
@@ -68,7 +65,6 @@ export const authOptions: NextAuthOptions = {
         })
         session.user.isAdmin = user?.isAdmin ?? false
       }
-      session.accessToken = token.accessToken as string
       return session
     },
   },

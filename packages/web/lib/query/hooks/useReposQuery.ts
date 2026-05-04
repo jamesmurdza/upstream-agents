@@ -10,17 +10,14 @@ import { fetchRepos, type GitHubRepo } from "@/lib/github"
  * Sorted by recently updated, includes owned, collaborator, and org repos.
  */
 export function useReposQuery() {
-  const { data: session } = useSession()
+  const { status } = useSession()
 
   return useQuery({
     queryKey: queryKeys.github.repos(),
     queryFn: async (): Promise<GitHubRepo[]> => {
-      if (!session?.accessToken) {
-        throw new Error("No access token available")
-      }
-      return fetchRepos(session.accessToken)
+      return fetchRepos()
     },
-    enabled: !!session?.accessToken,
+    enabled: status === "authenticated",
     staleTime: 60 * 1000, // 1 minute
     gcTime: 5 * 60 * 1000, // 5 minutes
   })

@@ -1,59 +1,65 @@
 /**
  * GitHub API client for Simple Chat
- * Re-exports shared utilities from @upstream/common
+ *
+ * All functions call server-side proxy routes — the GitHub token never
+ * leaves the server. The proxy routes fetch the token from the DB.
  */
 
-import {
-  getUser,
-  getUserRepos,
-  getRepo,
-  getRepoBranches,
-  type GitHubUser,
-  type GitHubRepo,
-  type GitHubBranch,
+import type {
+  GitHubUser,
+  GitHubRepo,
+  GitHubBranch,
 } from "@upstream/common"
 
 // Re-export types for convenience
 export type { GitHubUser, GitHubRepo, GitHubBranch }
 
 /**
- * Fetch the authenticated user
+ * Fetch repositories for the authenticated user (100 most recent).
+ * Calls GET /api/github/repos which reads the token from DB server-side.
  */
-export async function fetchUser(token: string): Promise<GitHubUser> {
-  return getUser(token)
+export async function fetchRepos(): Promise<GitHubRepo[]> {
+  const res = await fetch("/api/github/repos")
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error((data as { error?: string }).error || "Failed to fetch repos")
+  }
+  const data = await res.json()
+  return data.repos
 }
 
 /**
- * Fetch repositories for the authenticated user (100 most recent)
- */
-export async function fetchRepos(token: string): Promise<GitHubRepo[]> {
-  return getUserRepos(token, {
-    sort: "updated",
-    perPage: 100,
-    affiliation: "owner,collaborator,organization_member",
-  })
-}
-
-/**
- * Fetch a single repository
+ * Fetch a single repository.
+ * Calls GET /api/github/repo which reads the token from DB server-side.
  */
 export async function fetchRepo(
-  token: string,
   owner: string,
   repo: string
 ): Promise<GitHubRepo> {
-  return getRepo(token, owner, repo)
+  const res = await fetch(`/api/github/repo?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`)
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error((data as { error?: string }).error || "Failed to fetch repo")
+  }
+  const data = await res.json()
+  return data.repo
 }
 
 /**
- * Fetch branches for a repository
+ * Fetch branches for a repository.
+ * Calls GET /api/github/branches which reads the token from DB server-side.
  */
 export async function fetchBranches(
-  token: string,
   owner: string,
   repo: string
 ): Promise<GitHubBranch[]> {
-  return getRepoBranches(token, owner, repo, { perPage: 100, paginate: true })
+  const res = await fetch(`/api/github/branches?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`)
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error((data as { error?: string }).error || "Failed to fetch branches")
+  }
+  const data = await res.json()
+  return data.branches
 }
 
 /**

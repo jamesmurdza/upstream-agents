@@ -159,6 +159,18 @@ export interface GitHubAuthResult {
 }
 
 /**
+ * Gets the GitHub access token for a user from the database.
+ * Returns null if no GitHub account is linked or no token is stored.
+ */
+export async function getGitHubToken(userId: string): Promise<string | null> {
+  const account = await prisma.account.findFirst({
+    where: { userId, provider: "github" },
+    select: { access_token: true },
+  })
+  return account?.access_token ?? null
+}
+
+/**
  * Gets the authenticated user's GitHub token
  * Returns userId and token or an error Response
  */

@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { compareBranches, githubFetch, isGitHubApiError } from "@upstream/common"
 import { Daytona } from "@daytonaio/sdk"
 import { PATHS } from "@/lib/constants"
 import { createGitOperationMessage } from "@/lib/db/git-messages"
+import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
 
 // Squash operation timeout - 60 seconds
 export const maxDuration = 60
@@ -31,10 +30,9 @@ interface SquashRequestBody {
  * 5. Sync sandbox with git fetch + reset
  */
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.accessToken) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const ghAuth = await requireGitHubAuth()
+  if (isGitHubAuthError(ghAuth)) return ghAuth
+  const githubToken = ghAuth.token
 
   const body: SquashRequestBody = await req.json()
   const { owner, repo, head, base, sandboxId, chatId } = body
@@ -50,7 +48,7 @@ export async function POST(req: Request) {
 
   try {
     // First, verify there are commits to squash
-    const compareData = await compareBranches(session.accessToken, owner, repo, base, head)
+    const compareData = await compareBranches(githubToken, owner, repo, base, head)
     if (compareData.ahead_by < 2) {
       return Response.json({
         error: `Need at least 2 commits to squash. Branch "${head}" is only ${compareData.ahead_by} commit(s) ahead of "${base}".`
@@ -60,7 +58,7 @@ export async function POST(req: Request) {
     // Get the base branch SHA
     const baseRef = await githubFetch<{ object: { sha: string } }>(
       `/repos/${owner}/${repo}/git/refs/heads/${base}`,
-      session.accessToken
+      githubToken
     )
     const baseSha = baseRef.object.sha
 
@@ -68,7 +66,7 @@ export async function POST(req: Request) {
     const tempBranchName = `_squash-temp-${Date.now()}`
     await githubFetch(
       `/repos/${owner}/${repo}/git/refs`,
-      session.accessToken,
+      githubToken,
       {
         method: "POST",
         body: JSON.stringify({
@@ -82,7 +80,7 @@ export async function POST(req: Request) {
       // Step 2: Create a temporary PR and squash merge it
       const pr = await githubFetch<{ number: number; head: { sha: string } }>(
         `/repos/${owner}/${repo}/pulls`,
-        session.accessToken,
+        githubToken,
         {
           method: "POST",
           body: JSON.stringify({
@@ -108,7 +106,7 @@ export async function POST(req: Request) {
 
           mergeResult = await githubFetch<{ sha: string; merged: boolean }>(
             `/repos/${owner}/${repo}/pulls/${pr.number}/merge`,
-            session.accessToken,
+            githubToken,
             {
               method: "PUT",
               body: JSON.stringify({
@@ -139,14 +137,14 @@ export async function POST(req: Request) {
       // Get the new squashed commit SHA from the temp branch
       const tempRef = await githubFetch<{ object: { sha: string } }>(
         `/repos/${owner}/${repo}/git/refs/heads/${tempBranchName}`,
-        session.accessToken
+        githubToken
       )
       const squashedSha = tempRef.object.sha
 
       // Step 3: Update head branch to point to the squashed commit
       await githubFetch(
         `/repos/${owner}/${repo}/git/refs/heads/${head}`,
-        session.accessToken,
+        githubToken,
         {
           method: "PATCH",
           body: JSON.stringify({
@@ -160,7 +158,7 @@ export async function POST(req: Request) {
       try {
         await githubFetch(
           `/repos/${owner}/${repo}/git/refs/heads/${tempBranchName}`,
-          session.accessToken,
+          githubToken,
           { method: "DELETE" }
         )
       } catch {
@@ -219,7 +217,7 @@ export async function POST(req: Request) {
       try {
         await githubFetch(
           `/repos/${owner}/${repo}/git/refs/heads/${tempBranchName}`,
-          session.accessToken,
+          githubToken,
           { method: "DELETE" }
         )
       } catch {
