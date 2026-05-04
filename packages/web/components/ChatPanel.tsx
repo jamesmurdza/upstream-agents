@@ -1225,7 +1225,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
             isMobile ? "text-sm px-4" : "text-sm"
           )}>
             <p>
-              Changes will be applied when you type /merge.
+              Changes will apply when you type /merge.
             </p>
             <p className="mt-1">Access additional tools with ⌘K.</p>
           </div>
