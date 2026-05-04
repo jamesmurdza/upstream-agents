@@ -650,13 +650,11 @@ export function Sidebar({
 
       {/* Selected Scheduled Job (indented under Scheduled Jobs, like nested chats) */}
       {!collapsed && selectedScheduledJob && (
-        <div className="px-2">
-          <div
-            className="flex items-center gap-2 w-full pr-2 py-1.5 rounded-md bg-accent text-accent-foreground text-sm truncate"
-            style={{ paddingLeft: "calc(0.5rem + 32px)" }}
-          >
-            <span className="truncate">{selectedScheduledJob.name}</span>
-          </div>
+        <div
+          className="flex items-center gap-2 mx-2 pr-2 py-1.5 rounded-md bg-accent text-accent-foreground text-sm truncate"
+          style={{ paddingLeft: "calc(0.5rem + 32px)" }}
+        >
+          <span className="truncate">{selectedScheduledJob.name}</span>
         </div>
       )}
 
