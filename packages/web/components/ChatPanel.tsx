@@ -1036,7 +1036,7 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           </div>
 
           {/* Right side items - second row on mobile */}
-          <div className={cn("flex items-center gap-2", isMobile && "w-full justify-end")}>
+          <div className={cn("flex items-center gap-2", isMobile && "w-full")}>
             {/* Schedule button */}
             {onCreateScheduledJob && (
               <button
