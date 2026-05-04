@@ -1018,13 +1018,16 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           <div className="flex-1" />
 
           {/* Schedule button */}
-          {onCreateScheduledJob && !isMobile && (
+          {onCreateScheduledJob && (
             <button
               onClick={onCreateScheduledJob}
-              className="flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1 rounded-md hover:bg-accent/50"
+              className={cn(
+                "flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent/50",
+                isMobile ? "p-2 touch-target" : "p-1"
+              )}
               title="Create scheduled job"
             >
-              <Clock className="h-3.5 w-3.5" />
+              <Clock className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
             </button>
           )}
 

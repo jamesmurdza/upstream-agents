@@ -409,6 +409,28 @@ export function Sidebar({
             </button>
           </div>
 
+          {/* Scheduled Jobs Button */}
+          <div className="px-3 pb-2">
+            <button
+              onClick={() => {
+                if (onOpenScheduledJobs) {
+                  onOpenScheduledJobs()
+                } else {
+                  router.push("/scheduled-jobs")
+                }
+              }}
+              className={cn(
+                "flex items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors touch-target",
+                scheduledJobsActive && !selectedScheduledJob
+                  ? "bg-accent text-accent-foreground"
+                  : "hover:bg-accent/50 active:bg-accent"
+              )}
+            >
+              <Clock className={cn("h-5 w-5", scheduledJobsActive && !selectedScheduledJob ? "text-foreground" : "text-muted-foreground")} />
+              <span className="text-base text-foreground">Scheduled Jobs</span>
+            </button>
+          </div>
+
           {/* Repository Filter */}
           <div className="px-3 pb-2 relative" ref={repoDropdownRef}>
             <button
