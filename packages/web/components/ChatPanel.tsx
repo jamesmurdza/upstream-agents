@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } fr
 import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, GitBranchPlus, FileText, FileCode, FileImage, File as FileIcon } from "lucide-react"
 import {
   getFileType,
+  formatFileSize,
   ImageThumbnail,
   ImageFullPreview,
   PdfThumbnail,
@@ -493,12 +494,6 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
       e.preventDefault() // Prevent pasting image data as text
       addFiles(imageFiles)
     }
-  }
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes}B`
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
   }
 
   const getFileIcon = (file: File) => {
@@ -1658,12 +1653,6 @@ function FilePreviewModal({ file, fileContent, onClose, onRemove, isMobile }: Fi
       document.body.style.overflow = ''
     }
   }, [])
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes}B`
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
-  }
 
   return (
     <div
