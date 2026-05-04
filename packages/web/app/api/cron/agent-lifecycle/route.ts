@@ -9,7 +9,7 @@ import { prisma } from "@/lib/db/prisma"
 import { getUserCredentials } from "@/lib/db/api-helpers"
 import { getClaudeCredentials } from "@/lib/claude-credentials"
 import { PATHS } from "@/lib/constants"
-import { createSandboxForChat } from "@/lib/sandbox"
+import { createSandboxForChat, deleteSandboxQuietly } from "@/lib/sandbox"
 import {
   createBackgroundAgentSession,
   snapshotBackgroundAgent,
@@ -133,7 +133,7 @@ export async function GET(req: Request) {
         await startJobExecution(run.job, run, daytona)
         results.startedPendingRuns++
       } catch (err) {
-        await failScheduledRun(run, `Failed to start: ${err}`)
+        await failScheduledRun(run, `Failed to start: ${err}`, daytona)
         results.errors.push(`Failed to start run ${run.id}: ${err}`)
       }
     }
@@ -216,7 +216,7 @@ export async function GET(req: Request) {
           if (run.sandboxId && run.backgroundSessionId) {
             await stopAgent(run.sandboxId, run.backgroundSessionId, daytona)
           }
-          await failScheduledRun(run, "Run timed out after 20 minutes")
+          await failScheduledRun(run, "Run timed out after 20 minutes", daytona)
           results.timedOutScheduled++
           continue
         }
@@ -228,7 +228,7 @@ export async function GET(req: Request) {
               results.completedScheduled++
             },
             onError: async (error) => {
-              await failScheduledRun(run, error)
+              await failScheduledRun(run, error, daytona)
             },
           })
         }
@@ -589,11 +589,17 @@ async function finalizeScheduledRun(
       where: { id: { in: oldRuns.map((r) => r.id) } },
     })
   }
+
+  // 6. Delete sandbox now that run is complete
+  if (run.sandboxId) {
+    await deleteSandboxQuietly(daytona, run.sandboxId)
+  }
 }
 
 async function failScheduledRun(
   run: ScheduledJobRunWithJob | Prisma.ScheduledJobRunGetPayload<{ include: { job: true } }>,
-  error: string
+  error: string,
+  daytona?: Daytona
 ) {
   // Update run status
   await prisma.scheduledJobRun.update({
@@ -622,6 +628,11 @@ async function failScheduledRun(
       enabled: failures < 3,
     },
   })
+
+  // Delete sandbox now that run is complete
+  if (run.sandboxId && daytona) {
+    await deleteSandboxQuietly(daytona, run.sandboxId)
+  }
 }
 
 // =============================================================================
