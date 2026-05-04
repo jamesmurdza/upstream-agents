@@ -349,9 +349,6 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, showLis
                     >
                       {getRunStatusIcon(run.status)}
                       <span className="flex-1">{formatRunLabel(run)}</span>
-                      {run.id === selectedRun?.id && (
-                        <Check className="h-3.5 w-3.5 text-primary" />
-                      )}
                     </button>
                   ))}
                 </div>
