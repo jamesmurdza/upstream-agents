@@ -22,8 +22,8 @@ npm run dev:cron
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BASE_URL` | `http://localhost:3000` | Base URL for the dev server |
-| `CRON_SECRET` | `dev-secret` | Bearer token for cron endpoint auth |
+| `BASE_URL` | `http://localhost:4000` | Base URL for the dev server |
+| `CRON_SECRET` | (none) | Bearer token for cron endpoint auth |
 | `VERCEL_JSON` | `./vercel.json` | Path to vercel.json |
 
 ## Example Output
@@ -33,26 +33,26 @@ npm run dev:cron
 ║       Dev Cron Simulator              ║
 ╚═══════════════════════════════════════╝
 
-Base URL: http://localhost:3000
-Cron Secret: dev-****
+Base URL: http://localhost:4000
+Cron Secret: (none)
 
 Loading config from: /path/to/vercel.json
 
 Found 2 cron job(s):
 
-  /api/cron/dispatch-scheduled-jobs
+  /api/cron/refresh-claude-creds
+    Schedule: 0 * * * *
+    Interval: 1h
+  /api/cron/agent-lifecycle
     Schedule: * * * * *
     Interval: 1m
-  /api/cron/agent-monitor
-    Schedule: */2 * * * *
-    Interval: 2m
 
 ─────────────────────────────────────────
 Press Ctrl+C to stop
 
-[2025-05-04T12:00:00.000Z] ✓ /api/cron/dispatch-scheduled-jobs (200, 45ms)
-  {"processed":0,"results":[]}
-[2025-05-04T12:00:00.000Z] ✓ /api/cron/agent-monitor (200, 32ms)
+[2026-01-15T12:00:00.000Z] ✓ /api/cron/refresh-claude-creds (200, 45ms)
+  {"refreshed":0}
+[2026-01-15T12:00:00.000Z] ✓ /api/cron/agent-lifecycle (200, 32ms)
   {"processed":1,"results":[{"chatId":"abc","action":"refreshed"}]}
 ```
 
