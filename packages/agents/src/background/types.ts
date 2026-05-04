@@ -68,4 +68,6 @@ export interface StartOptions {
   cwd?: string
   /** Previous conversation history to inject as context for this turn. */
   history?: readonly HistoryMessage[]
+  /** When true, agent should use extended thinking / plan mode */
+  planMode?: boolean
 }

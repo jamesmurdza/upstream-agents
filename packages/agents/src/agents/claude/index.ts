@@ -85,6 +85,11 @@ export const claudeAgent: AgentDefinition = {
       args.push("--resume", options.sessionId)
     }
 
+    // Enable extended thinking when plan mode is active
+    if (options.planMode) {
+      args.push("--settings", JSON.stringify({ alwaysThinkingEnabled: true }))
+    }
+
     // The "--" sentinel signals end-of-options to the Claude CLI's argument parser
     if (options.prompt) {
       args.push("--")
