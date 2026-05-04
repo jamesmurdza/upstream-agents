@@ -308,55 +308,22 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect }: Sched
               >
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
-              {titleMenuOpen && (
+              {titleMenuOpen && selectedRun?.prUrl && (
                 <>
                   <div
                     className="fixed inset-0 z-40"
                     onClick={() => setTitleMenuOpen(false)}
                   />
                   <div className="absolute left-0 top-full mt-1 min-w-[160px] rounded-md border border-border bg-popover shadow-md py-1 z-50">
-                    {selectedRun?.prUrl && (
-                      <button
-                        onClick={() => {
-                          setTitleMenuOpen(false)
-                          window.open(selectedRun.prUrl!, "_blank", "noopener,noreferrer")
-                        }}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
-                      >
-                        <Github className="h-3.5 w-3.5" />
-                        Open PR #{selectedRun.prNumber}
-                      </button>
-                    )}
                     <button
                       onClick={() => {
                         setTitleMenuOpen(false)
-                        handleEdit(selectedJob)
+                        window.open(selectedRun.prUrl!, "_blank", "noopener,noreferrer")
                       }}
                       className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => {
-                        setTitleMenuOpen(false)
-                        handleRunNow(selectedJob)
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left cursor-pointer"
-                    >
-                      <Play className="h-3.5 w-3.5" />
-                      Run Now
-                    </button>
-                    <div className="my-1 border-t border-border" />
-                    <button
-                      onClick={() => {
-                        setTitleMenuOpen(false)
-                        setDeleteJob(selectedJob)
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left text-destructive cursor-pointer"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete
+                      <Github className="h-3.5 w-3.5" />
+                      Open PR #{selectedRun.prNumber}
                     </button>
                   </div>
                 </>
