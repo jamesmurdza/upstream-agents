@@ -8,36 +8,7 @@ import {
   internalError,
 } from "@/lib/db/api-helpers"
 import { addMinutes } from "date-fns"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ScheduledJobResponse {
-  id: string
-  name: string
-  prompt: string
-  repo: string
-  baseBranch: string
-  agent: string
-  model: string | null
-  intervalMinutes: number
-  enabled: boolean
-  nextRunAt: number
-  autoPR: boolean
-  consecutiveFailures: number
-  createdAt: number
-  updatedAt: number
-  lastRun: {
-    id: string
-    status: string
-    startedAt: number
-    completedAt: number | null
-    prUrl: string | null
-    prNumber: number | null
-    error: string | null
-  } | null
-}
+import { toScheduledJobResponse } from "@/lib/scheduled-jobs/types"
 
 // =============================================================================
 // Helper: Get job with auth check
@@ -81,36 +52,7 @@ export async function GET(
       return notFound("Scheduled job not found")
     }
 
-    const lastRun = job.runs[0]
-    const response: ScheduledJobResponse = {
-      id: job.id,
-      name: job.name,
-      prompt: job.prompt,
-      repo: job.repo,
-      baseBranch: job.baseBranch,
-      agent: job.agent,
-      model: job.model,
-      intervalMinutes: job.intervalMinutes,
-      enabled: job.enabled,
-      nextRunAt: job.nextRunAt.getTime(),
-      autoPR: job.autoPR,
-      consecutiveFailures: job.consecutiveFailures,
-      createdAt: job.createdAt.getTime(),
-      updatedAt: job.updatedAt.getTime(),
-      lastRun: lastRun
-        ? {
-            id: lastRun.id,
-            status: lastRun.status,
-            startedAt: lastRun.startedAt.getTime(),
-            completedAt: lastRun.completedAt?.getTime() ?? null,
-            prUrl: lastRun.prUrl,
-            prNumber: lastRun.prNumber,
-            error: lastRun.error,
-          }
-        : null,
-    }
-
-    return Response.json(response)
+    return Response.json(toScheduledJobResponse(job))
   } catch (error) {
     return internalError(error)
   }
@@ -208,36 +150,7 @@ export async function PATCH(
       },
     })
 
-    const lastRun = updatedJob.runs[0]
-    const response: ScheduledJobResponse = {
-      id: updatedJob.id,
-      name: updatedJob.name,
-      prompt: updatedJob.prompt,
-      repo: updatedJob.repo,
-      baseBranch: updatedJob.baseBranch,
-      agent: updatedJob.agent,
-      model: updatedJob.model,
-      intervalMinutes: updatedJob.intervalMinutes,
-      enabled: updatedJob.enabled,
-      nextRunAt: updatedJob.nextRunAt.getTime(),
-      autoPR: updatedJob.autoPR,
-      consecutiveFailures: updatedJob.consecutiveFailures,
-      createdAt: updatedJob.createdAt.getTime(),
-      updatedAt: updatedJob.updatedAt.getTime(),
-      lastRun: lastRun
-        ? {
-            id: lastRun.id,
-            status: lastRun.status,
-            startedAt: lastRun.startedAt.getTime(),
-            completedAt: lastRun.completedAt?.getTime() ?? null,
-            prUrl: lastRun.prUrl,
-            prNumber: lastRun.prNumber,
-            error: lastRun.error,
-          }
-        : null,
-    }
-
-    return Response.json(response)
+    return Response.json(toScheduledJobResponse(updatedJob))
   } catch (error) {
     return internalError(error)
   }

@@ -6,23 +6,7 @@ import {
   notFound,
   internalError,
 } from "@/lib/db/api-helpers"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ScheduledJobRunResponse {
-  id: string
-  status: string
-  startedAt: number
-  completedAt: number | null
-  branch: string | null
-  commitCount: number
-  prUrl: string | null
-  prNumber: number | null
-  error: string | null
-  chatId: string | null
-}
+import { toScheduledJobRunResponse } from "@/lib/scheduled-jobs/types"
 
 // =============================================================================
 // GET - List runs for a scheduled job
@@ -61,20 +45,7 @@ export async function GET(
       skip: offset,
     })
 
-    const response: ScheduledJobRunResponse[] = runs.map((run) => ({
-      id: run.id,
-      status: run.status,
-      startedAt: run.startedAt.getTime(),
-      completedAt: run.completedAt?.getTime() ?? null,
-      branch: run.branch,
-      commitCount: run.commitCount,
-      prUrl: run.prUrl,
-      prNumber: run.prNumber,
-      error: run.error,
-      chatId: run.chatId,
-    }))
-
-    return Response.json({ runs: response })
+    return Response.json({ runs: runs.map(toScheduledJobRunResponse) })
   } catch (error) {
     return internalError(error)
   }

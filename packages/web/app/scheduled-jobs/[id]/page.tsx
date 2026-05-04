@@ -8,49 +8,7 @@ import { format, formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { MessageBubble } from "@/components/MessageBubble"
 import type { Message } from "@/lib/types"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ScheduledJob {
-  id: string
-  name: string
-  prompt: string
-  repo: string
-  baseBranch: string
-  agent: string
-  model: string | null
-  intervalMinutes: number
-  enabled: boolean
-  nextRunAt: number
-  autoPR: boolean
-  consecutiveFailures: number
-  createdAt: number
-  updatedAt: number
-  lastRun: {
-    id: string
-    status: string
-    startedAt: number
-    completedAt: number | null
-    prUrl: string | null
-    prNumber: number | null
-    error: string | null
-  } | null
-}
-
-interface ScheduledJobRun {
-  id: string
-  status: string
-  startedAt: number
-  completedAt: number | null
-  branch: string | null
-  commitCount: number
-  prUrl: string | null
-  prNumber: number | null
-  error: string | null
-  chatId: string | null
-}
+import { type ScheduledJob, type ScheduledJobRun } from "@/lib/scheduled-jobs/types"
 
 // =============================================================================
 // Helpers

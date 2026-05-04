@@ -7,42 +7,13 @@ import {
   internalError,
 } from "@/lib/db/api-helpers"
 import { addMinutes } from "date-fns"
+import { toScheduledJobResponse } from "@/lib/scheduled-jobs/types"
 
 // =============================================================================
 // Constants
 // =============================================================================
 
 const MAX_JOBS_PER_USER = 5
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ScheduledJobResponse {
-  id: string
-  name: string
-  prompt: string
-  repo: string
-  baseBranch: string
-  agent: string
-  model: string | null
-  intervalMinutes: number
-  enabled: boolean
-  nextRunAt: number
-  autoPR: boolean
-  consecutiveFailures: number
-  createdAt: number
-  updatedAt: number
-  lastRun: {
-    id: string
-    status: string
-    startedAt: number
-    completedAt: number | null
-    prUrl: string | null
-    prNumber: number | null
-    error: string | null
-  } | null
-}
 
 // =============================================================================
 // GET - List all scheduled jobs for user
@@ -65,38 +36,7 @@ export async function GET(): Promise<Response> {
       orderBy: { createdAt: "desc" },
     })
 
-    const response: ScheduledJobResponse[] = jobs.map((job) => {
-      const lastRun = job.runs[0]
-      return {
-        id: job.id,
-        name: job.name,
-        prompt: job.prompt,
-        repo: job.repo,
-        baseBranch: job.baseBranch,
-        agent: job.agent,
-        model: job.model,
-        intervalMinutes: job.intervalMinutes,
-        enabled: job.enabled,
-        nextRunAt: job.nextRunAt.getTime(),
-        autoPR: job.autoPR,
-        consecutiveFailures: job.consecutiveFailures,
-        createdAt: job.createdAt.getTime(),
-        updatedAt: job.updatedAt.getTime(),
-        lastRun: lastRun
-          ? {
-              id: lastRun.id,
-              status: lastRun.status,
-              startedAt: lastRun.startedAt.getTime(),
-              completedAt: lastRun.completedAt?.getTime() ?? null,
-              prUrl: lastRun.prUrl,
-              prNumber: lastRun.prNumber,
-              error: lastRun.error,
-            }
-          : null,
-      }
-    })
-
-    return Response.json({ jobs: response })
+    return Response.json({ jobs: jobs.map(toScheduledJobResponse) })
   } catch (error) {
     return internalError(error)
   }
@@ -170,25 +110,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       },
     })
 
-    const response: ScheduledJobResponse = {
-      id: job.id,
-      name: job.name,
-      prompt: job.prompt,
-      repo: job.repo,
-      baseBranch: job.baseBranch,
-      agent: job.agent,
-      model: job.model,
-      intervalMinutes: job.intervalMinutes,
-      enabled: job.enabled,
-      nextRunAt: job.nextRunAt.getTime(),
-      autoPR: job.autoPR,
-      consecutiveFailures: job.consecutiveFailures,
-      createdAt: job.createdAt.getTime(),
-      updatedAt: job.updatedAt.getTime(),
-      lastRun: null,
-    }
-
-    return Response.json(response, { status: 201 })
+    return Response.json(toScheduledJobResponse(job), { status: 201 })
   } catch (error) {
     return internalError(error)
   }

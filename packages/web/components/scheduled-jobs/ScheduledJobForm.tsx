@@ -5,36 +5,11 @@ import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useReposQuery, useBranchesQueryFromFullName } from "@/lib/query"
 import type { GitHubRepo, GitHubBranch } from "@/lib/github"
+import { type ScheduledJob } from "@/lib/scheduled-jobs/types"
 
 // =============================================================================
 // Types
 // =============================================================================
-
-interface ScheduledJob {
-  id: string
-  name: string
-  prompt: string
-  repo: string
-  baseBranch: string
-  agent: string
-  model: string | null
-  intervalMinutes: number
-  enabled: boolean
-  nextRunAt: number
-  autoPR: boolean
-  consecutiveFailures: number
-  createdAt: number
-  updatedAt: number
-  lastRun: {
-    id: string
-    status: string
-    startedAt: number
-    completedAt: number | null
-    prUrl: string | null
-    prNumber: number | null
-    error: string | null
-  } | null
-}
 
 interface ScheduledJobFormProps {
   job?: ScheduledJob | null

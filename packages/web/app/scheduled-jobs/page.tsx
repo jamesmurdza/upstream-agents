@@ -8,46 +8,11 @@ import { formatDistanceToNow } from "date-fns"
 import { cn } from "@/lib/utils"
 import { ScheduledJobForm } from "@/components/scheduled-jobs/ScheduledJobForm"
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ScheduledJob {
-  id: string
-  name: string
-  prompt: string
-  repo: string
-  baseBranch: string
-  agent: string
-  model: string | null
-  intervalMinutes: number
-  enabled: boolean
-  nextRunAt: number
-  autoPR: boolean
-  consecutiveFailures: number
-  createdAt: number
-  updatedAt: number
-  lastRun: {
-    id: string
-    status: string
-    startedAt: number
-    completedAt: number | null
-    prUrl: string | null
-    prNumber: number | null
-    error: string | null
-  } | null
-}
+import { type ScheduledJob, formatInterval } from "@/lib/scheduled-jobs/types"
 
 // =============================================================================
 // Helpers
 // =============================================================================
-
-function formatInterval(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`
-  if (minutes < 1440) return `${Math.round(minutes / 60)}h`
-  return `${Math.round(minutes / 1440)}d`
-}
 
 function getStatusIcon(job: ScheduledJob) {
   if (!job.enabled) {
