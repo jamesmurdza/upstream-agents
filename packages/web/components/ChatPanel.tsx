@@ -961,24 +961,19 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
             <Paperclip className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
           </button>
 
-          {/* Plan mode toggle */}
-          <button
-            type="button"
-            onClick={() => setPlanModeEnabled((v) => !v)}
-            className={cn(
-              "shrink-0 flex items-center gap-1 rounded-md transition-colors cursor-pointer",
-              planModeEnabled
-                ? "bg-primary/15 text-primary hover:bg-primary/20"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent",
-              isMobile ? "h-7 px-2 text-sm" : "h-6 px-1.5 text-sm"
-            )}
-            title={planModeEnabled ? "Plan mode on — agent will plan before acting" : "Plan mode off"}
-            aria-label="Toggle plan mode"
-            aria-pressed={planModeEnabled}
-          >
-            <Brain className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-            <span className={cn("text-sm", !isMobile && "hidden @[32rem]:inline")}>Plan</span>
-          </button>
+          {/* Schedule button */}
+          {onCreateScheduledJob && (
+            <button
+              onClick={onCreateScheduledJob}
+              className={cn(
+                "flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent/50",
+                isMobile ? "p-2 touch-target" : "p-1"
+              )}
+              title="Create scheduled job"
+            >
+              <Clock className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+            </button>
+          )}
 
           {/* Repo display/selector */}
           {showRepoButton ? (
@@ -1051,19 +1046,24 @@ export function ChatPanel({ chat, settings, credentialFlags, onSendMessage, onEn
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Schedule button */}
-          {onCreateScheduledJob && (
-            <button
-              onClick={onCreateScheduledJob}
-              className={cn(
-                "flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded-md hover:bg-accent/50",
-                isMobile ? "p-2 touch-target" : "p-1"
-              )}
-              title="Create scheduled job"
-            >
-              <Clock className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-            </button>
-          )}
+          {/* Plan mode toggle */}
+          <button
+            type="button"
+            onClick={() => setPlanModeEnabled((v) => !v)}
+            className={cn(
+              "shrink-0 flex items-center gap-1 rounded-md transition-colors cursor-pointer",
+              planModeEnabled
+                ? "bg-primary/15 text-primary hover:bg-primary/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent",
+              isMobile ? "h-7 px-2 text-sm" : "h-6 px-1.5 text-sm"
+            )}
+            title={planModeEnabled ? "Plan mode on — agent will plan before acting" : "Plan mode off"}
+            aria-label="Toggle plan mode"
+            aria-pressed={planModeEnabled}
+          >
+            <Brain className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+            <span className={cn("text-sm", !isMobile && "hidden @[32rem]:inline")}>Plan</span>
+          </button>
 
           {/* Agent selector */}
           {isMobile ? (
