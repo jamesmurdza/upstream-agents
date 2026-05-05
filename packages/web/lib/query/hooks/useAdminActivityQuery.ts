@@ -22,9 +22,16 @@ interface Pagination {
   totalPages: number
 }
 
+interface ActivityFilters {
+  actions: string[]
+  agents: string[]
+  models: string[]
+}
+
 interface AdminActivityResponse {
   activities: Activity[]
   pagination: Pagination
+  filters?: ActivityFilters
 }
 
 interface UseAdminActivityQueryOptions {
@@ -32,6 +39,11 @@ interface UseAdminActivityQueryOptions {
   limit?: number
   action?: string
   userId?: string
+  agent?: string
+  model?: string
+  dateFrom?: string
+  dateTo?: string
+  includeFilters?: boolean
 }
 
 async function fetchAdminActivity(
@@ -42,6 +54,11 @@ async function fetchAdminActivity(
   if (options.limit) params.set("limit", options.limit.toString())
   if (options.action) params.set("action", options.action)
   if (options.userId) params.set("userId", options.userId)
+  if (options.agent) params.set("agent", options.agent)
+  if (options.model) params.set("model", options.model)
+  if (options.dateFrom) params.set("dateFrom", options.dateFrom)
+  if (options.dateTo) params.set("dateTo", options.dateTo)
+  if (options.includeFilters) params.set("includeFilters", "true")
 
   const response = await fetch(`/api/admin/activity?${params}`)
   if (!response.ok) {
@@ -62,6 +79,10 @@ export function useAdminActivityQuery(options: UseAdminActivityQueryOptions = {}
     queryKey: queryKeys.admin.activity(page, {
       action: options.action,
       userId: options.userId,
+      agent: options.agent,
+      model: options.model,
+      dateFrom: options.dateFrom,
+      dateTo: options.dateTo,
     }),
     queryFn: () => fetchAdminActivity(options),
     enabled: isAuthenticated,

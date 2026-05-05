@@ -41,8 +41,14 @@ export const queryKeys = {
   admin: {
     all: ["admin"] as const,
     stats: () => [...queryKeys.admin.all, "stats"] as const,
-    activity: (page: number, filters?: { action?: string; userId?: string }) =>
-      [...queryKeys.admin.all, "activity", { page, ...filters }] as const,
+    activity: (page: number, filters?: {
+      action?: string
+      userId?: string
+      agent?: string
+      model?: string
+      dateFrom?: string
+      dateTo?: string
+    }) => [...queryKeys.admin.all, "activity", { page, ...filters }] as const,
     users: (page: number, search?: string, sortField?: string, sortOrder?: string) =>
       [...queryKeys.admin.all, "users", { page, search, sortField, sortOrder }] as const,
     topUsers: (range: string) => [...queryKeys.admin.all, "topUsers", range] as const,

@@ -51,6 +51,13 @@ export default function AdminDashboard() {
 
   // Activity state
   const [activityPage, setActivityPage] = useState(1)
+  const [activityFilters, setActivityFilters] = useState<{
+    action?: string
+    agent?: string
+    model?: string
+    dateFrom?: string
+    dateTo?: string
+  }>({})
 
   // Top users time range state
   const [topUsersRange, setTopUsersRange] = useState<TopUsersRange>("24h")
@@ -58,7 +65,12 @@ export default function AdminDashboard() {
   // Queries
   const statsQuery = useAdminStatsQuery()
   const topUsersQuery = useAdminTopUsersQuery(topUsersRange)
-  const activityQuery = useAdminActivityQuery({ page: activityPage, limit: 20 })
+  const activityQuery = useAdminActivityQuery({
+    page: activityPage,
+    limit: 20,
+    ...activityFilters,
+    includeFilters: true,
+  })
   const usersQuery = useAdminUsersQuery({
     page: usersPage,
     search: usersSearch || undefined,
@@ -253,6 +265,14 @@ export default function AdminDashboard() {
               <div className="rounded-lg border bg-card p-6">
                 <ActivityFeed
                   activities={activityQuery.data?.activities ?? []}
+                  filters={activityQuery.data?.filters}
+                  filterState={activityFilters}
+                  onFilterChange={(filters) => {
+                    setActivityFilters(filters)
+                    if (filters.page === undefined) {
+                      setActivityPage(1)
+                    }
+                  }}
                   isLoading={activityQuery.isLoading}
                   hasMore={
                     activityQuery.data

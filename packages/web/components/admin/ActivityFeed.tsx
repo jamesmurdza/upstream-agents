@@ -11,6 +11,11 @@ import {
   ShieldCheck,
   ShieldOff,
   LucideIcon,
+  Filter,
+  X,
+  Bot,
+  Cpu,
+  Calendar,
 } from "lucide-react"
 
 interface Activity {
@@ -24,8 +29,25 @@ interface Activity {
   createdAt: string
 }
 
+interface ActivityFilters {
+  actions: string[]
+  agents: string[]
+  models: string[]
+}
+
+interface ActivityFilterState {
+  action?: string
+  agent?: string
+  model?: string
+  dateFrom?: string
+  dateTo?: string
+}
+
 interface ActivityFeedProps {
   activities: Activity[]
+  filters?: ActivityFilters
+  filterState: ActivityFilterState
+  onFilterChange: (filters: ActivityFilterState) => void
   isLoading?: boolean
   onLoadMore?: () => void
   hasMore?: boolean
@@ -45,6 +67,20 @@ const ACTION_CONFIG: Record<
   admin_demoted: { icon: ShieldOff, label: "removed admin status", color: "text-red-600" },
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  login: "Login",
+  logout: "Logout",
+  chat_created: "Chat Created",
+  chat_deleted: "Chat Deleted",
+  message_sent: "Message Sent",
+  settings_updated: "Settings Updated",
+  admin_promoted: "Admin Promoted",
+  admin_demoted: "Admin Demoted",
+  sandbox_created: "Sandbox Created",
+  sandbox_deleted: "Sandbox Deleted",
+  daily_limit_reached: "Daily Limit Reached",
+}
+
 function ActivityItem({ activity }: { activity: Activity }) {
   const config = ACTION_CONFIG[activity.action] || {
     icon: MessageSquare,
@@ -54,6 +90,8 @@ function ActivityItem({ activity }: { activity: Activity }) {
   const Icon = config.icon
 
   const metadata = activity.metadata as Record<string, string> | null
+  const agent = metadata?.agent
+  const model = metadata?.model
   const details = metadata?.repo || metadata?.targetUserName || metadata?.chatId
 
   return (
@@ -73,7 +111,23 @@ function ActivityItem({ activity }: { activity: Activity }) {
             <span className="text-muted-foreground"> - {details}</span>
           )}
         </p>
-        <p className="text-xs text-muted-foreground">
+        {(agent || model) && (
+          <div className="mt-1 flex gap-2">
+            {agent && (
+              <span className="inline-flex items-center gap-1 rounded bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                <Bot className="h-3 w-3" />
+                {agent}
+              </span>
+            )}
+            {model && (
+              <span className="inline-flex items-center gap-1 rounded bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                <Cpu className="h-3 w-3" />
+                {model}
+              </span>
+            )}
+          </div>
+        )}
+        <p className="mt-1 text-xs text-muted-foreground">
           {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
         </p>
       </div>
@@ -88,8 +142,168 @@ function ActivityItem({ activity }: { activity: Activity }) {
   )
 }
 
+function ActivityFiltersBar({
+  filters,
+  filterState,
+  onFilterChange,
+}: {
+  filters: ActivityFilters
+  filterState: ActivityFilterState
+  onFilterChange: (filters: ActivityFilterState) => void
+}) {
+  const hasActiveFilters = filterState.action || filterState.agent || filterState.model || filterState.dateFrom || filterState.dateTo
+
+  const clearAll = () => {
+    onFilterChange({})
+  }
+
+  return (
+    <div className="space-y-3 border-b pb-4 mb-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filters</span>
+        </div>
+        {hasActiveFilters && (
+          <button
+            onClick={clearAll}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+            Clear all
+          </button>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Action filter */}
+        <select
+          value={filterState.action || ""}
+          onChange={(e) => onFilterChange({ ...filterState, action: e.target.value || undefined })}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="">All Actions</option>
+          {filters.actions.map((action) => (
+            <option key={action} value={action}>
+              {ACTION_LABELS[action] || action}
+            </option>
+          ))}
+        </select>
+
+        {/* Agent filter */}
+        <select
+          value={filterState.agent || ""}
+          onChange={(e) => onFilterChange({ ...filterState, agent: e.target.value || undefined })}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          disabled={filters.agents.length === 0}
+        >
+          <option value="">All Agents</option>
+          {filters.agents.map((agent) => (
+            <option key={agent} value={agent}>
+              {agent}
+            </option>
+          ))}
+        </select>
+
+        {/* Model filter */}
+        <select
+          value={filterState.model || ""}
+          onChange={(e) => onFilterChange({ ...filterState, model: e.target.value || undefined })}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          disabled={filters.models.length === 0}
+        >
+          <option value="">All Models</option>
+          {filters.models.map((model) => (
+            <option key={model} value={model}>
+              {model}
+            </option>
+          ))}
+        </select>
+
+        {/* Date range filter */}
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={filterState.dateFrom || ""}
+            onChange={(e) => onFilterChange({ ...filterState, dateFrom: e.target.value || undefined })}
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="From"
+          />
+          <input
+            type="date"
+            value={filterState.dateTo || ""}
+            onChange={(e) => onFilterChange({ ...filterState, dateTo: e.target.value || undefined })}
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="To"
+          />
+        </div>
+      </div>
+
+      {/* Active filters display */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap gap-2">
+          {filterState.action && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              Action: {ACTION_LABELS[filterState.action] || filterState.action}
+              <button
+                onClick={() => onFilterChange({ ...filterState, action: undefined })}
+                className="ml-1 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
+          {filterState.agent && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <Bot className="h-3 w-3" />
+              Agent: {filterState.agent}
+              <button
+                onClick={() => onFilterChange({ ...filterState, agent: undefined })}
+                className="ml-1 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
+          {filterState.model && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <Cpu className="h-3 w-3" />
+              Model: {filterState.model}
+              <button
+                onClick={() => onFilterChange({ ...filterState, model: undefined })}
+                className="ml-1 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
+          {(filterState.dateFrom || filterState.dateTo) && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <Calendar className="h-3 w-3" />
+              {filterState.dateFrom && filterState.dateTo
+                ? `${filterState.dateFrom} → ${filterState.dateTo}`
+                : filterState.dateFrom
+                  ? `From ${filterState.dateFrom}`
+                  : `To ${filterState.dateTo}`}
+              <button
+                onClick={() => onFilterChange({ ...filterState, dateFrom: undefined, dateTo: undefined })}
+                className="ml-1 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ActivityFeed({
   activities,
+  filters,
+  filterState,
+  onFilterChange,
   isLoading,
   onLoadMore,
   hasMore,
@@ -112,14 +326,30 @@ export function ActivityFeed({
 
   if (activities.length === 0) {
     return (
-      <div className="py-8 text-center text-muted-foreground">
-        No activity recorded yet
+      <div>
+        {filters && (
+          <ActivityFiltersBar
+            filters={filters}
+            filterState={filterState}
+            onFilterChange={onFilterChange}
+          />
+        )}
+        <div className="py-8 text-center text-muted-foreground">
+          {hasActiveFilters(filterState) ? "No activity matches your filters" : "No activity recorded yet"}
+        </div>
       </div>
     )
   }
 
   return (
     <div>
+      {filters && (
+        <ActivityFiltersBar
+          filters={filters}
+          filterState={filterState}
+          onFilterChange={onFilterChange}
+        />
+      )}
       <div className="divide-y">
         {activities.map((activity) => (
           <ActivityItem key={activity.id} activity={activity} />
@@ -136,4 +366,8 @@ export function ActivityFeed({
       )}
     </div>
   )
+}
+
+function hasActiveFilters(filterState: ActivityFilterState): boolean {
+  return !!(filterState.action || filterState.agent || filterState.model || filterState.dateFrom || filterState.dateTo)
 }
