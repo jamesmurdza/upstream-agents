@@ -269,9 +269,7 @@ export default function AdminDashboard() {
                   filterState={activityFilters}
                   onFilterChange={(filters) => {
                     setActivityFilters(filters)
-                    if (filters.page === undefined) {
-                      setActivityPage(1)
-                    }
+                    setActivityPage(1)
                   }}
                   isLoading={activityQuery.isLoading}
                   hasMore={
