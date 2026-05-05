@@ -15,6 +15,7 @@ export type ActivityAction =
   | "settings_updated"
   | "admin_promoted"
   | "admin_demoted"
+  | "daily_limit_reached"
 
 /**
  * Metadata types for different actions
