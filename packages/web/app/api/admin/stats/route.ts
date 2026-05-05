@@ -34,6 +34,7 @@ export async function GET() {
     repoActivityRaw,
     hourlyActivityRaw,
     dailyMessagesChatsRaw,
+    messagesByModelRaw,
   ] = await Promise.all([
     // Total users
     prisma.user.count(),
@@ -191,6 +192,18 @@ export async function GET() {
       ) c ON c.date = d.date
       ORDER BY d.date ASC
     `,
+
+    // Hourly messages by model in past 24 hours
+    prisma.$queryRaw<Array<{ hour: number; model: string | null; count: bigint }>>`
+      SELECT
+        EXTRACT(HOUR FROM "createdAt")::int as hour,
+        model,
+        COUNT(*)::bigint as count
+      FROM "Message"
+      WHERE "createdAt" >= NOW() - INTERVAL '24 hours'
+      GROUP BY hour, model
+      ORDER BY hour ASC
+    `,
   ])
 
   // Format model usage
@@ -247,6 +260,48 @@ export async function GET() {
     chats: Number(item.chats),
   }))
 
+  // Format hourly messages by model (past 24 hours)
+  // Pivot from [{hour, model, count}] to [{hour: "00:00", modelA: 5, modelB: 3, ...}]
+  const hoursByModel: Record<string, Record<string, number | string>> = {}
+  const allModels = new Set<string>()
+
+  for (const row of messagesByModelRaw) {
+    const hourStr = String(row.hour).padStart(2, "0")
+    const modelName = row.model || "unknown"
+    allModels.add(modelName)
+
+    if (!hoursByModel[hourStr]) {
+      hoursByModel[hourStr] = { hour: `${hourStr}:00` }
+    }
+    hoursByModel[hourStr][modelName] = Number(row.count)
+  }
+
+  // Fill in missing hours with 0
+  const messagesByModel: Array<Record<string, number | string>> = []
+  const nowHour = new Date().getHours()
+
+  for (let i = 0; i < 24; i++) {
+    const hourNum = (nowHour - 23 + i + 24) % 24
+    const hourStr = String(hourNum).padStart(2, "0")
+
+    if (!hoursByModel[hourStr]) {
+      hoursByModel[hourStr] = { hour: `${hourStr}:00` }
+    }
+    // Ensure all models have a value
+    for (const model of allModels) {
+      if (!hoursByModel[hourStr][model]) {
+        hoursByModel[hourStr][model] = 0
+      }
+    }
+  }
+
+  // Sort by hour and convert to array
+  messagesByModel.push(
+    ...Object.values(hoursByModel).sort((a, b) => {
+      return (a.hour as string).localeCompare(b.hour as string)
+    })
+  )
+
   return NextResponse.json({
     stats: {
       totalUsers,
@@ -266,5 +321,6 @@ export async function GET() {
     repoActivity,
     hourlyActivity,
     dailyMessagesChats,
+    messagesByModel,
   })
 }
