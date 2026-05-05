@@ -1,15 +1,15 @@
 /**
- * Daily usage limit for shared Claude subscription.
+ * Daily usage limit for shared Claude Code subscription.
  *
- * Free users are limited to a configurable number of messages per day
+ * Free users are limited to 10 Claude Code messages per day
  * when using the shared Claude credentials (no personal API key).
  * Pro users have unlimited access.
  */
 
 import { prisma } from "./prisma"
 
-/** Daily message limit for free users on shared Claude subscription */
-const FREE_DAILY_LIMIT = 10
+/** Daily Claude Code message limit for free users on shared subscription */
+const FREE_DAILY_CLAUDE_CODE_LIMIT = 10
 
 export interface UsageLimitResult {
   allowed: boolean
@@ -21,10 +21,10 @@ export interface UsageLimitResult {
 }
 
 /**
- * Check if a user can send a message using shared Claude credentials.
+ * Check if a user can send a Claude Code message using shared credentials.
  * Returns usage status including whether the request is allowed.
  *
- * This only applies to shared Claude subscription usage - users with
+ * This only applies to shared Claude Code subscription usage - users with
  * their own API keys have unlimited access.
  */
 export async function checkSharedClaudeUsage(
@@ -40,7 +40,7 @@ export async function checkSharedClaudeUsage(
       allowed: false,
       isPro: false,
       remaining: 0,
-      limit: FREE_DAILY_LIMIT,
+      limit: FREE_DAILY_CLAUDE_CODE_LIMIT,
       resetAt: getNextResetTime(),
       error: "User not found",
     }
@@ -57,14 +57,14 @@ export async function checkSharedClaudeUsage(
     }
   }
 
-  // Count messages sent today using shared Claude credentials
+  // Count Claude Code messages sent today using shared credentials
   const startOfDay = getStartOfDay()
   const todayCount = await prisma.activityLog.count({
     where: {
       userId,
       action: "message_sent",
       createdAt: { gte: startOfDay },
-      // Only count shared Claude usage - metadata contains useSharedClaude: true
+      // Only count shared Claude Code usage - metadata contains useSharedClaude: true
       metadata: {
         path: ["useSharedClaude"],
         equals: true,
@@ -72,18 +72,18 @@ export async function checkSharedClaudeUsage(
     },
   })
 
-  const remaining = Math.max(0, FREE_DAILY_LIMIT - todayCount)
-  const allowed = todayCount < FREE_DAILY_LIMIT
+  const remaining = Math.max(0, FREE_DAILY_CLAUDE_CODE_LIMIT - todayCount)
+  const allowed = todayCount < FREE_DAILY_CLAUDE_CODE_LIMIT
 
   return {
     allowed,
     isPro: false,
     remaining,
-    limit: FREE_DAILY_LIMIT,
+    limit: FREE_DAILY_CLAUDE_CODE_LIMIT,
     resetAt: getNextResetTime(),
     error: allowed
       ? undefined
-      : `Daily limit of ${FREE_DAILY_LIMIT} messages reached. Upgrade to Pro for unlimited usage.`,
+      : `Daily limit of ${FREE_DAILY_CLAUDE_CODE_LIMIT} free Claude Code messages reached. Upgrade to Pro for unlimited usage.`,
   }
 }
 
@@ -104,8 +104,8 @@ function getNextResetTime(): Date {
 }
 
 /**
- * Get the current daily limit constant.
+ * Get the current daily Claude Code limit constant.
  */
-export function getDailyLimit(): number {
-  return FREE_DAILY_LIMIT
+export function getDailyClaudeCodeLimit(): number {
+  return FREE_DAILY_CLAUDE_CODE_LIMIT
 }
