@@ -45,6 +45,7 @@ export const queryKeys = {
       [...queryKeys.admin.all, "activity", { page, ...filters }] as const,
     users: (page: number, search?: string, sortField?: string, sortOrder?: string) =>
       [...queryKeys.admin.all, "users", { page, search, sortField, sortOrder }] as const,
+    topUsers: (range: string) => [...queryKeys.admin.all, "topUsers", range] as const,
   },
 }
 

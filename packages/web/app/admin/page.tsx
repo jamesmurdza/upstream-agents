@@ -6,16 +6,12 @@ import { useRouter } from "next/navigation"
 import {
   Users,
   MessageSquare,
-  FolderOpen,
-  LogIn,
   Activity,
   TrendingUp,
   Clock,
   Trophy,
   LayoutDashboard,
 } from "lucide-react"
-
-import { StatCard } from "@/components/admin/StatCard"
 import { ActivityFeed } from "@/components/admin/ActivityFeed"
 import { UserTable, type SortField, type SortOrder } from "@/components/admin/UserTable"
 import { UserGrowthChart } from "@/components/admin/charts/UserGrowthChart"
@@ -27,6 +23,8 @@ import {
   useAdminActivityQuery,
   useAdminUsersQuery,
   useUpdateUserMutation,
+  useAdminTopUsersQuery,
+  type TopUsersRange,
 } from "@/lib/query/hooks"
 
 type SectionKey = "overview" | "users" | "activity"
@@ -53,8 +51,12 @@ export default function AdminDashboard() {
   // Activity state
   const [activityPage, setActivityPage] = useState(1)
 
+  // Top users time range state
+  const [topUsersRange, setTopUsersRange] = useState<TopUsersRange>("30d")
+
   // Queries
   const statsQuery = useAdminStatsQuery()
+  const topUsersQuery = useAdminTopUsersQuery(topUsersRange)
   const activityQuery = useAdminActivityQuery({ page: activityPage, limit: 20 })
   const usersQuery = useAdminUsersQuery({
     page: usersPage,
@@ -110,9 +112,8 @@ export default function AdminDashboard() {
     return null
   }
 
-  const stats = statsQuery.data?.stats
   const weeklyActiveUsers = statsQuery.data?.weeklyActiveUsers ?? []
-  const topUsers = statsQuery.data?.topUsers ?? []
+  const topUsers = topUsersQuery.data?.topUsers ?? []
   const hourlyActivity = statsQuery.data?.hourlyActivity ?? []
   const dailyMessagesChats = statsQuery.data?.dailyMessagesChats ?? []
 
@@ -151,36 +152,6 @@ export default function AdminDashboard() {
           {/* Overview Section */}
           {activeSection === "overview" && (
             <>
-              {/* Stats Grid */}
-              <section>
-                <h2 className="mb-4 text-lg font-semibold">Overview</h2>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <StatCard
-                    icon={Users}
-                    label="Total Users"
-                    value={stats?.totalUsers ?? 0}
-                  />
-                  <StatCard
-                    icon={FolderOpen}
-                    label="Total Chats"
-                    value={stats?.totalChats ?? 0}
-                    subValue={`${stats?.chatsCreatedToday ?? 0} today`}
-                  />
-                  <StatCard
-                    icon={MessageSquare}
-                    label="Messages This Week"
-                    value={stats?.messagesCreatedThisWeek ?? 0}
-                    subValue={`${stats?.messagesCreatedToday ?? 0} today`}
-                  />
-                  <StatCard
-                    icon={LogIn}
-                    label="Logins This Week"
-                    value={stats?.loginsThisWeek ?? 0}
-                    subValue={`${stats?.loginsToday ?? 0} today`}
-                  />
-                </div>
-              </section>
-
               {/* Charts Row 1 */}
               <section className="grid gap-6 lg:grid-cols-2">
                 <div className="rounded-lg border bg-card p-6">
@@ -205,9 +176,14 @@ export default function AdminDashboard() {
                 <div className="rounded-lg border bg-card p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <Trophy className="h-5 w-5 text-muted-foreground" />
-                    <h3 className="font-semibold">Top Active Users (Last 30 Days)</h3>
+                    <h3 className="font-semibold">Top Active Users</h3>
                   </div>
-                  <TopUsersTable data={topUsers} />
+                  <TopUsersTable
+                    data={topUsers}
+                    isLoading={topUsersQuery.isLoading}
+                    selectedRange={topUsersRange}
+                    onRangeChange={setTopUsersRange}
+                  />
                 </div>
 
                 <div className="rounded-lg border bg-card p-6">
