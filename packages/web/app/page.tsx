@@ -1597,10 +1597,8 @@ export default function HomePage() {
           handleOpenSettings("anthropic")
         }}
         onUpgradeToPro={() => {
-          // For now, just show a message that this feature is coming soon
-          // In the future, this would open a subscription flow
           dismissLimitReached()
-          alert("Pro subscriptions coming soon!")
+          window.open("mailto:james@jamesmurdza.com?subject=Upgrade%20to%20Pro", "_blank")
         }}
         resetAt={limitReachedState.resetAt}
         isMobile={isMobile}
