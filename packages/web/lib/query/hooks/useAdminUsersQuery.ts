@@ -11,6 +11,7 @@ interface User {
   image: string | null
   githubId: string | null
   isAdmin: boolean
+  isPro: boolean
   totalMessages: number
   lastActivityAt: string | null
   lastActivityAction: string | null
@@ -79,17 +80,22 @@ export function useAdminUsersQuery(options: UseAdminUsersQueryOptions = {}) {
   })
 }
 
-// Mutation for updating user admin status
+// Mutation for updating user properties (admin status, pro status)
 interface UpdateUserParams {
   userId: string
-  isAdmin: boolean
+  isAdmin?: boolean
+  isPro?: boolean
 }
 
-async function updateUser({ userId, isAdmin }: UpdateUserParams): Promise<User> {
+async function updateUser({ userId, isAdmin, isPro }: UpdateUserParams): Promise<User> {
+  const body: { isAdmin?: boolean; isPro?: boolean } = {}
+  if (typeof isAdmin === "boolean") body.isAdmin = isAdmin
+  if (typeof isPro === "boolean") body.isPro = isPro
+
   const response = await fetch(`/api/admin/users/${userId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ isAdmin }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {

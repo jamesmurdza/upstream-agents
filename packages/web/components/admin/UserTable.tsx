@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { formatDistanceToNow } from "date-fns"
-import { Search, ChevronLeft, ChevronRight, Shield, ShieldOff, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, Shield, ShieldOff, ArrowUp, ArrowDown, ArrowUpDown, Crown } from "lucide-react"
 
 interface User {
   id: string
@@ -11,6 +11,7 @@ interface User {
   image: string | null
   githubId: string | null
   isAdmin: boolean
+  isPro: boolean
   totalMessages: number
   lastActivityAt: string | null
   lastActivityAction: string | null
@@ -38,6 +39,7 @@ interface UserTableProps {
   onPageChange: (page: number) => void
   onSortChange: (field: SortField) => void
   onToggleAdmin: (userId: string, isAdmin: boolean) => void
+  onTogglePro: (userId: string, isPro: boolean) => void
   isUpdating?: string | null
   currentUserId?: string
 }
@@ -90,6 +92,7 @@ export function UserTable({
   onPageChange,
   onSortChange,
   onToggleAdmin,
+  onTogglePro,
   isUpdating,
   currentUserId,
 }: UserTableProps) {
@@ -133,6 +136,7 @@ export function UserTable({
                 <SortHeader label="Messages" field="totalMessages" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} align="center" />
                 <SortHeader label="Last Active" field="lastActivityAt" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
                 <SortHeader label="Joined" field="createdAt" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
+                <th className="px-4 py-3 text-center font-medium">Pro</th>
                 <th className="px-4 py-3 text-center font-medium">Admin</th>
               </tr>
             </thead>
@@ -161,11 +165,14 @@ export function UserTable({
                     <td className="px-4 py-3 text-center">
                       <div className="mx-auto h-6 w-12 rounded bg-muted animate-pulse" />
                     </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="mx-auto h-6 w-12 rounded bg-muted animate-pulse" />
+                    </td>
                   </tr>
                 ))
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                     No users found
                   </td>
                 </tr>
@@ -214,6 +221,21 @@ export function UserTable({
                       {formatDistanceToNow(new Date(user.createdAt), {
                         addSuffix: true,
                       })}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => onTogglePro(user.id, !user.isPro)}
+                        disabled={isUpdating === user.id}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium transition-colors ${
+                          user.isPro
+                            ? "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"
+                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                        title={user.isPro ? "Click to remove Pro status" : "Click to grant Pro status"}
+                      >
+                        <Crown className="h-3 w-3" />
+                        {user.isPro ? "Pro" : "Free"}
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button

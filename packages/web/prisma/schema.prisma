@@ -23,6 +23,9 @@ model User {
   // Admin flag for analytics dashboard access
   isAdmin Boolean @default(false)
 
+  // Pro subscription flag for unlimited shared Claude usage
+  isPro Boolean @default(false)
+
   // JSONB for flexible settings storage (no migrations needed for new fields)
   // { defaultAgent, defaultModel, theme }
   settings Json?
