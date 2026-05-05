@@ -52,7 +52,7 @@ export default function AdminDashboard() {
   const [activityPage, setActivityPage] = useState(1)
 
   // Top users time range state
-  const [topUsersRange, setTopUsersRange] = useState<TopUsersRange>("30d")
+  const [topUsersRange, setTopUsersRange] = useState<TopUsersRange>("24h")
 
   // Queries
   const statsQuery = useAdminStatsQuery()
