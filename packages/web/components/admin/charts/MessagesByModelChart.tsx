@@ -1,70 +1,61 @@
 "use client"
 
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
-  Cell,
 } from "recharts"
 
-interface MessagesByModelData {
-  model: string
-  count: number
-}
+const COLORS = [
+  "#8884d8",
+  "#82ca9d",
+  "#ffc658",
+  "#ff7300",
+  "#0088fe",
+  "#00c49f",
+  "#ff8042",
+  "#a4de6c",
+  "#d0ed57",
+  "#83a6ed",
+]
 
 interface MessagesByModelChartProps {
-  data: MessagesByModelData[]
+  data: Array<Record<string, number | string>>
 }
-
-const COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "hsl(250, 60%, 55%)",
-  "hsl(180, 60%, 55%)",
-  "hsl(30, 60%, 55%)",
-  "hsl(330, 60%, 55%)",
-  "hsl(90, 60%, 55%)",
-]
 
 export function MessagesByModelChart({ data }: MessagesByModelChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-[250px] items-center justify-center text-muted-foreground">
+      <div className="flex h-[300px] items-center justify-center text-muted-foreground">
         No model usage data available for the past 24 hours
       </div>
     )
   }
 
-  const sortedData = [...data].sort((a, b) => b.count - a.count).slice(0, 10)
+  // Extract model names (all keys except "hour")
+  const modelKeys = Array.from(
+    new Set(data.flatMap((entry) => Object.keys(entry).filter((key) => key !== "hour")))
+  )
 
   return (
-    <div className="h-[250px] w-full">
+    <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={sortedData}
-          layout="vertical"
+        <LineChart
+          data={data}
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
         >
-          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis
-            type="number"
-            tick={{ fontSize: 11 }}
+            dataKey="hour"
+            tick={{ fontSize: 12 }}
             className="text-muted-foreground"
           />
-          <YAxis
-            type="category"
-            dataKey="model"
-            tick={{ fontSize: 11 }}
-            className="text-muted-foreground"
-            width={100}
-          />
+          <YAxis tick={{ fontSize: 12 }} className="text-muted-foreground" />
           <Tooltip
             contentStyle={{
               backgroundColor: "hsl(var(--popover))",
@@ -72,14 +63,21 @@ export function MessagesByModelChart({ data }: MessagesByModelChartProps) {
               borderRadius: "6px",
             }}
             labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-            formatter={(value: number, name: string, props) => [value, "Messages"]}
           />
-          <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-            {sortedData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Bar>
-        </BarChart>
+          <Legend />
+          {modelKeys.map((model, index) => (
+            <Line
+              key={model}
+              type="monotone"
+              dataKey={model}
+              name={model}
+              stroke={COLORS[index % COLORS.length]}
+              strokeWidth={2}
+              dot={{ r: 2 }}
+              activeDot={{ r: 5 }}
+            />
+          ))}
+        </LineChart>
       </ResponsiveContainer>
     </div>
   )

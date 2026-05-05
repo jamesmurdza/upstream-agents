@@ -42,10 +42,7 @@ interface AdminStats {
     messages: number
     chats: number
   }>
-  messagesByModel: Array<{
-    model: string
-    count: number
-  }>
+  messagesByModel: Array<Record<string, number | string>>
 }
 
 async function fetchAdminStats(): Promise<AdminStats> {
