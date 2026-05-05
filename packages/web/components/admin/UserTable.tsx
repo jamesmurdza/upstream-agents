@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { formatDistanceToNow } from "date-fns"
-import { Search, ChevronLeft, ChevronRight, Shield, ShieldOff, ArrowUp, ArrowDown, ArrowUpDown, Crown } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight, Shield, ShieldOff, ArrowUp, ArrowDown, ArrowUpDown, Crown, Mail, Github } from "lucide-react"
 
 interface User {
   id: string
@@ -132,7 +132,7 @@ export function UserTable({
             <thead>
               <tr className="border-b bg-muted/50">
                 <SortHeader label="User" field="name" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
-                <th className="px-4 py-3 text-left font-medium">GitHub</th>
+                <th className="px-4 py-3 text-center font-medium">Contact</th>
                 <SortHeader label="Messages" field="totalMessages" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} align="center" />
                 <SortHeader label="Last Active" field="lastActivityAt" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
                 <SortHeader label="Joined" field="createdAt" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
@@ -195,19 +195,30 @@ export function UserTable({
                         <span className="font-medium">{user.name || "—"}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {user.githubId ? (
-                        <a
-                          href={`https://github.com/${user.githubId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-foreground hover:underline"
-                        >
-                          @{user.githubId}
-                        </a>
-                      ) : (
-                        "—"
-                      )}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        {user.email && (
+                          <a
+                            href={`mailto:${user.email}`}
+                            className="text-muted-foreground hover:text-foreground"
+                            title={user.email}
+                          >
+                            <Mail className="h-4 w-4" />
+                          </a>
+                        )}
+                        {user.githubId && (
+                          <a
+                            href={`https://github.com/${user.name || user.githubId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-foreground"
+                            title={`GitHub: ${user.name || user.githubId}`}
+                          >
+                            <Github className="h-4 w-4" />
+                          </a>
+                        )}
+                        {!user.email && !user.githubId && "—"}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-center">{user.totalMessages}</td>
                     <td className="px-4 py-3 text-muted-foreground">
