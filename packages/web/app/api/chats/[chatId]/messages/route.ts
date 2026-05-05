@@ -17,6 +17,7 @@ import {
   serverConfigError,
 } from "@/lib/db/api-helpers"
 import { logActivityAsync } from "@/lib/db/activity-log"
+import { checkSharedClaudeUsage } from "@/lib/db/usage-limit"
 import { createBackgroundAgentSession, type Agent } from "@/lib/agent-session"
 import { getClaudeCredentials } from "@/lib/claude-credentials"
 import { getEnvForModel } from "@upstream/common"
@@ -155,15 +156,32 @@ export async function POST(
   // Shared-pool fallback: when Claude Code is selected and the user hasn't
   // stored their own subscription token, inject the rotating credential blob
   // written by /api/cron/refresh-claude-creds.
+  let useSharedClaude = false
   if (
     payload.agent === "claude-code" &&
     !credentials.CLAUDE_CODE_CREDENTIALS
   ) {
+    // Check daily usage limit for non-pro users
+    const usageCheck = await checkSharedClaudeUsage(userId)
+    if (!usageCheck.allowed) {
+      return Response.json(
+        {
+          error: "DAILY_LIMIT_EXCEEDED",
+          message: usageCheck.error,
+          remaining: usageCheck.remaining,
+          limit: usageCheck.limit,
+          resetAt: usageCheck.resetAt.toISOString(),
+        },
+        { status: 429 }
+      )
+    }
+
     try {
       credentials = {
         ...credentials,
         CLAUDE_CODE_CREDENTIALS: await getClaudeCredentials(),
       }
+      useSharedClaude = true
     } catch (err) {
       console.error(
         "[chats/messages] Failed to fetch shared Claude credential:",
@@ -469,10 +487,12 @@ export async function POST(
     await bgSession.start(agentPrompt, history ? { history } : undefined)
 
     // Log message sent activity (fire and forget)
+    // Include useSharedClaude flag to track shared Claude subscription usage
     logActivityAsync(userId, "message_sent", {
       chatId,
       agent: payload.agent,
       model: payload.model,
+      useSharedClaude,
     })
 
     const response: SuccessResponse = {

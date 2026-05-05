@@ -5,7 +5,7 @@ import { logActivity } from "@/lib/db/activity-log"
 
 /**
  * PATCH /api/admin/users/[userId]
- * Update user properties (e.g., toggle admin status)
+ * Update user properties (e.g., toggle admin status, toggle pro status)
  */
 export async function PATCH(
   request: NextRequest,
@@ -17,7 +17,7 @@ export async function PATCH(
   const { userId: targetUserId } = await params
 
   // Parse request body
-  let body: { isAdmin?: boolean }
+  let body: { isAdmin?: boolean; isPro?: boolean }
   try {
     body = await request.json()
   } catch {
@@ -27,7 +27,7 @@ export async function PATCH(
   // Validate the target user exists
   const targetUser = await prisma.user.findUnique({
     where: { id: targetUserId },
-    select: { id: true, isAdmin: true, name: true },
+    select: { id: true, isAdmin: true, isPro: true, name: true },
   })
 
   if (!targetUser) {
@@ -43,9 +43,12 @@ export async function PATCH(
   }
 
   // Build update data
-  const updateData: { isAdmin?: boolean } = {}
+  const updateData: { isAdmin?: boolean; isPro?: boolean } = {}
   if (typeof body.isAdmin === "boolean") {
     updateData.isAdmin = body.isAdmin
+  }
+  if (typeof body.isPro === "boolean") {
+    updateData.isPro = body.isPro
   }
 
   // If no valid updates, return error
@@ -62,6 +65,7 @@ export async function PATCH(
       name: true,
       email: true,
       isAdmin: true,
+      isPro: true,
     },
   })
 

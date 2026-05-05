@@ -224,6 +224,9 @@ export default function AdminDashboard() {
                 onToggleAdmin={(userId, isAdmin) => {
                   updateUserMutation.mutate({ userId, isAdmin })
                 }}
+                onTogglePro={(userId, isPro) => {
+                  updateUserMutation.mutate({ userId, isPro })
+                }}
                 isUpdating={updateUserMutation.isPending ? updateUserMutation.variables?.userId : null}
                 currentUserId={session?.user?.id}
               />
