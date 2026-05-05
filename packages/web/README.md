@@ -1,4 +1,4 @@
-# Simple Chat
+# @upstream/web
 
 A Next.js chat application for interacting with AI coding agents in isolated Daytona sandboxes. Each chat session is tied to a Git branch, enabling safe code experimentation and collaboration.
 
@@ -8,10 +8,11 @@ https://github.com/user-attachments/assets/d3a10c97-8a23-4171-a08f-c08179b419d6
 
 - **Multi-Agent Support**: Choose from multiple AI coding agents:
   - Claude Code
-  - OpenCode
   - Codex
+  - Eliza (deterministic test agent)
   - Gemini
   - Goose
+  - OpenCode
   - Pi
 
 - **Sandbox Isolation**: Each chat session runs in an isolated Daytona sandbox environment

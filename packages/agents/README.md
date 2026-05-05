@@ -1,6 +1,6 @@
 # Background Agents SDK
 
-A TypeScript SDK for running AI coding agents (Claude, Codex, Gemini, Goose, OpenCode, Pi) in secure [Daytona](https://daytona.io) sandboxes. Designed for background execution with polling-based event streaming.
+A TypeScript SDK for running AI coding agents (Claude, Codex, Eliza, Gemini, Goose, OpenCode, Pi) in secure [Daytona](https://daytona.io) sandboxes. Designed for background execution with polling-based event streaming.
 
 ```typescript
 import { Daytona } from "@daytonaio/sdk"
@@ -34,7 +34,7 @@ await sandbox.delete()
 
 - **Secure sandboxed execution** — Agents run in isolated Daytona sandboxes
 - **Background execution** — Start agents, poll for events, survive restarts
-- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://developers.openai.com/codex/cli), [Gemini](https://geminicli.com/docs/), [Goose](https://block.github.io/goose/docs/), [OpenCode](https://opencode.ai/docs/), and [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
+- **Unified API** — One interface for [Claude](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://developers.openai.com/codex/cli), Eliza (deterministic test agent), [Gemini](https://geminicli.com/docs/), [Goose](https://block.github.io/goose/docs/), [OpenCode](https://opencode.ai/docs/), and [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
 - **Zero-friction setup** — Provider CLI auto-installed in sandbox
 - **Session persistence** — Resume conversations across runs and restarts
 
@@ -46,9 +46,10 @@ await sandbox.delete()
 |----------|--------|------|
 | [Claude](https://docs.anthropic.com/en/docs/claude-code) | ✅ | `ANTHROPIC_API_KEY` or `CLAUDE_CODE_CREDENTIALS` |
 | [Codex](https://developers.openai.com/codex/cli) | ✅ | `OPENAI_API_KEY` |
+| Eliza | ✅ | None (deterministic test agent) |
+| [Gemini](https://geminicli.com/docs/) | ✅ | `GEMINI_API_KEY` |
 | [Goose](https://block.github.io/goose/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`) |
 | [OpenCode](https://opencode.ai/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
-| [Gemini](https://geminicli.com/docs/) | ✅ | `GEMINI_API_KEY` |
 | [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) | ✅ | Provider-specific (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) |
 
 ### CLI reference commands
@@ -57,9 +58,10 @@ await sandbox.delete()
 |----------|-------------|
 | Claude | `claude -p --output-format stream-json --verbose --dangerously-skip-permissions -- "prompt"` |
 | Codex | `codex exec --json --skip-git-repo-check --yolo -- "prompt"` |
+| Eliza | Built-in deterministic agent (no external CLI) |
+| Gemini | `gemini --output-format stream-json --yolo -p "prompt"` |
 | Goose | `goose run --output-format stream-json --text "prompt"` |
 | OpenCode | `opencode run --format json --variant medium -- "prompt" 2>&1` |
-| Gemini | `gemini --output-format stream-json --yolo -p "prompt"` |
 | Pi | `pi --mode json -p "prompt"` |
 
 ---
@@ -246,9 +248,10 @@ type Event =
 |----------|---------|------|
 | **Claude** | `model: "sonnet"` | [Claude Code models](https://code.claude.com/docs/en/model-config) |
 | **Codex** | `model: "gpt-4o"` | [Codex CLI models](https://developers.openai.com/codex/models) |
+| **Eliza** | N/A | Deterministic test agent |
+| **Gemini** | `model: "gemini-2.0-flash"` | [Gemini CLI model](https://geminicli.com/docs/cli/model) |
 | **Goose** | `model: "gpt-4o"` | [Goose providers](https://block.github.io/goose/docs/getting-started/providers) |
 | **OpenCode** | `model: "openai/gpt-4o"` | [OpenCode models](https://opencode.ai/docs/models/) |
-| **Gemini** | `model: "gemini-2.0-flash"` | [Gemini CLI model](https://geminicli.com/docs/cli/model) |
 | **Pi** | `model: "sonnet"` or `model: "openai/gpt-4o"` | [Pi CLI models](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent#providers--models) |
 
 ---

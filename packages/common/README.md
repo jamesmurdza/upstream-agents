@@ -25,10 +25,15 @@ import {
   // Types
   type Agent,
   type ProviderName,
+  type ProviderId,
   type ModelOption,
+  type CredentialId,
   type CredentialFlags,
+  type Credentials,
   // Data
+  ALL_AGENTS,
   agentLabels,
+  agentToProvider,
   agentModels,
   defaultAgentModel,
   // Functions
@@ -36,6 +41,7 @@ import {
   hasCredentialsForModel,
   getDefaultModelForAgent,
   getModelLabel,
+  getEnvForModel,
 } from "@upstream/common"
 ```
 
@@ -64,6 +70,8 @@ import {
   compareBranches,
   createRepo,
   createPullRequest,
+  createFileCommit,
+  forkRepo,
 } from "@upstream/common"
 ```
 
@@ -141,8 +149,38 @@ Command definitions and filtering.
 import {
   type SlashCommand,
   SLASH_COMMANDS,
+  ABORT_COMMAND,
   filterSlashCommands,
   filterSlashCommandsWithConflict,
+} from "@upstream/common"
+```
+
+### Agent Icons
+
+React components for agent icons.
+
+```typescript
+import {
+  ClaudeCodeIcon,
+  CodexIcon,
+  OpenCodeIcon,
+  GeminiIcon,
+  GooseIcon,
+  ElizaIcon,
+  PiIcon,
+  AgentIcon,
+} from "@upstream/common"
+```
+
+### Search Palette
+
+Utilities for recent items in search palette.
+
+```typescript
+import {
+  type RecentItem,
+  getRecentItems,
+  addRecentItem,
 } from "@upstream/common"
 ```
 
