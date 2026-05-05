@@ -10,6 +10,8 @@ import { DEFAULT_SETTINGS } from "@/lib/storage"
 export interface SettingsData {
   settings: Settings
   credentialFlags: CredentialFlags
+  claudeLimitResetAt?: string | null
+  claudeLimitRemaining?: number | null
 }
 
 /**
@@ -27,6 +29,8 @@ export function useSettingsQuery() {
       return {
         settings: response.settings,
         credentialFlags: response.credentialFlags,
+        claudeLimitResetAt: response.claudeLimitResetAt,
+        claudeLimitRemaining: response.claudeLimitRemaining,
       }
     },
     enabled: isAuthenticated,

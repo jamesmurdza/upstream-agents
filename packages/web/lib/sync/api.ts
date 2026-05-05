@@ -58,6 +58,8 @@ export interface ChatWithMessagesResponse extends ChatResponse {
 export interface SettingsResponse {
   settings: Settings
   credentialFlags: CredentialFlags
+  claudeLimitResetAt?: string | null
+  claudeLimitRemaining?: number | null
 }
 
 // =============================================================================

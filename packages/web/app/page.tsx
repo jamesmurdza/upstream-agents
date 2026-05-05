@@ -80,6 +80,8 @@ export default function HomePage() {
     currentChatId,
     settings,
     credentialFlags,
+    claudeLimitResetAt,
+    claudeLimitRemaining,
     isHydrated,
     isLoadingMessages,
     deletingChatIds,
@@ -1338,6 +1340,8 @@ export default function HomePage() {
                   chat={displayCurrentChat}
                   settings={settings}
                   credentialFlags={credentialFlags}
+                  claudeLimitResetAt={claudeLimitResetAt}
+                  claudeLimitRemaining={claudeLimitRemaining}
                   onSendMessage={handleSendMessage}
                   onEnqueueMessage={enqueueMessage}
                   onRemoveQueuedMessage={removeQueuedMessage}
