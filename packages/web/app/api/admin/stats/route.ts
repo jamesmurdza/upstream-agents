@@ -34,6 +34,7 @@ export async function GET() {
     repoActivityRaw,
     hourlyActivityRaw,
     dailyMessagesChatsRaw,
+    messagesByModelRaw,
   ] = await Promise.all([
     // Total users
     prisma.user.count(),
@@ -191,6 +192,18 @@ export async function GET() {
       ) c ON c.date = d.date
       ORDER BY d.date ASC
     `,
+
+    // Messages by model in past 24 hours
+    prisma.message.groupBy({
+      by: ["model"],
+      _count: { id: true },
+      where: {
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        },
+      },
+      orderBy: { _count: { id: "desc" } },
+    }),
   ])
 
   // Format model usage
@@ -247,6 +260,12 @@ export async function GET() {
     chats: Number(item.chats),
   }))
 
+  // Format messages by model (past 24 hours)
+  const messagesByModel = messagesByModelRaw.map((item) => ({
+    model: item.model || "unknown",
+    count: item._count.id,
+  }))
+
   return NextResponse.json({
     stats: {
       totalUsers,
@@ -266,5 +285,6 @@ export async function GET() {
     repoActivity,
     hourlyActivity,
     dailyMessagesChats,
+    messagesByModel,
   })
 }

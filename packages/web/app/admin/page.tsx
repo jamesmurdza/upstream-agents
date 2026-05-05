@@ -15,6 +15,7 @@ import {
 import { ActivityFeed } from "@/components/admin/ActivityFeed"
 import { UserTable, type SortField, type SortOrder } from "@/components/admin/UserTable"
 import { UserGrowthChart } from "@/components/admin/charts/UserGrowthChart"
+import { MessagesByModelChart } from "@/components/admin/charts/MessagesByModelChart"
 import { TopUsersTable } from "@/components/admin/TopUsersTable"
 import { HourlyActivityChart } from "@/components/admin/charts/HourlyActivityChart"
 import { DailyMessagesChatsChart } from "@/components/admin/charts/DailyMessagesChatsChart"
@@ -116,6 +117,7 @@ export default function AdminDashboard() {
   const topUsers = topUsersQuery.data?.topUsers ?? []
   const hourlyActivity = statsQuery.data?.hourlyActivity ?? []
   const dailyMessagesChats = statsQuery.data?.dailyMessagesChats ?? []
+  const messagesByModel = statsQuery.data?.messagesByModel ?? []
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -165,14 +167,22 @@ export default function AdminDashboard() {
                 <div className="rounded-lg border bg-card p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                    <h3 className="font-semibold">Weekly Active Users</h3>
+                    <h3 className="font-semibold">Messages by Model (24h)</h3>
                   </div>
-                  <UserGrowthChart data={weeklyActiveUsers} />
+                  <MessagesByModelChart data={messagesByModel} />
                 </div>
               </section>
 
               {/* Charts Row 2 */}
               <section className="grid gap-6 lg:grid-cols-2">
+                <div className="rounded-lg border bg-card p-6">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Weekly Active Users</h3>
+                  </div>
+                  <UserGrowthChart data={weeklyActiveUsers} />
+                </div>
+
                 <div className="rounded-lg border bg-card p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <Trophy className="h-5 w-5 text-muted-foreground" />
@@ -185,7 +195,10 @@ export default function AdminDashboard() {
                     onRangeChange={setTopUsersRange}
                   />
                 </div>
+              </section>
 
+              {/* Charts Row 3 */}
+              <section className="grid gap-6 lg:grid-cols-2">
                 <div className="rounded-lg border bg-card p-6">
                   <div className="mb-4 flex items-center gap-2">
                     <Clock className="h-5 w-5 text-muted-foreground" />
