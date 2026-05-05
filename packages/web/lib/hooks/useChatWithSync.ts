@@ -121,6 +121,18 @@ export function useChatWithSync() {
   const messagesLoadFailed = useRef<Set<string>>(new Set())
   const materializingDraft = useRef<boolean>(false)
 
+  // Daily limit reached state
+  const [limitReachedState, setLimitReachedState] = useState<{
+    show: boolean
+    pendingMessage?: {
+      chatId: string
+      content: string
+      files?: File[]
+      planMode?: boolean
+    }
+    resetAt?: Date
+  }>({ show: false })
+
   // Callback for conflict state changes from SSE complete events
   const onConflictStateChangeRef = useRef<((state: { inRebase: boolean; inMerge: boolean; conflictedFiles: string[] }) => void) | null>(null)
 
@@ -764,6 +776,32 @@ export function useChatWithSync() {
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}))
+
+          // Check for daily limit exceeded error
+          if (err.error === "DAILY_LIMIT_EXCEEDED") {
+            // Remove the optimistic messages
+            updateChatsCache((old) => old.map((c) =>
+              c.id === chatId ? {
+                ...c,
+                status: "ready",
+                messages: c.messages.filter((m) => m.id !== userMessage.id && m.id !== assistantMessage.id),
+              } : c
+            ))
+
+            // Show the limit reached dialog with pending message info
+            setLimitReachedState({
+              show: true,
+              pendingMessage: {
+                chatId,
+                content,
+                files,
+                planMode,
+              },
+              resetAt: err.resetAt ? new Date(err.resetAt) : undefined,
+            })
+            return
+          }
+
           throw new Error(err.error || "Failed to send message")
         }
 
@@ -1015,6 +1053,33 @@ export function useChatWithSync() {
     onConflictStateChangeRef.current = callback
   }, [])
 
+  // Dismiss the limit reached dialog
+  const dismissLimitReached = useCallback(() => {
+    setLimitReachedState({ show: false })
+  }, [])
+
+  // Retry the pending message with OpenCode agent
+  const retryWithOpenCode = useCallback(() => {
+    const pending = limitReachedState.pendingMessage
+    if (!pending) return
+
+    // Close the dialog first
+    setLimitReachedState({ show: false })
+
+    // Get the default model for OpenCode
+    const openCodeModel = getDefaultModelForAgent("opencode", credentialFlags)
+
+    // Send the message with OpenCode agent
+    sendMessage(
+      pending.content,
+      "opencode",
+      openCodeModel,
+      pending.files,
+      pending.chatId,
+      pending.planMode
+    )
+  }, [limitReachedState.pendingMessage, credentialFlags, sendMessage])
+
   return {
     chats,
     currentChat,
@@ -1050,5 +1115,9 @@ export function useChatWithSync() {
     updateDraftChatConfig,
     // Conflict state callback
     setOnConflictStateChange,
+    // Daily limit reached
+    limitReachedState,
+    dismissLimitReached,
+    retryWithOpenCode,
   }
 }
