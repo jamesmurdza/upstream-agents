@@ -15,6 +15,17 @@ import {
 
 export type { CredentialId, CredentialFlags, Credentials, ProviderId }
 
+/**
+ * CredentialFlags enriched with server-side state (daily limit).
+ * The limit metadata is used by the UI for display; the CLAUDE_DAILY_LIMIT_EXCEEDED
+ * flag itself is used by getDefaultAgent/hasCredentialsForModel.
+ */
+export interface EffectiveFlags {
+  flags: CredentialFlags
+  limitResetAt: Date | null
+  limitRemaining: number | null
+}
+
 export interface CredentialField {
   id: CredentialId
   provider: ProviderId
@@ -103,4 +114,68 @@ export function normalizeStoredCredentials(
     }
   }
   return out as Record<CredentialId, string>
+}
+
+/**
+ * Build effective credential flags for a user, including the daily Claude limit status.
+ *
+ * This is the single entry point for server-side flag resolution. It combines:
+ * - Stored credentials
+ * - Shared pool availability
+ * - Daily limit check (only for free users using shared credentials)
+ *
+ * The resulting flags can be passed directly to getDefaultAgent/hasCredentialsForModel.
+ */
+export async function getEffectiveCredentialFlags(userId: string): Promise<EffectiveFlags> {
+  const { prisma } = await import("@/lib/db/prisma")
+  const { isSharedPoolAvailable } = await import("@/lib/claude-credentials")
+  const { hasExceededClaudeLimit, getDailyClaudeCodeLimit } = await import("@/lib/db/usage-limit")
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { credentials: true, isPro: true },
+  })
+
+  const decryptedCreds = (await import("@/lib/db/api-helpers")).decryptUserCredentials(
+    user?.credentials as Record<string, unknown> | null
+  )
+
+  const flags = flagsFromCredentials(decryptedCreds)
+
+  if (await isSharedPoolAvailable()) {
+    flags.CLAUDE_SHARED_POOL_AVAILABLE = true
+  }
+
+  // Check daily limit only for free users who would use the shared pool
+  // (no personal API key or subscription token)
+  const hasOwnAnthropicKey = !!flags.ANTHROPIC_API_KEY || !!flags.CLAUDE_CODE_CREDENTIALS
+  const usesSharedPool = flags.CLAUDE_SHARED_POOL_AVAILABLE && !hasOwnAnthropicKey
+
+  let limitResetAt: Date | null = null
+  let limitRemaining: number | null = null
+
+  if (usesSharedPool && !user?.isPro) {
+    const now = new Date()
+    const exceeded = await hasExceededClaudeLimit(userId)
+    flags.CLAUDE_DAILY_LIMIT_EXCEEDED = exceeded
+
+    if (exceeded) {
+      limitResetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+      limitRemaining = 0
+    } else {
+      const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+      const todayCount = await prisma.activityLog.count({
+        where: {
+          userId,
+          action: "message_sent",
+          createdAt: { gte: startOfDay },
+          metadata: { path: ["useSharedClaude"], equals: true },
+        },
+      })
+      limitRemaining = Math.max(0, getDailyClaudeCodeLimit() - todayCount)
+      limitResetAt = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)
+    }
+  }
+
+  return { flags, limitResetAt, limitRemaining }
 }

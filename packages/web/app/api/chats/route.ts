@@ -5,7 +5,6 @@ import {
   isAuthError,
   badRequest,
   internalError,
-  decryptUserCredentials,
 } from "@/lib/db/api-helpers"
 import { logActivityAsync } from "@/lib/db/activity-log"
 import {
@@ -15,8 +14,7 @@ import {
   hasCredentialsForModel,
   type Agent,
 } from "@upstream/common"
-import { flagsFromCredentials } from "@/lib/credentials"
-import { isSharedPoolAvailable } from "@/lib/claude-credentials"
+import { getEffectiveCredentialFlags } from "@/lib/credentials"
 
 // =============================================================================
 // Types
@@ -149,16 +147,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     // default), which is internally inconsistent and confuses the UI.
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { settings: true, credentials: true },
+      select: { settings: true },
     })
     const userSettings = (user?.settings as { defaultAgent?: string; defaultModel?: string } | null) ?? {}
-    const decryptedCreds = decryptUserCredentials(
-      user?.credentials as Record<string, unknown> | null
-    )
-    const flags = flagsFromCredentials(decryptedCreds)
-    if (await isSharedPoolAvailable()) {
-      flags.CLAUDE_SHARED_POOL_AVAILABLE = true
-    }
+    const { flags } = await getEffectiveCredentialFlags(userId)
 
     const requestedAgent = (body.agent ?? userSettings.defaultAgent ?? getDefaultAgent(flags)) as Agent
     const requestedAgentUsable = (agentModels[requestedAgent] ?? []).some((m) =>

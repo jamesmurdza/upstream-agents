@@ -109,3 +109,31 @@ function getNextResetTime(): Date {
 export function getDailyClaudeCodeLimit(): number {
   return FREE_DAILY_CLAUDE_CODE_LIMIT
 }
+
+/**
+ * Lightweight check: has the user exceeded their daily Claude Code limit?
+ * Returns true only for free users using the shared pool who hit the cap.
+ * Pro users and users with their own API key are never limited.
+ */
+export async function hasExceededClaudeLimit(
+  userId: string
+): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isPro: true },
+  })
+
+  if (!user || user.isPro) return false
+
+  const startOfDay = getStartOfDay()
+  const todayCount = await prisma.activityLog.count({
+    where: {
+      userId,
+      action: "message_sent",
+      createdAt: { gte: startOfDay },
+      metadata: { path: ["useSharedClaude"], equals: true },
+    },
+  })
+
+  return todayCount >= FREE_DAILY_CLAUDE_CODE_LIMIT
+}
