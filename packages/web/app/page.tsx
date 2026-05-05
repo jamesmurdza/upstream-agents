@@ -13,6 +13,7 @@ import { SignInModal } from "@/components/modals/SignInModal"
 import { ReAuthModal } from "@/components/modals/ReAuthModal"
 import { HelpModal } from "@/components/modals/HelpModal"
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog"
+import { LimitReachedDialog } from "@/components/modals/LimitReachedDialog"
 import { BranchPickerModal } from "@/components/modals/BranchPickerModal"
 import { MergeDialog, RebaseDialog, PRDialog, SquashDialog, ForcePushDialog, useGitDialogs } from "@/components/modals/GitDialogs"
 import { EnvironmentVariablesModal } from "@/components/modals/EnvironmentVariablesModal"
@@ -105,6 +106,9 @@ export default function HomePage() {
     isDraftChatId,
     updateDraftChatConfig,
     setOnConflictStateChange,
+    limitReachedState,
+    dismissLimitReached,
+    retryWithOpenCode,
   } = useChatWithSync()
 
   const [repoSelectOpen, setRepoSelectOpen] = useState(false)
@@ -1581,6 +1585,25 @@ export default function HomePage() {
           }
         }}
         placeholder="Chat name"
+      />
+
+      {/* Daily Limit Reached Dialog */}
+      <LimitReachedDialog
+        open={limitReachedState.show}
+        onClose={dismissLimitReached}
+        onContinueWithOpenCode={retryWithOpenCode}
+        onAddApiKey={() => {
+          dismissLimitReached()
+          handleOpenSettings("anthropic")
+        }}
+        onUpgradeToPro={() => {
+          // For now, just show a message that this feature is coming soon
+          // In the future, this would open a subscription flow
+          dismissLimitReached()
+          alert("Pro subscriptions coming soon!")
+        }}
+        resetAt={limitReachedState.resetAt}
+        isMobile={isMobile}
       />
     </div>
     </PaletteProvider>
