@@ -36,7 +36,7 @@ DATABASE_URL="<same as the DATABASE_URL you configured>" npx prisma db push
 
 ## Run the development server
 
-Prerequisites: Node.js 20+ and the Postgres database from [Database setup](#database-setup).
+Prerequisites: Node.js 18+ and the Postgres database from [Database setup](#database-setup).
 
 **Secrets:** You need a GitHub [Personal Access Token](https://github.com/settings/tokens) with scopes `repo` and `read:user` (`GITHUB_PAT`), and a [Daytona](https://www.daytona.io/) API key (`DAYTONA_API_KEY`).
 
@@ -50,8 +50,8 @@ Prerequisites: Node.js 20+ and the Postgres database from [Database setup](#data
 DATABASE_URL="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
 DATABASE_URL_UNPOOLED="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
 
-# Local dev: http://localhost:3000. Behind Daytona proxy: https://3000-{sandbox-id}.daytonaproxy01.net
-NEXTAUTH_URL="http://localhost:3000"
+# Local dev: http://localhost:4000. Behind Daytona proxy: https://4000-{sandbox-id}.daytonaproxy01.net
+NEXTAUTH_URL="http://localhost:4000"
 NEXTAUTH_SECRET="dev-secret-not-used-in-dev-mode"
 
 GITHUB_CLIENT_ID="placeholder"
@@ -63,9 +63,9 @@ GITHUB_PAT=ghp_your_token_here
 DAYTONA_API_KEY=dtn_your_key_here
 ```
 
-If the app is served behind a Daytona proxy, `NEXTAUTH_URL` must be that public URL (not `http://localhost:3000`). NextAuth validates requests against this value.
+If the app is served behind a Daytona proxy, `NEXTAUTH_URL` must be that public URL (not `http://localhost:4000`). NextAuth validates requests against this value.
 
-With `GITHUB_PAT` set you get auto-login at http://localhost:3000—no GitHub OAuth app required. The first visit creates a dev user in the database and logs a warning that dev mode is active.
+With `GITHUB_PAT` set you get auto-login at http://localhost:4000—no GitHub OAuth app required. The first visit creates a dev user in the database and logs a warning that dev mode is active.
 
 The first time you work in the repo, from the repo root run `npm install` and `npm run build:sdk`, then apply the schema ([Database setup](#database-setup)) if you have not already.
 

@@ -183,7 +183,7 @@ Messages are JSON-encoded:
 
 - Node.js >= 18
 - React >= 18
-- `@daytonaio/sdk` >= 0.10.0 (for sandbox setup functions)
+- `@daytonaio/sdk` >= 0.170.0 (for sandbox setup functions)
 
 ## License
 
