@@ -81,7 +81,6 @@ export default function HomePage() {
     settings,
     credentialFlags,
     claudeLimitResetAt,
-    claudeLimitRemaining,
     isHydrated,
     isLoadingMessages,
     deletingChatIds,
@@ -1340,8 +1339,12 @@ export default function HomePage() {
                   chat={displayCurrentChat}
                   settings={settings}
                   credentialFlags={credentialFlags}
-                  claudeLimitResetAt={claudeLimitResetAt}
-                  claudeLimitRemaining={claudeLimitRemaining}
+                  showClaudeLimitDialog={() => {
+                    setLimitReachedState({
+                      show: true,
+                      resetAt: claudeLimitResetAt ? new Date(claudeLimitResetAt) : undefined,
+                    })
+                  }}
                   onSendMessage={handleSendMessage}
                   onEnqueueMessage={enqueueMessage}
                   onRemoveQueuedMessage={removeQueuedMessage}
