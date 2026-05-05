@@ -65,14 +65,13 @@ export async function GET(request: NextRequest) {
     prisma.user.count({ where }),
   ])
 
-  // Get message counts for each user
+  // Get message counts for each user from ActivityLog (includes deleted chats)
   const userIds = users.map((u) => u.id)
   const messageCounts = await prisma.$queryRaw<Array<{ userId: string; count: bigint }>>`
-    SELECT c."userId", COUNT(m.id)::bigint as count
-    FROM "Chat" c
-    INNER JOIN "Message" m ON m."chatId" = c.id
-    WHERE c."userId" = ANY(${userIds})
-    GROUP BY c."userId"
+    SELECT "userId", COUNT(*)::bigint as count
+    FROM "ActivityLog"
+    WHERE "userId" = ANY(${userIds}) AND action = 'message_sent'
+    GROUP BY "userId"
   `
   const messageCountMap = new Map(messageCounts.map((c) => [c.userId, Number(c.count)]))
 
