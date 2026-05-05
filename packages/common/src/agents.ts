@@ -61,6 +61,9 @@ export type CredentialFlags = Partial<Record<CredentialId, boolean>> & {
   // credential at the UI gate so the user can pick claude-code without pasting
   // their own token. Not a CredentialId — it's a server capability, not an env var.
   CLAUDE_SHARED_POOL_AVAILABLE?: boolean
+  // Free user has hit daily limit on shared Claude credentials. When true,
+  // getDefaultAgent falls back to opencode even if shared pool is available.
+  CLAUDE_DAILY_LIMIT_EXCEEDED?: boolean
 }
 export type Credentials = Partial<Record<CredentialId, string>>
 
@@ -205,6 +208,10 @@ export const defaultAgentModel: Record<Agent, string> = {
  * Otherwise, default to OpenCode (which has free models).
  */
 export function getDefaultAgent(flags: CredentialFlags | null | undefined): Agent {
+  // If daily limit exceeded on shared Claude, skip to opencode
+  if (flags?.CLAUDE_DAILY_LIMIT_EXCEEDED) {
+    return "opencode"
+  }
   if (flags?.ANTHROPIC_API_KEY || flags?.CLAUDE_CODE_CREDENTIALS || flags?.CLAUDE_SHARED_POOL_AVAILABLE) {
     return "claude-code"
   }
@@ -224,6 +231,10 @@ export function hasCredentialsForModel(
     // OpenCode and Pi require an API key — they can't drive a subscription session.
     if (agent === "opencode" || agent === "pi") return !!flags?.ANTHROPIC_API_KEY
     // Claude Code can use either API key, the user's pasted subscription, or the shared pool.
+    // But if daily limit is exceeded on the shared pool, don't consider it usable.
+    if (flags?.CLAUDE_DAILY_LIMIT_EXCEEDED) {
+      return !!flags?.ANTHROPIC_API_KEY || !!flags?.CLAUDE_CODE_CREDENTIALS
+    }
     return !!(flags?.ANTHROPIC_API_KEY || flags?.CLAUDE_CODE_CREDENTIALS || flags?.CLAUDE_SHARED_POOL_AVAILABLE)
   }
   return PROVIDER_ENV[model.requiresKey].some((id) => flags?.[id])
