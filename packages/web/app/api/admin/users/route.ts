@@ -10,7 +10,7 @@ import { requireAdmin, isAuthError } from "@/lib/db/api-helpers"
  * - page: Page number (default: 1)
  * - limit: Items per page (default: 20, max: 100)
  * - search: Search by name, email, or GitHub ID (optional)
- * - sortField: Field to sort by (name, email, createdAt, totalChats, lastActivityAt)
+ * - sortField: Field to sort by (name, email, createdAt, totalMessages, lastActivityAt)
  * - sortOrder: Sort order (asc, desc) - default: desc
  */
 export async function GET(request: NextRequest) {
@@ -64,16 +64,16 @@ export async function GET(request: NextRequest) {
     prisma.user.count({ where }),
   ])
 
-  // Get chat counts (only chats with messages)
+  // Get message counts for each user
   const userIds = users.map((u) => u.id)
-  const chatCounts = await prisma.$queryRaw<Array<{ userId: string; count: bigint }>>`
-    SELECT c."userId", COUNT(DISTINCT c.id)::bigint as count
+  const messageCounts = await prisma.$queryRaw<Array<{ userId: string; count: bigint }>>`
+    SELECT c."userId", COUNT(m.id)::bigint as count
     FROM "Chat" c
     INNER JOIN "Message" m ON m."chatId" = c.id
     WHERE c."userId" = ANY(${userIds})
     GROUP BY c."userId"
   `
-  const chatCountMap = new Map(chatCounts.map((c) => [c.userId, Number(c.count)]))
+  const messageCountMap = new Map(messageCounts.map((c) => [c.userId, Number(c.count)]))
 
   // Get last activity for each user
   const lastActivities = await prisma.activityLog.findMany({
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       image: user.image,
       githubId: user.githubId,
       isAdmin: user.isAdmin,
-      totalChats: chatCountMap.get(user.id) ?? 0,
+      totalMessages: messageCountMap.get(user.id) ?? 0,
       lastActivityAt: lastActivity?.createdAt.toISOString() ?? null,
       lastActivityAction: lastActivity?.action ?? null,
       createdAt: user.createdAt.toISOString(),
@@ -108,9 +108,9 @@ export async function GET(request: NextRequest) {
   })
 
   // Sort by computed fields in memory
-  if (sortField === "totalChats") {
+  if (sortField === "totalMessages") {
     formattedUsers.sort((a, b) =>
-      sortOrder === "asc" ? a.totalChats - b.totalChats : b.totalChats - a.totalChats
+      sortOrder === "asc" ? a.totalMessages - b.totalMessages : b.totalMessages - a.totalMessages
     )
   } else if (sortField === "lastActivityAt") {
     formattedUsers.sort((a, b) => {

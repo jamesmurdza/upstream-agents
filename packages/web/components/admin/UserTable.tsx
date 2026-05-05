@@ -11,7 +11,7 @@ interface User {
   image: string | null
   githubId: string | null
   isAdmin: boolean
-  totalChats: number
+  totalMessages: number
   lastActivityAt: string | null
   lastActivityAction: string | null
   createdAt: string
@@ -24,7 +24,7 @@ interface Pagination {
   totalPages: number
 }
 
-export type SortField = "name" | "email" | "totalChats" | "lastActivityAt" | "createdAt"
+export type SortField = "name" | "email" | "totalMessages" | "lastActivityAt" | "createdAt"
 export type SortOrder = "asc" | "desc"
 
 interface UserTableProps {
@@ -129,8 +129,8 @@ export function UserTable({
             <thead>
               <tr className="border-b bg-muted/50">
                 <SortHeader label="User" field="name" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
-                <SortHeader label="Email" field="email" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
-                <SortHeader label="Conversations" field="totalChats" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} align="center" />
+                <th className="px-4 py-3 text-left font-medium">GitHub</th>
+                <SortHeader label="Messages" field="totalMessages" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} align="center" />
                 <SortHeader label="Last Active" field="lastActivityAt" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
                 <SortHeader label="Joined" field="createdAt" currentField={sortField} currentOrder={sortOrder} onSort={onSortChange} />
                 <th className="px-4 py-3 text-center font-medium">Admin</th>
@@ -147,7 +147,7 @@ export function UserTable({
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                      <div className="h-4 w-24 rounded bg-muted animate-pulse" />
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="mx-auto h-4 w-8 rounded bg-muted animate-pulse" />
@@ -189,9 +189,20 @@ export function UserTable({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {user.email || "—"}
+                      {user.githubId ? (
+                        <a
+                          href={`https://github.com/${user.githubId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-foreground hover:underline"
+                        >
+                          @{user.githubId}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
                     </td>
-                    <td className="px-4 py-3 text-center">{user.totalChats}</td>
+                    <td className="px-4 py-3 text-center">{user.totalMessages}</td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {user.lastActivityAt
                         ? formatDistanceToNow(new Date(user.lastActivityAt), {

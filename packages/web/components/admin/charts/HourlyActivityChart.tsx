@@ -59,7 +59,7 @@ export function HourlyActivityChart({ data }: HourlyActivityChartProps) {
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={fullData}
-          margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+          margin={{ top: 5, right: 10, left: 10, bottom: 20 }}
         >
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
           <XAxis
@@ -68,11 +68,13 @@ export function HourlyActivityChart({ data }: HourlyActivityChartProps) {
             className="text-muted-foreground"
             tickFormatter={formatHour}
             interval={2}
+            label={{ value: "Hour of Day", position: "insideBottom", offset: -5, fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
           />
           <YAxis
             tick={{ fontSize: 11 }}
             className="text-muted-foreground"
-            width={30}
+            width={50}
+            label={{ value: "Messages", angle: -90, position: "insideLeft", fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
           />
           <Tooltip
             contentStyle={{

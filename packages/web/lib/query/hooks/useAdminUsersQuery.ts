@@ -11,7 +11,7 @@ interface User {
   image: string | null
   githubId: string | null
   isAdmin: boolean
-  totalChats: number
+  totalMessages: number
   lastActivityAt: string | null
   lastActivityAction: string | null
   createdAt: string
@@ -29,7 +29,7 @@ interface AdminUsersResponse {
   pagination: Pagination
 }
 
-export type SortField = "name" | "email" | "totalChats" | "lastActivityAt" | "createdAt"
+export type SortField = "name" | "email" | "totalMessages" | "lastActivityAt" | "createdAt"
 export type SortOrder = "asc" | "desc"
 
 interface UseAdminUsersQueryOptions {
