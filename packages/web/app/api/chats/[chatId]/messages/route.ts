@@ -164,6 +164,12 @@ export async function POST(
     // Check daily usage limit for non-pro users
     const usageCheck = await checkSharedClaudeUsage(userId)
     if (!usageCheck.allowed) {
+      // Log that the user hit their daily limit
+      logActivityAsync(userId, "daily_limit_reached", {
+        limit: usageCheck.limit,
+        resetAt: usageCheck.resetAt.toISOString(),
+      })
+
       return Response.json(
         {
           error: "DAILY_LIMIT_EXCEEDED",
