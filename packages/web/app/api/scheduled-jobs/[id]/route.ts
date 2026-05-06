@@ -114,6 +114,7 @@ export async function PATCH(
       model?: string | null
       intervalMinutes?: number
       autoPR?: boolean
+      continueFromLastRun?: boolean
       enabled?: boolean
       nextRunAt?: Date
       consecutiveFailures?: number
