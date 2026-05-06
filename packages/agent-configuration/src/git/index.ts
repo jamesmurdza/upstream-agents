@@ -20,12 +20,6 @@
  */
 
 export {
-  BLOCKED_GIT_OPERATIONS,
-  ALL_BLOCKED_COMMANDS,
-  type BlockedGitCommand,
-} from "./blocked-commands"
-
-export {
   OPENCODE_PERMISSIONS,
   OPENCODE_PERMISSION_CONFIG,
   OPENCODE_PERMISSION_ENV,

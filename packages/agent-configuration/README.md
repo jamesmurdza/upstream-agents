@@ -75,10 +75,6 @@ All agents block the same set of dangerous operations:
 
 ```ts
 import {
-  // Common
-  BLOCKED_GIT_OPERATIONS,
-  ALL_BLOCKED_COMMANDS,
-
   // Claude Code
   setupClaudeHooks,
   CLAUDE_HOOK_CONTENT,

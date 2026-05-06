@@ -82,7 +82,7 @@ export {
 export { generateSandboxName } from "./sandbox"
 
 // Common utilities
-export { cn, formatRelativeTime } from "./utils"
+export { cn } from "./utils"
 
 // Slash commands
 export {

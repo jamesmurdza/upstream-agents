@@ -158,7 +158,7 @@ import {
 ### Common Utilities
 
 ```typescript
-import { cn, formatRelativeTime } from "@upstream/common"
+import { cn } from "@upstream/common"
 ```
 
 ### Constants
