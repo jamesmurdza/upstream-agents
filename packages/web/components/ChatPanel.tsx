@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react"
-import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, Plus, FileText, FileCode, FileImage, File as FileIcon, Clock, Command, Brain, Sparkles } from "lucide-react"
+import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, Plus, FileText, FileCode, FileImage, File as FileIcon, Clock, Command, Brain, Cpu } from "lucide-react"
 import {
   getFileType,
   formatFileSize,
@@ -913,7 +913,8 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
               )}
               title={getModelLabel(currentAgent, currentModel)}
             >
-              {!hasRequiredCredentials ? <Key className="h-4 w-4" /> : <Sparkles className="h-4 w-4 @[18rem]/row2:hidden" />}
+              {!hasRequiredCredentials && <Key className="h-4 w-4" />}
+              <Cpu className="h-4 w-4 @[18rem]/row2:hidden" />
               <span className="hidden @[18rem]/row2:inline">{getModelLabel(currentAgent, currentModel)}</span>
               <ChevronDown className="h-4 w-4 hidden @[18rem]/row2:block" />
             </button>
@@ -933,8 +934,9 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
                 title={getModelLabel(currentAgent, currentModel)}
               >
                 {!hasRequiredCredentials && <Key className="h-3.5 w-3.5" />}
+                <Cpu className="h-3.5 w-3.5 @[32rem]:hidden" />
                 <span className="hidden @[32rem]:inline">{getModelLabel(currentAgent, currentModel)}</span>
-                <ChevronDown className="h-3.5 w-3.5" />
+                <ChevronDown className="h-3.5 w-3.5 hidden @[32rem]:block" />
               </button>
               {showModelDropdown && (
                 <div className="absolute bottom-full right-0 mb-1 max-h-64 overflow-y-auto bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-52">
