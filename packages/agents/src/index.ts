@@ -130,8 +130,11 @@ export {
 export {
   claudeAgent,
   codexAgent,
+  elizaAgent,
   geminiAgent,
+  gooseAgent,
   opencodeAgent,
+  piAgent,
 } from "./agents/index"
 
 // ─────────────────────────────────────────────────────────────────────────────

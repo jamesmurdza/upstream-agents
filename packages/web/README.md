@@ -1,4 +1,4 @@
-# Simple Chat
+# Daytona Background Agents Web App
 
 A Next.js chat application for interacting with AI coding agents in isolated Daytona sandboxes. Each chat session is tied to a Git branch, enabling safe code experimentation and collaboration.
 
@@ -48,7 +48,7 @@ https://github.com/user-attachments/assets/d3a10c97-8a23-4171-a08f-c08179b419d6
 
    Required variables:
    - `DAYTONA_API_KEY` - Your Daytona API key
-   - `DATABASE_URL` - PostgreSQL connection string (e.g., `postgresql://user:pass@localhost:5432/simple_chat`)
+   - `DATABASE_URL` - PostgreSQL connection string (e.g., `postgresql://user:pass@localhost:5432/background_agents`)
    - `ENCRYPTION_KEY` - 32-character secret for encrypting API credentials
    - `NEXTAUTH_SECRET` - A random secret for NextAuth session encryption
    - `NEXTAUTH_URL` - Your app URL (default: `http://localhost:4000`)

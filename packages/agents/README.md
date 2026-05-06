@@ -50,6 +50,7 @@ await sandbox.delete()
 | [OpenCode](https://opencode.ai/docs/) | ✅ | Provider-specific (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) |
 | [Gemini](https://geminicli.com/docs/) | ✅ | `GEMINI_API_KEY` |
 | [Pi](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) | ✅ | Provider-specific (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) |
+| Eliza | ✅ | None (deterministic test agent) |
 
 ### CLI reference commands
 
@@ -61,6 +62,7 @@ await sandbox.delete()
 | OpenCode | `opencode run --format json --variant medium -- "prompt" 2>&1` |
 | Gemini | `gemini --output-format stream-json --yolo -p "prompt"` |
 | Pi | `pi --mode json -p "prompt"` |
+| Eliza | Built-in deterministic agent (no CLI) |
 
 ---
 
