@@ -411,7 +411,7 @@ export function Sidebar({
             </button>
           </div>
 
-          {/* Search Chat Button */}
+          {/* Search Chats Button */}
           <div className="px-3 pb-2">
             <button
               onClick={() => {
@@ -421,7 +421,7 @@ export function Sidebar({
               className="flex items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors touch-target hover:bg-accent/50 active:bg-accent"
             >
               <Search className="h-5 w-5 text-muted-foreground" />
-              <span className="text-base text-foreground">Search Chat</span>
+              <span className="text-base text-foreground">Search Chats</span>
             </button>
           </div>
 
@@ -650,7 +650,7 @@ export function Sidebar({
       </div>
 
       {/* New Chat Button */}
-      <div className={cn("pb-1", collapsed ? "px-0 flex justify-center" : "px-2")}>
+      <div className={cn(collapsed ? "px-0 flex justify-center pb-2" : "px-2 pb-1")}>
         <button
           onClick={onNewChat}
           className={cn(
@@ -663,8 +663,8 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* Search Chat Button */}
-      <div className={cn("pb-1", collapsed ? "px-0 flex justify-center" : "px-2")}>
+      {/* Search Chats Button */}
+      <div className={cn(collapsed ? "px-0 flex justify-center pb-2" : "px-2 pb-1")}>
         <button
           onClick={openSearch}
           className={cn(
@@ -673,12 +673,12 @@ export function Sidebar({
           )}
         >
           <Search className="h-4 w-4 text-muted-foreground" />
-          {!collapsed && <span className="text-sm text-foreground">Search Chat</span>}
+          {!collapsed && <span className="text-sm text-foreground">Search Chats</span>}
         </button>
       </div>
 
       {/* Scheduled Jobs Button */}
-      <div className={cn(collapsed ? "px-0 flex justify-center" : "px-2")}>
+      <div className={cn(collapsed ? "px-0 flex justify-center pb-2" : "px-2")}>
         <button
           onClick={() => {
             if (onOpenScheduledJobs) {
