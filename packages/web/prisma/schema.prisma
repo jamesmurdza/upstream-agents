@@ -229,7 +229,12 @@ model ScheduledJob {
   agent      String
   model      String?
 
-  // Schedule
+  // Trigger configuration
+  triggerType     String  @default("interval") // "interval" | "webhook"
+  githubWebhookId Int?    // GitHub's webhook ID (for cleanup on delete)
+  webhookSecret   String? // HMAC secret for verifying webhook payloads
+
+  // Schedule (used when triggerType = "interval")
   intervalMinutes Int // e.g., 360 = every 6 hours
   enabled         Boolean  @default(true)
   nextRunAt       DateTime

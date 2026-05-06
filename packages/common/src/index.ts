@@ -55,6 +55,8 @@ export {
   type GitHubBranch,
   type GitHubCompareResult,
   type GitHubPullRequest,
+  type GitHubWebhookConfig,
+  type GitHubWebhook,
   // Core helpers
   githubFetch,
   isGitHubApiError,
@@ -68,6 +70,11 @@ export {
   createPullRequest,
   createFileCommit,
   forkRepo,
+  // Webhook management
+  createWebhook,
+  deleteWebhook,
+  listWebhooks,
+  hasWebhookPermission,
 } from "./github"
 
 // Branch utilities

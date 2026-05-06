@@ -21,6 +21,11 @@ interface ScheduledJobFormProps {
 // Interval Options
 // =============================================================================
 
+const TRIGGER_TYPES = [
+  { label: "Run on Schedule", value: "interval" },
+  { label: "Run on CI/CD Failure", value: "webhook" },
+] as const
+
 const INTERVAL_PRESETS = [
   { label: "Hourly", value: 60 },
   { label: "Every 6 hours", value: 360 },
@@ -48,6 +53,7 @@ export function ScheduledJobForm({ job, onClose, onSuccess }: ScheduledJobFormPr
   const [repo, setRepo] = useState(job?.repo ?? "")
   const [baseBranch, setBaseBranch] = useState(job?.baseBranch ?? "main")
   const [agent, setAgent] = useState(job?.agent ?? "opencode")
+  const [triggerType, setTriggerType] = useState<"interval" | "webhook">(job?.triggerType ?? "interval")
   const [intervalMinutes, setIntervalMinutes] = useState(job?.intervalMinutes ?? 1440)
   const [autoPR, setAutoPR] = useState(job?.autoPR ?? true)
   const [continueFromLastRun, setContinueFromLastRun] = useState(job?.continueFromLastRun ?? false)
@@ -91,15 +97,17 @@ export function ScheduledJobForm({ job, onClose, onSuccess }: ScheduledJobFormPr
       return
     }
 
-    // Calculate interval
+    // Calculate interval (only for interval trigger type)
     let finalInterval = intervalMinutes
-    if (isCustomInterval && customInterval) {
-      const num = parseInt(customInterval, 10)
-      if (isNaN(num) || num < 1) {
-        setError("Invalid interval")
-        return
+    if (triggerType === "interval") {
+      if (isCustomInterval && customInterval) {
+        const num = parseInt(customInterval, 10)
+        if (isNaN(num) || num < 1) {
+          setError("Invalid interval")
+          return
+        }
+        finalInterval = customUnit === "hours" ? num * 60 : num * 1440
       }
-      finalInterval = customUnit === "hours" ? num * 60 : num * 1440
     }
 
     setLoading(true)
@@ -108,20 +116,21 @@ export function ScheduledJobForm({ job, onClose, onSuccess }: ScheduledJobFormPr
       const url = isEditing ? `/api/scheduled-jobs/${job.id}` : "/api/scheduled-jobs"
       const method = isEditing ? "PATCH" : "POST"
 
-       const res = await fetch(url, {
-         method,
-         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({
-           name: name.trim(),
-           prompt: prompt.trim(),
-           repo,
-           baseBranch,
-           agent,
-           intervalMinutes: finalInterval,
-           autoPR,
-           continueFromLastRun,
-         }),
-       })
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          prompt: prompt.trim(),
+          repo,
+          baseBranch,
+          agent,
+          triggerType,
+          intervalMinutes: triggerType === "interval" ? finalInterval : undefined,
+          autoPR,
+          continueFromLastRun,
+        }),
+      })
 
       if (!res.ok) {
         const data = await res.json()
@@ -224,51 +233,78 @@ export function ScheduledJobForm({ job, onClose, onSuccess }: ScheduledJobFormPr
             </select>
           </div>
 
-          {/* Interval */}
+          {/* Trigger Type */}
           <div>
-            <label className="block text-sm font-medium mb-1">Run Every</label>
-            <div className="flex gap-2">
-              <select
-                value={isCustomInterval ? -1 : intervalMinutes}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10)
-                  if (val === -1) {
-                    setCustomInterval("")
-                  } else {
-                    setIntervalMinutes(val)
-                  }
-                }}
-                className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {INTERVAL_PRESETS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-
-              {isCustomInterval && (
-                <>
-                  <input
-                    type="number"
-                    min="1"
-                    value={customInterval}
-                    onChange={(e) => setCustomInterval(e.target.value)}
-                    placeholder="1"
-                    className="w-20 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <select
-                    value={customUnit}
-                    onChange={(e) => setCustomUnit(e.target.value as "hours" | "days")}
-                    className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="hours">hours</option>
-                    <option value="days">days</option>
-                  </select>
-                </>
-              )}
-            </div>
+            <label className="block text-sm font-medium mb-1">Trigger</label>
+            <select
+              value={triggerType}
+              onChange={(e) => setTriggerType(e.target.value as "interval" | "webhook")}
+              disabled={isEditing}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+            >
+              {TRIGGER_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
           </div>
+
+          {/* Webhook info */}
+          {triggerType === "webhook" && (
+            <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+              This agent will run whenever a GitHub Actions workflow fails on this repository.
+              A webhook will be created on the repository when you save.
+            </div>
+          )}
+
+          {/* Interval - only show for interval trigger */}
+          {triggerType === "interval" && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Run Every</label>
+              <div className="flex gap-2">
+                <select
+                  value={isCustomInterval ? -1 : intervalMinutes}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10)
+                    if (val === -1) {
+                      setCustomInterval("")
+                    } else {
+                      setIntervalMinutes(val)
+                    }
+                  }}
+                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {INTERVAL_PRESETS.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+
+                {isCustomInterval && (
+                  <>
+                    <input
+                      type="number"
+                      min="1"
+                      value={customInterval}
+                      onChange={(e) => setCustomInterval(e.target.value)}
+                      placeholder="1"
+                      className="w-20 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <select
+                      value={customUnit}
+                      onChange={(e) => setCustomUnit(e.target.value as "hours" | "days")}
+                      className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="hours">hours</option>
+                      <option value="days">days</option>
+                    </select>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Prompt */}
           <div>
