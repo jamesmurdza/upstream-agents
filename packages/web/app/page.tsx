@@ -1343,15 +1343,15 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
       />
 
       {/* Scheduled Job Form */}
-      {modals.scheduledJobFormOpen && (
-        <ScheduledJobForm
-          onClose={() => modals.setScheduledJobFormOpen(false)}
-          onSuccess={() => {
-            modals.setScheduledJobFormOpen(false)
-            setScheduledJobsRefreshKey((k) => k + 1)
-          }}
-        />
-      )}
+      <ScheduledJobForm
+        open={modals.scheduledJobFormOpen}
+        onClose={() => modals.setScheduledJobFormOpen(false)}
+        onSuccess={() => {
+          modals.setScheduledJobFormOpen(false)
+          setScheduledJobsRefreshKey((k) => k + 1)
+        }}
+        isMobile={isMobile}
+      />
 
       {/* Mobile Commands Menu */}
       {isMobile && (

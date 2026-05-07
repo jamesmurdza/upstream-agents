@@ -583,16 +583,15 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, showLis
       </main>
 
       {/* Form Modal */}
-      {formOpen && (
-        <ScheduledJobForm
-          job={editingJob}
-          onClose={() => {
-            setFormOpen(false)
-            setEditingJob(null)
-          }}
-          onSuccess={handleFormSuccess}
-        />
-      )}
+      <ScheduledJobForm
+        open={formOpen}
+        job={editingJob}
+        onClose={() => {
+          setFormOpen(false)
+          setEditingJob(null)
+        }}
+        onSuccess={handleFormSuccess}
+      />
 
       {/* Delete Confirmation */}
       <ConfirmDialog

@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { X } from "lucide-react"
+import { useState, useEffect } from "react"
+import * as Dialog from "@radix-ui/react-dialog"
+import { Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ModalHeader, focusChatPrompt } from "@/components/ui/modal-header"
 import { useReposQuery, useBranchesQueryFromFullName } from "@/lib/query"
 import type { GitHubRepo, GitHubBranch } from "@/lib/github"
 import { type ScheduledJob } from "@/lib/scheduled-jobs/types"
@@ -12,9 +14,11 @@ import { type ScheduledJob } from "@/lib/scheduled-jobs/types"
 // =============================================================================
 
 interface ScheduledJobFormProps {
+  open: boolean
   job?: ScheduledJob | null
   onClose: () => void
   onSuccess: (job: ScheduledJob) => void
+  isMobile?: boolean
 }
 
 // =============================================================================
@@ -44,7 +48,7 @@ const AGENT_OPTIONS = [
 // Component
 // =============================================================================
 
-export function ScheduledJobForm({ job, onClose, onSuccess }: ScheduledJobFormProps) {
+export function ScheduledJobForm({ open, job, onClose, onSuccess, isMobile = false }: ScheduledJobFormProps) {
   const isEditing = !!job
 
   // Form state
@@ -77,17 +81,6 @@ export function ScheduledJobForm({ job, onClose, onSuccess }: ScheduledJobFormPr
 
   // Check if using custom interval
   const isCustomInterval = !INTERVAL_PRESETS.find((p) => p.value === intervalMinutes && p.value !== -1)
-
-  // Handle Escape key to close
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose()
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown)
-    return () => document.removeEventListener("keydown", handleKeyDown)
-  }, [onClose])
 
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
@@ -158,234 +151,236 @@ export function ScheduledJobForm({ job, onClose, onSuccess }: ScheduledJobFormPr
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={(e) => {
-        // Close when clicking the backdrop (not the modal content)
-        if (e.target === e.currentTarget) {
-          onClose()
-        }
-      }}
-    >
-      <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-lg bg-background border border-border shadow-lg">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 flex-shrink-0">
-          <h2 className="text-lg font-semibold">
-            {isEditing ? "Edit Scheduled Job" : "New Scheduled Job"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Form */}
-        <form id="scheduled-job-form" onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto flex-1">
-          {error && (
-            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </div>
+    <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className={cn(
+          "fixed inset-0 z-50 transition-opacity duration-300 bg-black/15 backdrop-blur-[1px]",
+          open ? "opacity-100" : "opacity-0"
+        )} />
+        <Dialog.Content
+          onCloseAutoFocus={(e) => { e.preventDefault(); focusChatPrompt() }}
+          className={cn(
+            "fixed z-50 bg-popover overflow-hidden flex flex-col",
+            isMobile
+              ? "inset-x-4 top-1/2 -translate-y-1/2 rounded-xl max-h-[85vh]"
+              : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg border border-border rounded-lg shadow-xl max-h-[90vh]"
           )}
+        >
+          <ModalHeader
+            title={
+              <>
+                <Clock className="h-4 w-4" />
+                {isEditing ? "Edit Scheduled Job" : "New Scheduled Job"}
+              </>
+            }
+          />
 
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Dependency Updates"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          {/* Repository */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Repository</label>
-            <select
-              value={repo}
-              onChange={(e) => setRepo(e.target.value)}
-              disabled={loadingRepos || isEditing}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-            >
-              <option value="">Select a repository</option>
-              {repos?.map((r: GitHubRepo) => (
-                <option key={r.full_name} value={r.full_name}>
-                  {r.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Branch */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Base Branch</label>
-            <select
-              value={baseBranch}
-              onChange={(e) => setBaseBranch(e.target.value)}
-              disabled={loadingBranches || !repo}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-            >
-              {branches?.map((b: GitHubBranch) => (
-                <option key={b.name} value={b.name}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Agent */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Agent</label>
-            <select
-              value={agent}
-              onChange={(e) => setAgent(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {AGENT_OPTIONS.map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Trigger Type */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Trigger</label>
-            <select
-              value={triggerType}
-              onChange={(e) => setTriggerType(e.target.value as "interval" | "webhook")}
-              disabled={isEditing}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-            >
-              {TRIGGER_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Webhook info */}
-          {triggerType === "webhook" && (
-            <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-              This agent will run whenever a GitHub Actions workflow fails on this repository.
-              A webhook will be created on the repository when you save.
-            </div>
-          )}
-
-          {/* Interval - only show for interval trigger */}
-          {triggerType === "interval" && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Run Every</label>
-              <div className="flex gap-2">
-                <select
-                  value={isCustomInterval ? -1 : intervalMinutes}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10)
-                    if (val === -1) {
-                      setCustomInterval("")
-                    } else {
-                      setIntervalMinutes(val)
-                    }
-                  }}
-                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  {INTERVAL_PRESETS.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-
-                {isCustomInterval && (
-                  <>
-                    <input
-                      type="number"
-                      min="1"
-                      value={customInterval}
-                      onChange={(e) => setCustomInterval(e.target.value)}
-                      placeholder="1"
-                      className="w-20 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    <select
-                      value={customUnit}
-                      onChange={(e) => setCustomUnit(e.target.value as "hours" | "days")}
-                      className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <option value="hours">hours</option>
-                      <option value="days">days</option>
-                    </select>
-                  </>
-                )}
+          {/* Form */}
+          <form id="scheduled-job-form" onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto flex-1">
+            {error && (
+              <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
               </div>
+            )}
+
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Dependency Updates"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
             </div>
-          )}
 
-          {/* Prompt */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Prompt</label>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="What should the agent do?"
-              rows={4}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            />
+            {/* Repository */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Repository</label>
+              <select
+                value={repo}
+                onChange={(e) => setRepo(e.target.value)}
+                disabled={loadingRepos || isEditing}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              >
+                <option value="">Select a repository</option>
+                {repos?.map((r: GitHubRepo) => (
+                  <option key={r.full_name} value={r.full_name}>
+                    {r.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Branch */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Base Branch</label>
+              <select
+                value={baseBranch}
+                onChange={(e) => setBaseBranch(e.target.value)}
+                disabled={loadingBranches || !repo}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              >
+                {branches?.map((b: GitHubBranch) => (
+                  <option key={b.name} value={b.name}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Agent */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Agent</label>
+              <select
+                value={agent}
+                onChange={(e) => setAgent(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {AGENT_OPTIONS.map((a) => (
+                  <option key={a.value} value={a.value}>
+                    {a.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Trigger Type */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Trigger</label>
+              <select
+                value={triggerType}
+                onChange={(e) => setTriggerType(e.target.value as "interval" | "webhook")}
+                disabled={isEditing}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+              >
+                {TRIGGER_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Webhook info */}
+            {triggerType === "webhook" && (
+              <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                This agent will run whenever a GitHub Actions workflow fails on this repository.
+                A webhook will be created on the repository when you save.
+              </div>
+            )}
+
+            {/* Interval - only show for interval trigger */}
+            {triggerType === "interval" && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Run Every</label>
+                <div className="flex gap-2">
+                  <select
+                    value={isCustomInterval ? -1 : intervalMinutes}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10)
+                      if (val === -1) {
+                        setCustomInterval("")
+                      } else {
+                        setIntervalMinutes(val)
+                      }
+                    }}
+                    className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    {INTERVAL_PRESETS.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {isCustomInterval && (
+                    <>
+                      <input
+                        type="number"
+                        min="1"
+                        value={customInterval}
+                        onChange={(e) => setCustomInterval(e.target.value)}
+                        placeholder="1"
+                        className="w-20 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <select
+                        value={customUnit}
+                        onChange={(e) => setCustomUnit(e.target.value as "hours" | "days")}
+                        className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        <option value="hours">hours</option>
+                        <option value="days">days</option>
+                      </select>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Prompt */}
+            <div>
+              <label className="block text-sm font-medium mb-1">Prompt</label>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="What should the agent do?"
+                rows={4}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              />
+            </div>
+
+            {/* Auto-PR */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="autoPR"
+                checked={autoPR}
+                onChange={(e) => setAutoPR(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              <label htmlFor="autoPR" className="text-sm">
+                Automatically create PR when there are commits
+              </label>
+            </div>
+
+            {/* Continue from last run */}
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="continueFromLastRun"
+                checked={continueFromLastRun}
+                onChange={(e) => setContinueFromLastRun(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              <label htmlFor="continueFromLastRun" className="text-sm">
+                 Include commits from the previous run
+              </label>
+            </div>
+
+          </form>
+
+          {/* Actions - fixed at bottom */}
+          <div className="flex justify-end gap-2 px-4 py-3 border-t border-border flex-shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm rounded-md hover:bg-accent transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="scheduled-job-form"
+              disabled={loading}
+              className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {loading ? "Saving..." : isEditing ? "Save Changes" : "Create Job"}
+            </button>
           </div>
-
-          {/* Auto-PR */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="autoPR"
-              checked={autoPR}
-              onChange={(e) => setAutoPR(e.target.checked)}
-              className="h-4 w-4 rounded border-border"
-            />
-            <label htmlFor="autoPR" className="text-sm">
-              Automatically create PR when there are commits
-            </label>
-          </div>
-
-          {/* Continue from last run */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="continueFromLastRun"
-              checked={continueFromLastRun}
-              onChange={(e) => setContinueFromLastRun(e.target.checked)}
-              className="h-4 w-4 rounded border-border"
-            />
-            <label htmlFor="continueFromLastRun" className="text-sm">
-               Include commits from the previous run
-            </label>
-          </div>
-
-        </form>
-
-        {/* Actions - fixed at bottom */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border flex-shrink-0">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm rounded-md border border-border hover:bg-accent transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="scheduled-job-form"
-            disabled={loading}
-            className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {loading ? "Saving..." : isEditing ? "Save Changes" : "Create Job"}
-          </button>
-        </div>
-      </div>
-    </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
