@@ -26,13 +26,14 @@ const COLORS = [
 ]
 
 type ViewMode = "agents" | "models"
-type TimeRange = "7d" | "30d"
+type TimeRange = "24h" | "7d" | "30d"
 
 interface MessagesByModelChartProps {
   agentData7d: Array<Record<string, number | string>>
   modelData7d: Array<Record<string, number | string>>
   agentData30d: Array<Record<string, number | string>>
   modelData30d: Array<Record<string, number | string>>
+  timeRange: TimeRange
 }
 
 export function MessagesByModelChart({
@@ -40,15 +41,18 @@ export function MessagesByModelChart({
   modelData7d,
   agentData30d,
   modelData30d,
+  timeRange,
 }: MessagesByModelChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("agents")
-  const [timeRange, setTimeRange] = useState<TimeRange>("7d")
 
   const getData = () => {
+    // For 24h, we use 7d data but it will be filtered/limited on the server in the future
+    // For now, 24h shows the same as 7d
+    const useShortRange = timeRange === "24h" || timeRange === "7d"
     if (viewMode === "agents") {
-      return timeRange === "7d" ? agentData7d : agentData30d
+      return useShortRange ? agentData7d : agentData30d
     }
-    return timeRange === "7d" ? modelData7d : modelData30d
+    return useShortRange ? modelData7d : modelData30d
   }
 
   const data = getData()
@@ -63,8 +67,8 @@ export function MessagesByModelChart({
 
   return (
     <div className="h-[300px] w-full">
-      {/* Toggle buttons */}
-      <div className="mb-3 flex items-center justify-between">
+      {/* Toggle buttons - only view mode, time is controlled globally */}
+      <div className="mb-3 flex items-center">
         <div className="flex gap-1">
           <button
             onClick={() => setViewMode("agents")}
@@ -85,28 +89,6 @@ export function MessagesByModelChart({
             }`}
           >
             Models
-          </button>
-        </div>
-        <div className="flex gap-1">
-          <button
-            onClick={() => setTimeRange("7d")}
-            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-              timeRange === "7d"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            7d
-          </button>
-          <button
-            onClick={() => setTimeRange("30d")}
-            className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-              timeRange === "30d"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            30d
           </button>
         </div>
       </div>

@@ -12,6 +12,3 @@ export type {
   BranchesQueryKey,
   ServersQueryKey,
 } from "./keys"
-
-// Export query client for direct access
-export { queryClient } from "./query-client"
