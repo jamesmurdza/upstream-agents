@@ -1182,6 +1182,7 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
                   onDraftChange={handleDraftChange}
                   isSending={isSendingMessage}
                   onOpenPlan={(messageId) => preview.openPreview({ type: "plan", messageId, content: "" })}
+                  isAuthenticated={!!session}
                 />
               )}
             </div>

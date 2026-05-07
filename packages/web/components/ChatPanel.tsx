@@ -42,9 +42,11 @@ interface ChatPanelProps {
   onOpenCommandPalette?: () => void
   /** Callback to open a plan in the preview pane */
   onOpenPlan?: (messageId: string) => void
+  /** Whether the user is authenticated */
+  isAuthenticated?: boolean
 }
 
-export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDialog, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onSlashCommand, onOpenFile, onOpenEnvVars, isMobile = false, isLoadingMessages = false, draft = "", onDraftChange, isSending = false, onOpenCommandPalette, onOpenPlan }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDialog, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onSlashCommand, onOpenFile, onOpenEnvVars, isMobile = false, isLoadingMessages = false, draft = "", onDraftChange, isSending = false, onOpenCommandPalette, onOpenPlan, isAuthenticated = false }: ChatPanelProps) {
   // Get modal and git state from contexts
   const modals = useModals()
   const git = useGit()
@@ -79,7 +81,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
     getFileTypeForFile,
     getFilePreviewUrl,
     supportedExtensions,
-  } = useFileUpload({ onRequireSignIn: () => modals.setSignInModalOpen(true) })
+  } = useFileUpload({ onRequireSignIn: isAuthenticated ? undefined : () => modals.setSignInModalOpen(true) })
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
