@@ -58,120 +58,12 @@ export interface ModalContextValue {
 
 interface ModalProviderProps {
   children: ReactNode
-  isMobile: boolean
-  onMobileSidebarClose?: () => void
+  value: ModalContextValue
 }
 
 const ModalContext = createContext<ModalContextValue | null>(null)
 
-export function ModalProvider({ children, isMobile, onMobileSidebarClose }: ModalProviderProps) {
-  // Repo/Branch modals
-  const [repoSelectOpen, setRepoSelectOpen] = useState(false)
-  const [repoCreateOpen, setRepoCreateOpen] = useState(false)
-  const [branchSelectOpen, setBranchSelectOpen] = useState(false)
-
-  // Settings modal state
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsHighlightKey, setSettingsHighlightKey] = useState<HighlightKey>(null)
-  const [settingsDefaultSection, setSettingsDefaultSection] = useState<SectionKey>("general")
-
-  // Help & Sign-in modals
-  const [helpOpen, setHelpOpen] = useState(false)
-  const [signInModalOpen, setSignInModalOpen] = useState(false)
-
-  // Delete confirmation
-  const [deleteConfirmChatId, setDeleteConfirmChatId] = useState<string | null>(null)
-
-  // Environment variables modal
-  const [envVarsModalOpen, setEnvVarsModalOpen] = useState(false)
-
-  // Scheduled jobs
-  const [scheduledJobFormOpen, setScheduledJobFormOpen] = useState(false)
-
-  // Mobile-specific modals
-  const [mobileCommandsOpen, setMobileCommandsOpen] = useState(false)
-  const [mobileTitleMenuOpen, setMobileTitleMenuOpen] = useState(false)
-  const [mobileRenameChat, setMobileRenameChat] = useState<{ id: string; name: string } | null>(null)
-
-  // Re-auth modal
-  const [reAuthModalOpen, setReAuthModalOpen] = useState(false)
-
-  // Handler for opening settings (optionally with a highlighted API key field)
-  const openSettings = useCallback((highlightKey?: HighlightKey) => {
-    setSettingsHighlightKey(highlightKey ?? null)
-    setSettingsDefaultSection("general")
-    setSettingsOpen(true)
-    // Close mobile sidebar when opening settings
-    if (isMobile) {
-      onMobileSidebarClose?.()
-    }
-  }, [isMobile, onMobileSidebarClose])
-
-  // Handler for opening settings to a specific section (used by command palette)
-  const openSettingsSection = useCallback((section?: SectionKey) => {
-    setSettingsHighlightKey(null)
-    setSettingsDefaultSection(section ?? "general")
-    setSettingsOpen(true)
-    if (isMobile) {
-      onMobileSidebarClose?.()
-    }
-  }, [isMobile, onMobileSidebarClose])
-
-  // Handler for closing settings
-  const closeSettings = useCallback(() => {
-    setSettingsOpen(false)
-    setSettingsHighlightKey(null)
-  }, [])
-
-  const value: ModalContextValue = {
-    // Repo/Branch modals
-    repoSelectOpen,
-    setRepoSelectOpen,
-    repoCreateOpen,
-    setRepoCreateOpen,
-    branchSelectOpen,
-    setBranchSelectOpen,
-
-    // Settings modal
-    settingsOpen,
-    setSettingsOpen,
-    settingsHighlightKey,
-    settingsDefaultSection,
-    openSettings,
-    openSettingsSection,
-    closeSettings,
-
-    // Help & Sign-in modals
-    helpOpen,
-    setHelpOpen,
-    signInModalOpen,
-    setSignInModalOpen,
-
-    // Delete confirmation
-    deleteConfirmChatId,
-    setDeleteConfirmChatId,
-
-    // Environment variables modal
-    envVarsModalOpen,
-    setEnvVarsModalOpen,
-
-    // Scheduled jobs
-    scheduledJobFormOpen,
-    setScheduledJobFormOpen,
-
-    // Mobile-specific modals
-    mobileCommandsOpen,
-    setMobileCommandsOpen,
-    mobileTitleMenuOpen,
-    setMobileTitleMenuOpen,
-    mobileRenameChat,
-    setMobileRenameChat,
-
-    // Re-auth modal
-    reAuthModalOpen,
-    setReAuthModalOpen,
-  }
-
+export function ModalProvider({ children, value }: ModalProviderProps) {
   return <ModalContext.Provider value={value}>{children}</ModalContext.Provider>
 }
 

@@ -46,6 +46,10 @@ interface ModalState {
   setMobileTitleMenuOpen: (open: boolean) => void
   mobileRenameChat: { id: string; name: string } | null
   setMobileRenameChat: (chat: { id: string; name: string } | null) => void
+
+  // Re-auth modal
+  reAuthModalOpen: boolean
+  setReAuthModalOpen: (open: boolean) => void
 }
 
 interface UseModalStateOptions {
@@ -81,6 +85,9 @@ export function useModalState({ isMobile, onMobileSidebarClose }: UseModalStateO
   const [mobileCommandsOpen, setMobileCommandsOpen] = useState(false)
   const [mobileTitleMenuOpen, setMobileTitleMenuOpen] = useState(false)
   const [mobileRenameChat, setMobileRenameChat] = useState<{ id: string; name: string } | null>(null)
+
+  // Re-auth modal
+  const [reAuthModalOpen, setReAuthModalOpen] = useState(false)
 
   // Handler for opening settings (optionally with a highlighted API key field)
   const openSettings = useCallback((highlightKey?: HighlightKey) => {
@@ -152,5 +159,9 @@ export function useModalState({ isMobile, onMobileSidebarClose }: UseModalStateO
     setMobileTitleMenuOpen,
     mobileRenameChat,
     setMobileRenameChat,
+
+    // Re-auth modal
+    reAuthModalOpen,
+    setReAuthModalOpen,
   }
 }

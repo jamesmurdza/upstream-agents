@@ -122,7 +122,7 @@ export default function HomePage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const mobileTitleMenuRef = useRef<HTMLDivElement>(null)
 
-  // Modal state from hook
+  // Modal state from hook - passed to ModalProvider as value
   const modals = useModalState({
     isMobile,
     onMobileSidebarClose: () => setMobileSidebarOpen(false),
@@ -1066,7 +1066,7 @@ export default function HomePage() {
       currentChatId={displayCurrentChatId}
       onSelectChat={handleSelectChat}
     >
-    <ModalProvider isMobile={isMobile} onMobileSidebarClose={() => setMobileSidebarOpen(false)}>
+    <ModalProvider value={modals}>
     <ChatProvider value={chatContextValue}>
     <GitProvider value={gitContextValue}>
     <div className={`flex overflow-hidden ${isMobile ? 'h-screen-mobile' : 'h-screen'}`}>
