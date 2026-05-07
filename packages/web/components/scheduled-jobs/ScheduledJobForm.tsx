@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useReposQuery, useBranchesQueryFromFullName } from "@/lib/query"
@@ -78,6 +78,17 @@ export function ScheduledJobForm({ job, onClose, onSuccess }: ScheduledJobFormPr
   // Check if using custom interval
   const isCustomInterval = !INTERVAL_PRESETS.find((p) => p.value === intervalMinutes && p.value !== -1)
 
+  // Handle Escape key to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose()
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [onClose])
+
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -147,7 +158,15 @@ export function ScheduledJobForm({ job, onClose, onSuccess }: ScheduledJobFormPr
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => {
+        // Close when clicking the backdrop (not the modal content)
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
+    >
       <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-lg bg-background border border-border shadow-lg">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3 flex-shrink-0">
