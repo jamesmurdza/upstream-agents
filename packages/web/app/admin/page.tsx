@@ -64,12 +64,12 @@ export default function AdminDashboard() {
     dateTo?: string
   }>({})
 
-  // Top users time range state
-  const [topUsersRange, setTopUsersRange] = useState<TopUsersRange>("24h")
+  // Global time range state (affects all charts)
+  const [globalTimeRange, setGlobalTimeRange] = useState<TopUsersRange>("7d")
 
   // Queries
   const statsQuery = useAdminStatsQuery()
-  const topUsersQuery = useAdminTopUsersQuery(topUsersRange)
+  const topUsersQuery = useAdminTopUsersQuery(globalTimeRange)
   const activityQuery = useAdminActivityQuery({
     page: activityPage,
     limit: 20,
@@ -214,6 +214,26 @@ export default function AdminDashboard() {
           {/* Overview Section */}
           {activeSection === "overview" && (
             <>
+              {/* Global Time Range Selector */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold md:text-lg">Overview</h2>
+                <div className="flex gap-1">
+                  {(["24h", "7d", "30d"] as const).map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => setGlobalTimeRange(range)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:px-4 sm:text-sm ${
+                        globalTimeRange === range
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                      }`}
+                    >
+                      {range === "24h" ? "24 Hours" : range === "7d" ? "7 Days" : "30 Days"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Charts Row 1 */}
               <section className="grid gap-4 md:gap-6 lg:grid-cols-2">
                 <div className="rounded-lg border bg-card p-4 md:p-6">
@@ -237,6 +257,7 @@ export default function AdminDashboard() {
                       modelData7d={messagesByModel7d}
                       agentData30d={messagesByAgent30d}
                       modelData30d={messagesByModel30d}
+                      timeRange={globalTimeRange}
                     />
                   </div>
                 </div>
@@ -262,8 +283,6 @@ export default function AdminDashboard() {
                   <TopUsersTable
                     data={topUsers}
                     isLoading={topUsersQuery.isLoading}
-                    selectedRange={topUsersRange}
-                    onRangeChange={setTopUsersRange}
                   />
                 </div>
               </section>
