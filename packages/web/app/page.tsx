@@ -1086,12 +1086,10 @@ export default function HomePage() {
           onNewChat={handleNewChat}
           onDeleteChat={(chatId) => removeChat(chatId, getNextChatId)}
           onRenameChat={renameChat}
-          onOpenSettings={() => modals.openSettings()}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           width={sidebarWidth}
           onWidthChange={setSidebarWidth}
-          onOpenHelp={() => modals.setHelpOpen(true)}
           isMobile={false}
           repoFilter={repoFilter}
           onRepoFilterChange={setRepoFilter}
@@ -1117,12 +1115,10 @@ export default function HomePage() {
           onNewChat={handleNewChat}
           onDeleteChat={(chatId) => removeChat(chatId, getNextChatId)}
           onRenameChat={renameChat}
-          onOpenSettings={() => modals.openSettings()}
           collapsed={false}
           onToggleCollapse={() => {}}
           width={280}
           onWidthChange={() => {}}
-          onOpenHelp={() => modals.setHelpOpen(true)}
           isMobile={true}
           mobileOpen={mobileSidebarOpen}
           onMobileClose={() => setMobileSidebarOpen(false)}
@@ -1132,7 +1128,6 @@ export default function HomePage() {
           onToggleChatCollapsed={toggleChatCollapsed}
           onRequestMergeChats={handleRequestMergeChats}
           onRequestRebaseChat={handleRequestRebaseChat}
-          onMobileRename={(chatId, name) => modals.setMobileRenameChat({ id: chatId, name })}
           onOpenScheduledJobs={() => {
             handleOpenScheduledJobs()
             setMobileSidebarOpen(false)

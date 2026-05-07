@@ -7,6 +7,7 @@ import { Plus, PanelLeft, X, FolderGit2, Loader2, Clock, Search, ChevronDown, Ch
 import { usePalette } from "@/components/search-palette/PaletteProvider"
 import { cn } from "@/lib/utils"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
+import { useModals } from "@/lib/contexts"
 import { clearAllStorage } from "@/lib/storage"
 import type { Chat } from "@/lib/types"
 import { NEW_REPOSITORY } from "@/lib/types"
@@ -36,12 +37,10 @@ interface SidebarProps {
   onNewChat: () => void
   onDeleteChat: (chatId: string) => void
   onRenameChat: (chatId: string, newName: string) => void
-  onOpenSettings: () => void
   collapsed: boolean
   onToggleCollapse: () => void
   width: number
   onWidthChange: (width: number) => void
-  onOpenHelp?: () => void
   // Mobile drawer props
   isMobile?: boolean
   mobileOpen?: boolean
@@ -58,8 +57,6 @@ interface SidebarProps {
   onRequestMergeChats?: (sourceId: string, targetId?: string) => void
   /** Pick Rebase from a chat's context menu. */
   onRequestRebaseChat?: (sourceId: string) => void
-  /** Mobile rename - opens a bottom sheet in the parent */
-  onMobileRename?: (chatId: string, currentName: string) => void
   /** Open scheduled jobs view */
   onOpenScheduledJobs?: () => void
   /** Whether scheduled jobs view is active */
@@ -79,12 +76,10 @@ export function Sidebar({
   onNewChat,
   onDeleteChat,
   onRenameChat,
-  onOpenSettings,
   collapsed,
   onToggleCollapse,
   width,
   onWidthChange,
-  onOpenHelp,
   isMobile = false,
   mobileOpen = false,
   onMobileClose,
@@ -94,12 +89,12 @@ export function Sidebar({
   onToggleChatCollapsed: controlledToggleChatCollapsed,
   onRequestMergeChats,
   onRequestRebaseChat,
-  onMobileRename,
   onOpenScheduledJobs,
   scheduledJobsActive = false,
   selectedScheduledJob,
   isLoadingChats = false,
 }: SidebarProps) {
+  const modals = useModals()
   const { data: session, status: sessionStatus } = useSession()
   const isSessionLoading = sessionStatus === "loading"
   const router = useRouter()
@@ -486,7 +481,7 @@ export function Sidebar({
                     isUnseen={unseenChatIds?.has(chat.id) ?? false}
                     onSelect={() => handleSelectChat(chat.id)}
                     onDelete={() => onDeleteChat(chat.id)}
-                    onRequestRename={() => onMobileRename?.(chat.id, chat.displayName || "Untitled")}
+                    onRequestRename={() => modals.setMobileRenameChat({ id: chat.id, name: chat.displayName || "Untitled" })}
                   />
                 ))
               )}
@@ -544,7 +539,7 @@ export function Sidebar({
                     )}
                     <button
                       onClick={() => {
-                        onOpenSettings()
+                        modals.openSettings()
                         setMobileUserMenuOpen(false)
                       }}
                       className="flex items-center gap-3 w-full px-4 py-3 text-base hover:bg-accent active:bg-accent cursor-pointer"
@@ -552,18 +547,16 @@ export function Sidebar({
                       <Settings className="h-5 w-5" />
                       Settings
                     </button>
-                    {onOpenHelp && (
-                      <button
-                        onClick={() => {
-                          onOpenHelp()
-                          setMobileUserMenuOpen(false)
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-3 text-base hover:bg-accent active:bg-accent cursor-pointer"
-                      >
-                        <HelpCircle className="h-5 w-5" />
-                        Help
-                      </button>
-                    )}
+                    <button
+                      onClick={() => {
+                        modals.setHelpOpen(true)
+                        setMobileUserMenuOpen(false)
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-3 text-base hover:bg-accent active:bg-accent cursor-pointer"
+                    >
+                      <HelpCircle className="h-5 w-5" />
+                      Help
+                    </button>
                     <button
                       onClick={() => {
                         clearAllStorage()
@@ -806,8 +799,6 @@ export function Sidebar({
         ) : session?.user ? (
           <UserMenu
             user={session.user}
-            onOpenSettings={onOpenSettings}
-            onOpenHelp={onOpenHelp}
             collapsed={collapsed}
           />
         ) : (
