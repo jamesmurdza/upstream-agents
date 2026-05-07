@@ -488,14 +488,10 @@ export function Sidebar({
             <div className="space-y-0.5">
               {isLoadingChats ? (
                 /* Chat list skeleton while loading */
-                <div className="space-y-1 animate-pulse">
-                  {[75, 60, 85, 55, 70].map((width, i) => (
-                    <div key={i} className="flex items-center gap-3 px-3 py-3 rounded-lg">
-                      <div className="h-4 w-4 rounded bg-muted flex-shrink-0" />
-                      <div className="flex-1 space-y-1.5">
-                        <div className="h-4 rounded bg-muted" style={{ width: `${width}%` }} />
-                        <div className="h-3 rounded bg-muted" style={{ width: `${width - 20}%` }} />
-                      </div>
+                <div className="space-y-0.5 animate-pulse">
+                  {[75, 55, 85, 60, 70].map((width, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-md">
+                      <div className="h-4 flex-1 rounded bg-muted" style={{ width: `${width}%` }} />
                     </div>
                   ))}
                 </div>
@@ -768,13 +764,9 @@ export function Sidebar({
               {isLoadingChats ? (
                 /* Chat list skeleton while loading */
                 <div className="space-y-0.5 animate-pulse">
-                  {[70, 55, 80, 60, 75, 50].map((width, i) => (
-                    <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-md">
-                      <div className="h-3.5 w-3.5 rounded bg-muted flex-shrink-0" />
-                      <div className="flex-1 space-y-1">
-                        <div className="h-3.5 rounded bg-muted" style={{ width: `${width}%` }} />
-                        <div className="h-2.5 rounded bg-muted" style={{ width: `${width - 15}%` }} />
-                      </div>
+                  {[70, 50, 85, 55, 75, 60].map((width, i) => (
+                    <div key={i} className="flex items-center gap-2 px-2 py-[5px] rounded-md">
+                      <div className="h-3.5 flex-1 rounded bg-muted" style={{ width: `${width}%` }} />
                     </div>
                   ))}
                 </div>
