@@ -62,7 +62,7 @@ wss.on('connection', (ws, req) => {
     name: 'xterm-256color',
     cols: 80,
     rows: 30,
-    cwd: process.env.HOME || os.homedir(),
+    cwd: '/home/daytona/project',
     env: { ...process.env, TERM: 'xterm-256color' }
   });
 

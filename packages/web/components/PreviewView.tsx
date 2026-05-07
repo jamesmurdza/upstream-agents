@@ -109,11 +109,13 @@ export function PreviewView({
   // When the item is a file and we have a repo/branch, build the GitHub URL
   // File paths from sandbox are absolute (e.g., /home/daytona/project/src/index.ts)
   // so we need to strip the sandbox prefix to get the repo-relative path.
-  const repoRelativePath = item.type === "file"
+  // Only show the GitHub link if the file is actually inside the repo directory.
+  const isFileInRepo = item.type === "file" && item.filePath.startsWith(PATHS.PROJECT_DIR)
+  const repoRelativePath = item.type === "file" && isFileInRepo
     ? item.filePath.replace(new RegExp(`^${PATHS.PROJECT_DIR}/?`), "").replace(/^\/+/, "")
     : ""
   const fileGithubUrl =
-    item.type === "file" && repo && branch
+    item.type === "file" && isFileInRepo && repo && branch
       ? `https://github.com/${repo}/blob/${branch}/${repoRelativePath}`
       : null
 
