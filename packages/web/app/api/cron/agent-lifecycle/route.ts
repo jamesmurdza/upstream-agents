@@ -438,6 +438,8 @@ async function startJobExecution(
         role: "user",
         content: finalPrompt,
         timestamp,
+        agent: job.agent,
+        model: job.model,
       },
       {
         id: assistantMessageId,

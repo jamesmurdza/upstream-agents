@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
     `,
 
     // Daily messages by agent+model in selected range
-    // Only count assistant messages that are actual chat messages (not git-operations or user messages)
+    // Exclude git-operation messages (system messages for merge/push/rebase)
     prisma.$queryRaw<Array<{ date: Date; agent: string | null; model: string | null; count: bigint }>>`
       SELECT
         DATE("createdAt") as date,
@@ -239,7 +239,6 @@ export async function GET(request: NextRequest) {
         COUNT(*)::bigint as count
       FROM "Message"
       WHERE "createdAt" >= NOW() - ${interval}::interval
-        AND role = 'assistant'
         AND (("messageType" IS NULL) OR ("messageType" != 'git-operation'))
       GROUP BY date, agent, model
       ORDER BY date ASC
