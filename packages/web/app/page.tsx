@@ -1007,7 +1007,7 @@ export default function HomePage() {
       servers={availableServers}
       onOpenServer={(port, url) => preview.openPreview({ type: "server", port, url })}
       onClosePreview={preview.previewOpen ? preview.closePreview : undefined}
-      onShowPreview={preview.previewPaneHidden && preview.preview.previewItems.length > 0 ? preview.showPreview : undefined}
+      onShowPreview={preview.previewPaneHidden && preview.previewItems.length > 0 ? preview.showPreview : undefined}
       onDownloadProject={currentChat?.sandboxId ? handleDownloadProject : undefined}
       isDownloading={isDownloading}
       onCopyCloneCommand={currentChat?.repo && currentChat.repo !== NEW_REPOSITORY ? handleCopyCloneCommand : undefined}
