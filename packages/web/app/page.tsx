@@ -29,6 +29,7 @@ import { useMobile } from "@/lib/hooks/useMobile"
 import { useGitHubTokenCheck } from "@/lib/hooks/useGitHubTokenCheck"
 import { usePreview } from "@/lib/hooks/usePreview"
 import { useModalState } from "@/lib/hooks/useModalState"
+import { ChatProvider, ModalProvider, GitProvider, type ChatContextValue, type GitContextValue } from "@/lib/contexts"
 import { NEW_REPOSITORY, getDefaultAgent, getDefaultModelForAgent, type Agent, type Message, type Chat } from "@/lib/types"
 import { useReposQuery, useBranchesQuery, useServersQuery } from "@/lib/query"
 import { PATHS } from "@upstream/common"
@@ -966,6 +967,58 @@ export default function HomePage() {
     updateDraft(currentChatId, draft)
   }, [isDraftMode, currentChatId, updateDraft])
 
+  // Build context values for child components
+  const chatContextValue: ChatContextValue = useMemo(() => ({
+    currentChat: displayCurrentChat,
+    currentChatId: displayCurrentChatId,
+    chats: displayChats,
+    settings,
+    credentialFlags,
+    isHydrated,
+    isLoadingMessages,
+    isSending: isSendingMessage,
+    selectChat: handleSelectChat,
+    startNewChat,
+    removeChat,
+    renameChat,
+    updateCurrentChat: handleUpdateChatProp,
+    updateChatById,
+    sendMessage: handleSendMessage,
+    stopAgent,
+    addMessage: handleAddMessage,
+    enqueueMessage,
+    removeQueuedMessage,
+    resumeQueue,
+    drafts,
+    updateDraft,
+    clearDraft,
+    isDraftChatId,
+    draftChatConfig,
+    updateDraftChatConfig,
+    hasMoreMessages,
+    loadOlderMessages: currentChat ? () => loadOlderMessages(currentChat.id) : async () => false,
+    refetchMessages,
+    deletingChatIds,
+    unseenChatIds,
+    updateChatRepo,
+  }), [
+    displayCurrentChat, displayCurrentChatId, displayChats, settings, credentialFlags,
+    isHydrated, isLoadingMessages, isSendingMessage, handleSelectChat, startNewChat,
+    removeChat, renameChat, handleUpdateChatProp, updateChatById, handleSendMessage,
+    stopAgent, handleAddMessage, enqueueMessage, removeQueuedMessage, resumeQueue,
+    drafts, updateDraft, clearDraft, isDraftChatId, draftChatConfig, updateDraftChatConfig,
+    hasMoreMessages, loadOlderMessages, currentChat, refetchMessages, deletingChatIds,
+    unseenChatIds, updateChatRepo,
+  ])
+
+  const gitContextValue: GitContextValue = useMemo(() => ({
+    ...gitDialogs,
+    canBranch,
+    handleBranchChat,
+    handleBranchWithMessage,
+    handleBranchQueuedMessage,
+  }), [gitDialogs, canBranch, handleBranchChat, handleBranchWithMessage, handleBranchQueuedMessage])
+
   return (
     <PaletteProvider
       repos={repos}
@@ -1018,6 +1071,9 @@ export default function HomePage() {
       currentChatId={displayCurrentChatId}
       onSelectChat={handleSelectChat}
     >
+    <ModalProvider isMobile={isMobile} onMobileSidebarClose={() => setMobileSidebarOpen(false)}>
+    <ChatProvider value={chatContextValue}>
+    <GitProvider value={gitContextValue}>
     <div className={`flex overflow-hidden ${isMobile ? 'h-screen-mobile' : 'h-screen'}`}>
       {/* Desktop Sidebar */}
       {!isMobile && (
@@ -1464,6 +1520,9 @@ export default function HomePage() {
         isMobile={isMobile}
       />
     </div>
+    </GitProvider>
+    </ChatProvider>
+    </ModalProvider>
     </PaletteProvider>
   )
 }
