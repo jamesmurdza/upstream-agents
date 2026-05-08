@@ -346,6 +346,11 @@ export async function POST(req: Request) {
       }
 
       case "check-rebase-status": {
+        // Check sandbox is running before executing commands
+        if (sandbox.state !== "started") {
+          return Response.json({ inRebase: false, inMerge: false, conflictedFiles: [] })
+        }
+
         const rebaseCheck = await sandbox.process.executeCommand(
           `test -d ${repoPath}/.git/rebase-merge -o -d ${repoPath}/.git/rebase-apply && echo "yes" || echo "no"`
         )
