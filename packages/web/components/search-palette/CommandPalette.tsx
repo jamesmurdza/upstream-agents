@@ -1,6 +1,6 @@
 "use client"
 
-import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, Plus, GitBranchPlus, Settings, Github, PanelLeft, LogIn, LogOut, FolderGit2, Trash2, Code2, TerminalSquare, Globe, PanelRightClose, PanelRightOpen, Download, Copy, MessageSquare, Key, Sun, Moon, Monitor } from "lucide-react"
+import { GitMerge, GitBranch, GitPullRequest, GitCommitVertical, Plus, GitBranchPlus, Settings, Github, PanelLeft, LogIn, LogOut, FolderGit2, Trash2, Code2, TerminalSquare, Globe, PanelRightClose, PanelRightOpen, Download, Copy, MessageSquare, Key, Sun, Moon, Monitor, Zap } from "lucide-react"
 import {
   CommandDialog,
   CommandInput,
@@ -74,6 +74,8 @@ interface CommandPaletteProps {
   onCopyCheckoutCommand?: () => void
   /** Open environment variables modal. Omitted when no chat is active. */
   onOpenEnvVars?: () => void
+  /** Open skills manager. Omitted when no sandbox exists. */
+  onOpenSkills?: () => void
   /** Chats for search. */
   chats?: ChatItem[]
   /** Select a chat from search. */
@@ -109,6 +111,7 @@ export function CommandPalette({
   onCopyCloneCommand,
   onCopyCheckoutCommand,
   onOpenEnvVars,
+  onOpenSkills,
   chats = [],
   onSelectChat,
   currentTheme = "system",
@@ -236,6 +239,12 @@ export function CommandPalette({
             <CommandItem value="environment variables" onSelect={() => run(onOpenEnvVars)}>
               <VariableIcon className="mr-2 h-4 w-4 text-muted-foreground" />
               <span>Environment variables</span>
+            </CommandItem>
+          )}
+          {onOpenSkills && (
+            <CommandItem value="manage skills agent" onSelect={() => run(onOpenSkills)}>
+              <Zap className="mr-2 h-4 w-4 text-muted-foreground" />
+              <span>Manage skills</span>
             </CommandItem>
           )}
           {onDeleteChat && (

@@ -21,6 +21,7 @@ import { MobileCommandsMenu } from "@/components/MobileCommandsMenu"
 import { MobileRenameModal } from "@/components/ui/MobileBottomSheet"
 import { ScheduledJobForm } from "@/components/scheduled-jobs/ScheduledJobForm"
 import { ScheduledJobsView } from "@/components/scheduled-jobs/ScheduledJobsView"
+import { SkillSearchView } from "@/components/skills/SkillSearchView"
 import { clearAllStorage } from "@/lib/storage"
 import type { SlashCommandType } from "@/components/SlashCommandMenu"
 import { PaletteProvider, usePalette } from "@/components/search-palette"
@@ -169,6 +170,7 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
   // Track when a message send is initiated (for instant UI feedback before server responds)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [skillsModalOpen, setSkillsModalOpen] = useState(false)
 
   // Preview state from hook
   const preview = usePreview({
@@ -1057,6 +1059,11 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
       onCopyCloneCommand={currentChat?.repo && currentChat.repo !== NEW_REPOSITORY ? handleCopyCloneCommand : undefined}
       onCopyCheckoutCommand={currentChat?.branch ? handleCopyCheckoutCommand : undefined}
       onOpenEnvVars={currentChat ? handleOpenEnvVars : undefined}
+      onOpenSkills={
+        currentChat?.sandboxId && currentChat.repo !== NEW_REPOSITORY
+          ? () => setSkillsModalOpen(true)
+          : undefined
+      }
       chatIds={displayChats.map((c) => c.id)}
       onNavigateChat={handleNavigateChat}
       currentChatId={displayCurrentChatId}
@@ -1285,6 +1292,16 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
           initialRepoEnvVars={envVarsRepoEnvVars}
           isMobile={isMobile}
         />
+
+      {/* Skills Search Modal */}
+      {currentChat?.sandboxId && currentChat.repo !== NEW_REPOSITORY && (
+        <SkillSearchView
+          open={skillsModalOpen}
+          onOpenChange={setSkillsModalOpen}
+          chatId={currentChat.id}
+          repo={currentChat.repo}
+        />
+      )}
 
       {/* Git Dialogs - now use API calls instead of pasting git commands */}
       <MergeDialog

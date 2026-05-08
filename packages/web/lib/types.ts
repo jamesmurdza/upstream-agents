@@ -98,6 +98,30 @@ export interface Message {
 // Special value for new repository (local git repo, no GitHub)
 export const NEW_REPOSITORY = "__new__"
 
+// =============================================================================
+// Skills
+// =============================================================================
+
+export interface Skill {
+  id: string
+  repo: string
+  publisher: string
+  name: string
+  fullHandle: string
+  url: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+export interface SkillSearchResult {
+  publisher: string
+  name: string
+  fullHandle: string
+  description: string
+  url: string
+}
+
+
 export interface Chat {
   id: string
 

@@ -26,6 +26,7 @@ import {
   createSandboxForChat,
   deleteSandboxQuietly,
   ensureSandboxStarted,
+  installSkillsForRepo,
   uploadFilesToSandbox,
 } from "@/lib/sandbox"
 
@@ -338,6 +339,14 @@ export async function POST(
     }
 
     await ensureSandboxStarted(sandbox)
+
+    // ── Stage 2a: restore repo-scoped skills ──────────────────────────────
+    // On newly created sandboxes (including recreation after deletion),
+    // install all skills associated with this user+repo so the agent has
+    // them available from the first prompt.
+    if (createdSandbox && chat.repo !== NEW_REPOSITORY) {
+      await installSkillsForRepo(sandbox, userId, chat.repo)
+    }
 
     const repoPath = `${PATHS.SANDBOX_HOME}/project`
 

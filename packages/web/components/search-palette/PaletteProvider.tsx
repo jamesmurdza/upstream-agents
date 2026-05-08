@@ -54,6 +54,7 @@ interface PaletteProviderProps {
   onCopyCloneCommand?: () => void
   onCopyCheckoutCommand?: () => void
   onOpenEnvVars?: () => void
+  onOpenSkills?: () => void
   // For Alt+Up/Down chat navigation
   chatIds: string[]
   currentChatId: string | null
@@ -94,6 +95,7 @@ export function PaletteProvider({
   onCopyCloneCommand,
   onCopyCheckoutCommand,
   onOpenEnvVars,
+  onOpenSkills,
   chatIds,
   currentChatId,
   onSelectChat,
@@ -215,6 +217,7 @@ export function PaletteProvider({
         onCopyCloneCommand={onCopyCloneCommand}
         onCopyCheckoutCommand={onCopyCheckoutCommand}
         onOpenEnvVars={onOpenEnvVars}
+        onOpenSkills={onOpenSkills}
         chats={chats.map((c) => ({ id: c.id, displayName: c.displayName }))}
         onSelectChat={onSelectChat}
         currentTheme={(theme as Theme) ?? "system"}
