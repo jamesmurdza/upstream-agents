@@ -22,6 +22,10 @@ import {
   setupCodexRules,
   OPENCODE_PERMISSION_ENV,
 } from "@upstream/agent-configuration/git"
+import {
+  setupMcpForAgent,
+  type McpToolsConfig,
+} from "@upstream/agent-configuration/mcp"
 import type { Sandbox as DaytonaSandbox } from "@daytonaio/sdk"
 
 // Re-export Agent type for convenience
@@ -69,6 +73,12 @@ export interface AgentSessionOptions {
   env?: Record<string, string>
   /** When true, agent should plan before acting */
   planMode?: boolean
+  /** MCP tools configuration for this chat */
+  mcpTools?: McpToolsConfig | null
+  /** Sandbox ID for MCP endpoint */
+  sandboxId?: string
+  /** Base URL for MCP endpoint (e.g., https://yourapp.com) */
+  mcpBaseUrl?: string
 }
 
 // =============================================================================
@@ -127,6 +137,16 @@ Your plan should include:
     await setupClaudeHooks(sandbox)
   } else if (agent === "codex") {
     await setupCodexRules(sandbox)
+  }
+
+  // Set up MCP configuration if tools are enabled
+  if (options.sandboxId && options.mcpBaseUrl && options.mcpTools) {
+    await setupMcpForAgent(sandbox, {
+      agent,
+      sandboxId: options.sandboxId,
+      baseUrl: options.mcpBaseUrl,
+      mcpTools: options.mcpTools,
+    })
   }
 
   // For OpenCode, inject permission rules via environment variable

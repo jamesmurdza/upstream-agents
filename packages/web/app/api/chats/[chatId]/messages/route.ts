@@ -489,6 +489,13 @@ export async function POST(
     // Merge: system env vars first, then user env vars (user takes precedence)
     const env = { ...systemEnv, ...userEnv }
 
+    // Get MCP tools config for this chat
+    const mcpToolsChat = await prisma.chat.findUnique({
+      where: { id: chatId },
+      select: { mcpTools: true },
+    })
+    const mcpTools = mcpToolsChat?.mcpTools as Record<string, boolean> | null
+
     const bgSession = await createBackgroundAgentSession(sandbox, {
       repoPath,
       previewUrlPattern: previewUrlPattern ?? undefined,
@@ -498,6 +505,10 @@ export async function POST(
       model: payload.model,
       env: Object.keys(env).length > 0 ? env : undefined,
       planMode: payload.planMode,
+      // MCP configuration
+      mcpTools,
+      sandboxId,
+      mcpBaseUrl: process.env.NEXT_PUBLIC_APP_URL,
     })
 
     // ── Stage 5: persist messages + chat status (transactional) ────────────
