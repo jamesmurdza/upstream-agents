@@ -74,6 +74,21 @@ Use **Smithery's hosted MCP servers** (like `@smithery-ai/github`) instead of bu
 
 ---
 
+## Agent MCP Support Matrix
+
+| Agent | MCP Support | Config File | Config Format |
+|-------|-------------|-------------|---------------|
+| **Claude Code** | ✅ Native | `~/.claude.json` | JSON with `mcpServers` |
+| **Codex (OpenAI)** | ✅ Native | `~/.codex/config.toml` | TOML with `[mcp.servers]` |
+| **Gemini CLI** | ✅ Native | `~/.gemini/settings.json` | JSON with MCP config |
+| **OpenCode** | ✅ Native | `.opencode/config.json` | JSON with `mcp` section |
+| **Goose** | ✅ Native | `~/.config/goose/config.yaml` | YAML with `extensions` |
+| **Pi** | ❌ No built-in | N/A | **Skipped** (uses CLI tools instead) |
+
+**Note**: Pi coding agent doesn't have built-in MCP support. It uses a different philosophy (CLI tools with READMEs). MCP tools will not be available for Pi.
+
+---
+
 ## Architecture Overview
 
 ```
@@ -98,7 +113,7 @@ Use **Smithery's hosted MCP servers** (like `@smithery-ai/github`) instead of bu
 │                    Daytona Sandbox                                    │
 │                              ↓                                       │
 │  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                Agent (Claude, Codex, etc.)                     │  │
+│  │      Agent (Claude, Codex, Gemini, OpenCode, Goose)           │  │
 │  │                                                                │  │
 │  │  MCP client connects to: https://{app}/api/mcp/{sandboxId}/sse│  │
 │  │                                                                │  │
@@ -142,6 +157,8 @@ Users must **explicitly enable** MCP tools for each chat (like environment varia
 │  │                                                      │    │
 │  │  ☐ Slack Tools (coming soon)                        │    │
 │  │    Messages, channels                               │    │
+│  │                                                      │    │
+│  │  ⚠️ Note: MCP tools not available for Pi agent      │    │
 │  └─────────────────────────────────────────────────────┘    │
 │                                                              │
 │                                    [Save Settings]          │
@@ -276,8 +293,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 **File: `packages/web/components/chat/McpToolsSettings.tsx`**
 
 ```tsx
-export function McpToolsSettings({ chatId }: { chatId: string }) {
+export function McpToolsSettings({ chatId, agent }: { chatId: string; agent: string }) {
   const [settings, setSettings] = useState<McpToolsConfig>({})
+
+  // Pi doesn't support MCP
+  const mcpSupported = agent !== "pi"
 
   const toggleGitHub = async (enabled: boolean) => {
     const newSettings = { ...settings, github: enabled }
@@ -286,6 +306,14 @@ export function McpToolsSettings({ chatId }: { chatId: string }) {
       body: JSON.stringify({ mcpTools: newSettings })
     })
     setSettings(newSettings)
+  }
+
+  if (!mcpSupported) {
+    return (
+      <div className="text-sm text-muted">
+        MCP tools are not available for {agent} agent.
+      </div>
+    )
   }
 
   return (
@@ -306,30 +334,236 @@ export function McpToolsSettings({ chatId }: { chatId: string }) {
 }
 ```
 
-### Phase 5: Agent Configuration
+### Phase 5: Per-Agent MCP Configuration
 
 **File: `packages/agent-configuration/src/mcp.ts`**
 
 ```typescript
-export function generateMcpConfig(sandboxId: string, baseUrl: string) {
-  return {
+/**
+ * MCP Configuration Generator
+ *
+ * Generates the correct MCP config format for each agent type.
+ * Each agent has a different config file location and format.
+ */
+
+export interface McpServerConfig {
+  url: string
+  transport: "sse" | "http"
+}
+
+export interface McpConfigResult {
+  filePath: string
+  content: string
+}
+
+/**
+ * Agents that support MCP
+ */
+export const MCP_SUPPORTED_AGENTS = ["claude", "codex", "gemini", "opencode", "goose"] as const
+export type McpSupportedAgent = typeof MCP_SUPPORTED_AGENTS[number]
+
+/**
+ * Check if an agent supports MCP
+ */
+export function agentSupportsMcp(agent: string): agent is McpSupportedAgent {
+  return MCP_SUPPORTED_AGENTS.includes(agent as McpSupportedAgent)
+}
+
+/**
+ * Generate MCP config for a specific agent
+ */
+export function generateMcpConfig(
+  agent: string,
+  sandboxId: string,
+  baseUrl: string
+): McpConfigResult | null {
+  if (!agentSupportsMcp(agent)) {
+    return null // Pi and others don't support MCP
+  }
+
+  const mcpUrl = `${baseUrl}/api/mcp/${sandboxId}/sse`
+
+  switch (agent) {
+    case "claude":
+      return generateClaudeConfig(mcpUrl)
+    case "codex":
+      return generateCodexConfig(mcpUrl)
+    case "gemini":
+      return generateGeminiConfig(mcpUrl)
+    case "opencode":
+      return generateOpenCodeConfig(mcpUrl)
+    case "goose":
+      return generateGooseConfig(mcpUrl)
+    default:
+      return null
+  }
+}
+
+/**
+ * Claude Code: ~/.claude.json
+ */
+function generateClaudeConfig(mcpUrl: string): McpConfigResult {
+  const config = {
     mcpServers: {
-      "daytona-tools": {
-        transport: "sse",
-        url: `${baseUrl}/api/mcp/${sandboxId}/sse`
+      "daytona-github": {
+        type: "http",
+        url: mcpUrl
       }
     }
+  }
+  return {
+    filePath: "~/.claude.json",
+    content: JSON.stringify(config, null, 2)
+  }
+}
+
+/**
+ * Codex (OpenAI): ~/.codex/config.toml
+ */
+function generateCodexConfig(mcpUrl: string): McpConfigResult {
+  const config = `
+[mcp.servers.daytona-github]
+type = "http"
+url = "${mcpUrl}"
+`
+  return {
+    filePath: "~/.codex/config.toml",
+    content: config.trim()
+  }
+}
+
+/**
+ * Gemini CLI: ~/.gemini/settings.json
+ */
+function generateGeminiConfig(mcpUrl: string): McpConfigResult {
+  const config = {
+    mcpServers: {
+      "daytona-github": {
+        type: "sse",
+        url: mcpUrl
+      }
+    }
+  }
+  return {
+    filePath: "~/.gemini/settings.json",
+    content: JSON.stringify(config, null, 2)
+  }
+}
+
+/**
+ * OpenCode: .opencode/config.json (project-level)
+ */
+function generateOpenCodeConfig(mcpUrl: string): McpConfigResult {
+  const config = {
+    mcp: {
+      servers: {
+        "daytona-github": {
+          url: mcpUrl,
+          transport: "sse"
+        }
+      }
+    }
+  }
+  return {
+    filePath: ".opencode/config.json",
+    content: JSON.stringify(config, null, 2)
+  }
+}
+
+/**
+ * Goose: ~/.config/goose/config.yaml
+ */
+function generateGooseConfig(mcpUrl: string): McpConfigResult {
+  const config = `
+extensions:
+  daytona-github:
+    type: sse
+    uri: "${mcpUrl}"
+    enabled: true
+`
+  return {
+    filePath: "~/.config/goose/config.yaml",
+    content: config.trim()
   }
 }
 ```
 
-**Update agent setup to write MCP config if tools enabled:**
+### Phase 6: Update Agent Setup
+
+**File: `packages/agents/src/setup/mcp.ts`**
 
 ```typescript
-// In agent setup
-if (chat.mcpTools?.github) {
-  const mcpConfig = generateMcpConfig(sandboxId, APP_URL)
-  await sandbox.writeFile("~/.claude.json", JSON.stringify(mcpConfig))
+import { generateMcpConfig, agentSupportsMcp } from "@anthropic/agent-configuration/mcp"
+import type { CodeAgentSandbox } from "../types/provider"
+
+interface McpSetupOptions {
+  agent: string
+  sandboxId: string
+  baseUrl: string
+  mcpTools: { github?: boolean } | null
+}
+
+/**
+ * Setup MCP configuration for an agent in the sandbox
+ */
+export async function setupMcpForAgent(
+  sandbox: CodeAgentSandbox,
+  options: McpSetupOptions
+): Promise<void> {
+  const { agent, sandboxId, baseUrl, mcpTools } = options
+
+  // Skip if agent doesn't support MCP
+  if (!agentSupportsMcp(agent)) {
+    console.log(`[MCP] Skipping MCP setup for ${agent} (not supported)`)
+    return
+  }
+
+  // Skip if no MCP tools enabled
+  if (!mcpTools || !Object.values(mcpTools).some(Boolean)) {
+    console.log(`[MCP] Skipping MCP setup for ${agent} (no tools enabled)`)
+    return
+  }
+
+  // Generate config for this agent
+  const config = generateMcpConfig(agent, sandboxId, baseUrl)
+  if (!config) {
+    return
+  }
+
+  // Ensure directory exists and write config
+  const dir = config.filePath.substring(0, config.filePath.lastIndexOf("/"))
+  await sandbox.commands.run(`mkdir -p ${dir}`)
+
+  // Write the config file
+  // Note: Need to handle ~ expansion properly
+  const expandedPath = config.filePath.replace("~", "$HOME")
+  await sandbox.commands.run(`cat > ${expandedPath} << 'EOF'
+${config.content}
+EOF`)
+
+  console.log(`[MCP] Wrote MCP config for ${agent} to ${config.filePath}`)
+}
+```
+
+**Update agent session creation:**
+
+```typescript
+// In packages/web/lib/agent-session.ts
+
+import { setupMcpForAgent } from "@anthropic/agents/setup/mcp"
+
+async function createBackgroundAgentSession(/* ... */) {
+  // ... existing setup ...
+
+  // Setup MCP if enabled
+  await setupMcpForAgent(sandbox, {
+    agent: chat.agent,
+    sandboxId: chat.sandboxId,
+    baseUrl: process.env.NEXT_PUBLIC_APP_URL!,
+    mcpTools: chat.mcpTools as { github?: boolean } | null
+  })
+
+  // ... rest of session creation ...
 }
 ```
 
@@ -344,7 +578,8 @@ if (chat.mcpTools?.github) {
 | `packages/web/app/api/chat/[id]/mcp-tools/route.ts` | MCP settings API |
 | `packages/web/components/chat/McpToolsSettings.tsx` | Settings UI |
 | `packages/web/lib/mcp/smithery.ts` | Smithery connection helpers |
-| `packages/agent-configuration/src/mcp.ts` | MCP config generation |
+| `packages/agent-configuration/src/mcp.ts` | Per-agent MCP config generation |
+| `packages/agents/src/setup/mcp.ts` | MCP setup for sandbox |
 
 ## Files to Modify
 
@@ -352,8 +587,68 @@ if (chat.mcpTools?.github) {
 |------|---------|
 | `packages/web/prisma/schema.prisma` | Add `mcpTools Json?` to Chat |
 | `packages/web/package.json` | Add `@smithery/api` |
-| `packages/web/lib/agent-session.ts` | Add MCP config to session |
-| `packages/agents/src/agents/claude/index.ts` | Write MCP config if enabled |
+| `packages/web/lib/agent-session.ts` | Call `setupMcpForAgent()` |
+
+---
+
+## Per-Agent Config Reference
+
+### Claude Code (`~/.claude.json`)
+```json
+{
+  "mcpServers": {
+    "daytona-github": {
+      "type": "http",
+      "url": "https://app.daytona.io/api/mcp/{sandboxId}/sse"
+    }
+  }
+}
+```
+
+### Codex (`~/.codex/config.toml`)
+```toml
+[mcp.servers.daytona-github]
+type = "http"
+url = "https://app.daytona.io/api/mcp/{sandboxId}/sse"
+```
+
+### Gemini CLI (`~/.gemini/settings.json`)
+```json
+{
+  "mcpServers": {
+    "daytona-github": {
+      "type": "sse",
+      "url": "https://app.daytona.io/api/mcp/{sandboxId}/sse"
+    }
+  }
+}
+```
+
+### OpenCode (`.opencode/config.json`)
+```json
+{
+  "mcp": {
+    "servers": {
+      "daytona-github": {
+        "url": "https://app.daytona.io/api/mcp/{sandboxId}/sse",
+        "transport": "sse"
+      }
+    }
+  }
+}
+```
+
+### Goose (`~/.config/goose/config.yaml`)
+```yaml
+extensions:
+  daytona-github:
+    type: sse
+    uri: "https://app.daytona.io/api/mcp/{sandboxId}/sse"
+    enabled: true
+```
+
+### Pi
+**Not supported** - Pi uses CLI tools with READMEs instead of MCP.
 
 ---
 
@@ -445,17 +740,19 @@ For each new provider:
 - [ ] Create McpToolsSettings UI component
 - [ ] Integrate into chat settings panel
 
-### Phase 3: Agent Config (~1 day)
-- [ ] Create MCP config generator
-- [ ] Update agent setup to write config if enabled
-- [ ] Test end-to-end
+### Phase 3: Agent Config (~2 days)
+- [ ] Create per-agent MCP config generator
+- [ ] Create MCP setup function for sandbox
+- [ ] Update agent session to call MCP setup
+- [ ] Test each agent (Claude, Codex, Gemini, OpenCode, Goose)
 
 ### Phase 4: Polish (~1 day)
 - [ ] Add rate limiting
 - [ ] Add audit logging
 - [ ] Error handling & edge cases
+- [ ] Show "not supported" message for Pi
 
-**Total Estimated Time: ~5 days**
+**Total Estimated Time: ~6 days**
 
 ---
 
@@ -465,6 +762,15 @@ For each new provider:
 - Enable GitHub tools → verify agent can use them
 - Disable tools → verify 403 response
 - Invalid sandboxId → verify 404
+- Pi agent → verify graceful skip
+
+### Per-Agent Tests
+- [ ] Claude Code: Verify `~/.claude.json` written correctly
+- [ ] Codex: Verify `~/.codex/config.toml` written correctly
+- [ ] Gemini: Verify `~/.gemini/settings.json` written correctly
+- [ ] OpenCode: Verify `.opencode/config.json` written correctly
+- [ ] Goose: Verify `~/.config/goose/config.yaml` written correctly
+- [ ] Pi: Verify MCP setup skipped gracefully
 
 ### End-to-End Tests
 - Create issue via agent
