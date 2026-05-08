@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react"
+import { useRef, useEffect, useLayoutEffect, useMemo, useCallback, useState } from "react"
 import { ArrowUp, Square, ChevronDown, Github, GitBranch, Key, X, Paperclip, Trash2, HelpCircle, Pencil, AlertTriangle, Loader2, Plus, FileText, FileCode, FileImage, File as FileIcon, Clock, Command, Brain, Cpu } from "lucide-react"
 import {
   formatFileSize,
@@ -18,6 +18,7 @@ import { MobileSelect } from "./ui/MobileBottomSheet"
 import { SlashCommandMenu, type SlashCommandType } from "./SlashCommandMenu"
 import { Input } from "./ui/input"
 import { useFileUpload } from "@/lib/hooks/useFileUpload"
+import { useDropdownPairGroup } from "@/lib/hooks/useDropdownPair"
 import { FilePreviewModal } from "./FilePreviewModal"
 
 import type { HighlightKey } from "./modals/SettingsModal"
@@ -85,11 +86,8 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
     onDraftChange?.(value)
   }, [onDraftChange])
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false)
-  const [showAgentDropdown, setShowAgentDropdown] = useState(false)
-  const [showModelDropdown, setShowModelDropdown] = useState(false)
-  // Mobile bottom sheet states
-  const [showAgentSheet, setShowAgentSheet] = useState(false)
-  const [showModelSheet, setShowModelSheet] = useState(false)
+  // Agent and model selector state (desktop dropdowns + mobile sheets)
+  const selectorDropdowns = useDropdownPairGroup(["agent", "model"] as const)
   // Slash command menu state
   const [slashMenuOpen, setSlashMenuOpen] = useState(false)
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
@@ -252,13 +250,12 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement
       if (!target.closest('[data-dropdown]')) {
-        setShowAgentDropdown(false)
-        setShowModelDropdown(false)
+        selectorDropdowns.closeAllDropdowns()
       }
     }
     document.addEventListener('click', handleClickOutside)
     return () => document.removeEventListener('click', handleClickOutside)
-  }, [isMobile])
+  }, [isMobile, selectorDropdowns])
 
   // Close title menu on outside click
   useEffect(() => {
@@ -431,8 +428,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
   }
 
   const handleAgentChange = (agent: Agent) => {
-    setShowAgentDropdown(false)
-    setShowAgentSheet(false)
+    selectorDropdowns.close("agent")
 
     // Block switching to claude-code if daily limit is exceeded
     if (agent === "claude-code" && credentialFlags.CLAUDE_DAILY_LIMIT_EXCEEDED) {
@@ -459,8 +455,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
   }
 
   const handleModelChange = (model: string) => {
-    setShowModelDropdown(false)
-    setShowModelSheet(false)
+    selectorDropdowns.close("model")
     if (chat && onUpdateChat) {
       onUpdateChat({ model })
 
@@ -882,7 +877,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
           {isMobile ? (
             // Mobile: Use bottom sheet
             <button
-              onClick={() => setShowAgentSheet(true)}
+              onClick={() => selectorDropdowns.openSheet("agent")}
               className="flex items-center gap-1 text-sm py-1 px-2 rounded-md hover:bg-accent/50 text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer"
               title={agentLabels[currentAgent]}
             >
@@ -896,8 +891,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  setShowAgentDropdown(!showAgentDropdown)
-                  setShowModelDropdown(false)
+                  selectorDropdowns.toggleDropdown("agent")
                 }}
                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground active:text-foreground transition-colors cursor-pointer"
                 title={agentLabels[currentAgent]}
@@ -906,7 +900,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
                 <span className="hidden @[32rem]:inline">{agentLabels[currentAgent]}</span>
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
-              {showAgentDropdown && (
+              {selectorDropdowns.state.agent.dropdown && (
                 <div className="absolute bottom-full right-0 mb-1 bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-40">
                   {agents.map((agent) => (
                     <button
@@ -930,7 +924,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
           {isMobile ? (
             // Mobile: Use bottom sheet
             <button
-              onClick={() => setShowModelSheet(true)}
+              onClick={() => selectorDropdowns.openSheet("model")}
               className={cn(
                 "flex items-center gap-1 text-sm py-1 px-2 rounded-md hover:bg-accent/50 transition-colors cursor-pointer",
                 !hasRequiredCredentials ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-foreground"
@@ -948,8 +942,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  setShowModelDropdown(!showModelDropdown)
-                  setShowAgentDropdown(false)
+                  selectorDropdowns.toggleDropdown("model")
                 }}
                 className={cn(
                   "flex items-center gap-1 text-sm transition-colors cursor-pointer",
@@ -962,7 +955,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
                 <span className="hidden @[32rem]:inline">{getModelLabel(currentAgent, currentModel)}</span>
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
-              {showModelDropdown && (
+              {selectorDropdowns.state.model.dropdown && (
                 <div className="absolute bottom-full right-0 mb-1 max-h-64 overflow-y-auto bg-popover border border-border rounded-md shadow-lg py-1 z-50 w-52">
                   {availableModels.map((model: ModelOption) => {
                     const modelHasCredentials = hasCredentialsForModel(model, credentialFlags, currentAgent)
@@ -994,16 +987,16 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
       {isMobile && (
         <>
           <MobileSelect
-            open={showAgentSheet}
-            onClose={() => setShowAgentSheet(false)}
+            open={selectorDropdowns.state.agent.sheet}
+            onClose={() => selectorDropdowns.closeSheet("agent")}
             title="Select Agent"
             options={agentOptions}
             value={currentAgent}
             onChange={(value) => handleAgentChange(value as Agent)}
           />
           <MobileSelect
-            open={showModelSheet}
-            onClose={() => setShowModelSheet(false)}
+            open={selectorDropdowns.state.model.sheet}
+            onClose={() => selectorDropdowns.closeSheet("model")}
             title="Select Model"
             options={modelOptions}
             value={currentModel}
