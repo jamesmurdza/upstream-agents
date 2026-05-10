@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pin, Pencil, X, ChevronDown, ChevronRight, FolderGit2, Check, Loader2, HelpCircle, GitMerge, GitBranch, BarChart3, Clock, Search } from "lucide-react"
+import { Plus, Trash2, Settings, LogOut, PanelLeft, MoreHorizontal, Pencil, X, ChevronDown, ChevronRight, FolderGit2, Check, Loader2, HelpCircle, GitMerge, GitBranch, BarChart3, Clock, Search } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { usePalette } from "@/components/search-palette/PaletteProvider"
 import { cn } from "@/lib/utils"
@@ -1304,17 +1304,6 @@ function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, depth = 0, 
 
             {menuOpen && (
               <div className="absolute right-0 top-full mt-1 w-32 rounded-md border border-border bg-popover shadow-md py-1 z-50">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    // TODO: Implement pin functionality
-                    setMenuOpen(false)
-                  }}
-                  className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
-                >
-                  <Pin className="h-3.5 w-3.5" />
-                  Pin
-                </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
