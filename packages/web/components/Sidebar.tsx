@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import type { Chat, Message } from "@/lib/types"
 import { NEW_REPOSITORY } from "@/lib/types"
 import { clearAllStorage } from "@/lib/storage"
+import { useClickOutside } from "@/lib/hooks/useClickOutside"
 
 // Repository filter options - exported for use in parent components
 export const ALL_REPOSITORIES = "__all__"
@@ -258,30 +259,18 @@ export function Sidebar({
   }
 
   // Close repo dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (repoDropdownRef.current && !repoDropdownRef.current.contains(e.target as Node)) {
-        setRepoDropdownOpen(false)
-      }
-    }
-    if (repoDropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [repoDropdownOpen])
+  useClickOutside({
+    ref: repoDropdownRef,
+    onClickOutside: () => setRepoDropdownOpen(false),
+    enabled: repoDropdownOpen,
+  })
 
   // Close mobile user menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (mobileUserMenuRef.current && !mobileUserMenuRef.current.contains(e.target as Node)) {
-        setMobileUserMenuOpen(false)
-      }
-    }
-    if (mobileUserMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [mobileUserMenuOpen])
+  useClickOutside({
+    ref: mobileUserMenuRef,
+    onClickOutside: () => setMobileUserMenuOpen(false),
+    enabled: mobileUserMenuOpen,
+  })
 
   // Animate collapse/expand when toggled via button
   const handleToggleCollapse = useCallback(() => {
@@ -859,17 +848,11 @@ function MobileChatItem({ chat, isActive, isDeleting, isUnseen, onSelect, onDele
   const displayName = chat.displayName || "Untitled"
 
   // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    if (menuOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [menuOpen])
+  useClickOutside({
+    ref: menuRef,
+    onClickOutside: () => setMenuOpen(false),
+    enabled: menuOpen,
+  })
 
   return (
     <div
@@ -963,17 +946,12 @@ function UserMenu({ user, onOpenSettings, onOpenHelp, collapsed }: UserMenuProps
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    if (menuOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [menuOpen])
+  // Close menu when clicking outside
+  useClickOutside({
+    ref: menuRef,
+    onClickOutside: () => setMenuOpen(false),
+    enabled: menuOpen,
+  })
 
   const avatar = user.image ? (
     <img
@@ -1206,17 +1184,11 @@ function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, depth = 0, 
   }, [isEditing])
 
   // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    if (menuOpen) {
-      document.addEventListener("mousedown", handleClickOutside)
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [menuOpen])
+  useClickOutside({
+    ref: menuRef,
+    onClickOutside: () => setMenuOpen(false),
+    enabled: menuOpen,
+  })
 
   if (isEditing && !collapsed) {
     return (

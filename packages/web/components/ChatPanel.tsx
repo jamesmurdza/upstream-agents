@@ -19,6 +19,7 @@ import { SlashCommandMenu, type SlashCommandType } from "./SlashCommandMenu"
 import { Input } from "./ui/input"
 import { useFileUpload } from "@/lib/hooks/useFileUpload"
 import { useDropdownPairGroup } from "@/lib/hooks/useDropdownPair"
+import { useClickOutside } from "@/lib/hooks/useClickOutside"
 import { FilePreviewModal } from "./FilePreviewModal"
 
 import type { HighlightKey } from "./modals/SettingsModal"
@@ -258,16 +259,11 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
   }, [isMobile, selectorDropdowns])
 
   // Close title menu on outside click
-  useEffect(() => {
-    if (!titleMenuOpen) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (titleMenuRef.current && !titleMenuRef.current.contains(e.target as Node)) {
-        setTitleMenuOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [titleMenuOpen])
+  useClickOutside({
+    ref: titleMenuRef,
+    onClickOutside: () => setTitleMenuOpen(false),
+    enabled: titleMenuOpen,
+  })
 
   // Update slash menu visibility based on input.
   const hasLinkedRepo = !!(chat?.repo && chat.repo !== NEW_REPOSITORY)
@@ -291,16 +287,11 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
   }, [input, hasLinkedRepo, inConflict])
 
   // Close conflict menu on outside click
-  useEffect(() => {
-    if (!conflictMenuOpen) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (conflictMenuRef.current && !conflictMenuRef.current.contains(e.target as Node)) {
-        setConflictMenuOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [conflictMenuOpen])
+  useClickOutside({
+    ref: conflictMenuRef,
+    onClickOutside: () => setConflictMenuOpen(false),
+    enabled: conflictMenuOpen,
+  })
 
   // Handle slash command selection
   const handleSlashCommandSelect = useCallback((command: SlashCommandType) => {
