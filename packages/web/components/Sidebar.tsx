@@ -1084,17 +1084,6 @@ function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, depth = 0, 
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    // TODO: Implement pin functionality
-                    setMenuOpen(false)
-                  }}
-                  className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
-                >
-                  <Pin className="h-3.5 w-3.5" />
-                  Pin
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
                     startEditing()
                   }}
                   className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
