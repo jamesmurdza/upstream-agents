@@ -27,11 +27,10 @@ sudo -u postgres psql -c "CREATE USER sandboxed WITH PASSWORD 'sandboxed123';"
 sudo -u postgres psql -c "CREATE DATABASE sandboxed_agents OWNER sandboxed;"
 ```
 
-Example connection strings for that local setup:
+Example connection string for that local setup:
 
 ```text
 DATABASE_URL="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
-DATABASE_URL_UNPOOLED="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
 ```
 
 When the schema changes, apply it by running the command below from `packages/web`:
@@ -48,7 +47,7 @@ DATABASE_URL="<same as the DATABASE_URL you configured>" npx prisma db push
 
 **Note:** In a sandbox environment, take the `DAYTONA_API_KEY` from the shell environment variables.
 
-**Database:** Use a database from [Database setup](#database-setup). Prefer a **separate** database from your dev DB so E2E does not overwrite local data. In `packages/web/.env.e2e`, set `DATABASE_URL`, `DATABASE_URL_UNPOOLED` (same value is fine), `NEXTAUTH_SECRET`, and `ENCRYPTION_KEY`.
+**Database:** Use a database from [Database setup](#database-setup). Prefer a **separate** database from your dev DB so E2E does not overwrite local data. In `packages/web/.env.e2e`, set `DATABASE_URL`, `NEXTAUTH_SECRET`, and `ENCRYPTION_KEY`.
 
 **Build:** The web app depends on `background-agents`. Build it first from the repo root:
 
