@@ -19,11 +19,10 @@ sudo -u postgres psql -c "CREATE USER sandboxed WITH PASSWORD 'sandboxed123';"
 sudo -u postgres psql -c "CREATE DATABASE sandboxed_agents OWNER sandboxed;"
 ```
 
-Example connection strings for that local setup:
+Example connection string for that local setup:
 
 ```text
 DATABASE_URL="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
-DATABASE_URL_UNPOOLED="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
 ```
 
 When the schema changes, apply it by running the command below from `packages/web`:
@@ -42,13 +41,12 @@ Prerequisites: Node.js 18+ and the Postgres database from [Database setup](#data
 
 **Note:** In a sandbox environment, take `DAYTONA_API_KEY` and `GITHUB_PAT` from the shell environment variables.
 
-**Database:** Put `DATABASE_URL` and `DATABASE_URL_UNPOOLED` in `packages/web/.env` (same values as in [Database setup](#database-setup), or your provider’s URLs).
+**Database:** Put `DATABASE_URL` in `packages/web/.env` (same value as in [Database setup](#database-setup), or your provider's URL).
 
-**Minimal `packages/web/.env`:** Fill in database URLs, then set the rest. With `GITHUB_PAT` set, GitHub OAuth placeholders are not used; they can stay as shown.
+**Minimal `packages/web/.env`:** Fill in the database URL, then set the rest. With `GITHUB_PAT` set, GitHub OAuth placeholders are not used; they can stay as shown.
 
 ```bash
 DATABASE_URL="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
-DATABASE_URL_UNPOOLED="postgresql://sandboxed:sandboxed123@localhost:5432/sandboxed_agents"
 
 # Local dev: http://localhost:4000. Behind Daytona proxy: https://4000-{sandbox-id}.daytonaproxy01.net
 NEXTAUTH_URL="http://localhost:4000"
