@@ -46,87 +46,14 @@ export async function GET(request: NextRequest) {
   const interval = getRangeInterval(range)
   const days = getRangeDays(range)
 
-  // Calculate time boundaries
-  const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const startOfWeek = new Date(startOfToday)
-  startOfWeek.setDate(startOfWeek.getDate() - 7)
-
   // Run all queries in parallel for performance
   const [
-    totalUsers,
-    totalChats,
-    activeChats,
-    chatsCreatedToday,
-    chatsCreatedThisWeek,
-    messagesCreatedToday,
-    messagesCreatedThisWeek,
-    loginsToday,
-    loginsThisWeek,
-    modelUsageRaw,
     userGrowthRaw,
-    activityByDayRaw,
     topUsersRaw,
-    repoActivityRaw,
     hourlyActivityRaw,
     dailyMessagesChatsRaw,
     messagesByAgentModelRaw,
   ] = await Promise.all([
-    // Total users
-    prisma.user.count(),
-
-    // Total chats
-    prisma.chat.count(),
-
-    // Active chats (with sandbox)
-    prisma.chat.count({
-      where: { sandboxId: { not: null } },
-    }),
-
-    // Chats created today
-    prisma.chat.count({
-      where: { createdAt: { gte: startOfToday } },
-    }),
-
-    // Chats created this week
-    prisma.chat.count({
-      where: { createdAt: { gte: startOfWeek } },
-    }),
-
-    // Messages created today
-    prisma.message.count({
-      where: { createdAt: { gte: startOfToday } },
-    }),
-
-    // Messages created this week
-    prisma.message.count({
-      where: { createdAt: { gte: startOfWeek } },
-    }),
-
-    // Logins today (from ActivityLog)
-    prisma.activityLog.count({
-      where: {
-        action: "login",
-        createdAt: { gte: startOfToday },
-      },
-    }),
-
-    // Logins this week
-    prisma.activityLog.count({
-      where: {
-        action: "login",
-        createdAt: { gte: startOfWeek },
-      },
-    }),
-
-    // Model usage distribution
-    prisma.chat.groupBy({
-      by: ["model"],
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
-      take: 10,
-    }),
-
     // Weekly active users (WAU) - for the selected range, count unique users active in the preceding 7 days
     prisma.$queryRaw<Array<{ date: Date; count: bigint }>>`
       SELECT d.date, COUNT(DISTINCT a."userId")::bigint as count
@@ -140,15 +67,6 @@ export async function GET(request: NextRequest) {
       LEFT JOIN "ActivityLog" a ON a."createdAt" >= d.date - INTERVAL '6 days' AND a."createdAt" < d.date + INTERVAL '1 day'
       GROUP BY d.date
       ORDER BY d.date ASC
-    `,
-
-    // Activity by day for selected range
-    prisma.$queryRaw<Array<{ date: Date; action: string; count: bigint }>>`
-      SELECT DATE("createdAt") as date, action, COUNT(*)::bigint as count
-      FROM "ActivityLog"
-      WHERE "createdAt" >= NOW() - ${interval}::interval
-      GROUP BY DATE("createdAt"), action
-      ORDER BY date ASC
     `,
 
     // Top active users (by message count in selected range) - from ActivityLog to include deleted
@@ -174,19 +92,6 @@ export async function GET(request: NextRequest) {
       ) c ON c."userId" = u.id
       WHERE COALESCE(m.count, 0) > 0
       ORDER BY "messageCount" DESC
-      LIMIT 10
-    `,
-
-    // Repository activity (chats per repo)
-    prisma.$queryRaw<Array<{ repo: string; chatCount: bigint; messageCount: bigint }>>`
-      SELECT
-        c.repo,
-        COUNT(DISTINCT c.id)::bigint as "chatCount",
-        COUNT(DISTINCT m.id)::bigint as "messageCount"
-      FROM "Chat" c
-      LEFT JOIN "Message" m ON m."chatId" = c.id
-      GROUP BY c.repo
-      ORDER BY "chatCount" DESC
       LIMIT 10
     `,
 
@@ -281,31 +186,11 @@ export async function GET(request: NextRequest) {
         `,
   ])
 
-  // Format model usage
-  const modelUsage = modelUsageRaw.map((item) => ({
-    model: item.model || "default",
-    count: item._count.id,
-  }))
-
   // Format weekly active users for chart
   const weeklyActiveUsers = userGrowthRaw.map((item) => ({
     date: item.date.toISOString().split("T")[0],
     count: Number(item.count),
   }))
-
-  // Format activity by day for chart
-  const activityByDay = activityByDayRaw.reduce(
-    (acc, item) => {
-      const dateStr = item.date.toISOString().split("T")[0]
-      if (!acc[dateStr]) {
-        acc[dateStr] = { date: dateStr }
-      }
-      acc[dateStr][item.action] = Number(item.count)
-      return acc
-    },
-    {} as Record<string, Record<string, string | number>>
-  )
-  const activityTrends = Object.values(activityByDay)
 
   // Format top users
   const topUsers = topUsersRaw.map((item) => ({
@@ -313,13 +198,6 @@ export async function GET(request: NextRequest) {
     image: item.image,
     messageCount: Number(item.messageCount),
     chatCount: Number(item.chatCount),
-  }))
-
-  // Format repo activity
-  const repoActivity = repoActivityRaw.map((item) => ({
-    repo: item.repo,
-    chatCount: Number(item.chatCount),
-    messageCount: Number(item.messageCount),
   }))
 
   // Format hourly activity
@@ -440,22 +318,8 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     range,
-    stats: {
-      totalUsers,
-      totalChats,
-      activeChats,
-      chatsCreatedToday,
-      chatsCreatedThisWeek,
-      messagesCreatedToday,
-      messagesCreatedThisWeek,
-      loginsToday,
-      loginsThisWeek,
-    },
-    modelUsage,
     weeklyActiveUsers,
-    activityTrends,
     topUsers,
-    repoActivity,
     hourlyActivity,
     messagesChats,
     messagesByAgent: messagesByAgentModel.byAgent,
