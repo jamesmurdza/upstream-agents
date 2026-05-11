@@ -8,27 +8,9 @@ export type StatsTimeRange = "24h" | "7d" | "30d"
 
 interface AdminStats {
   range: StatsTimeRange
-  stats: {
-    totalUsers: number
-    totalChats: number
-    activeChats: number
-    chatsCreatedToday: number
-    chatsCreatedThisWeek: number
-    messagesCreatedToday: number
-    messagesCreatedThisWeek: number
-    loginsToday: number
-    loginsThisWeek: number
-  }
   weeklyActiveUsers: Array<{
     date: string
     count: number
-  }>
-  activityTrends: Array<{
-    date: string
-    login?: number
-    chat_created?: number
-    message_sent?: number
-    [key: string]: string | number | undefined
   }>
   topUsers: Array<{
     name: string
