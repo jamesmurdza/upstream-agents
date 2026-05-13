@@ -79,8 +79,6 @@ export interface AgentSessionOptions {
    * them in — this module stays generic and doesn't touch the DB.
    */
   mcpServers?: AgentMcpServer[]
-  /** When true, skip setting up git safety hooks that block push and other dangerous commands */
-  disablePrepushChecks?: boolean
 }
 
 // =============================================================================
@@ -133,14 +131,12 @@ Your plan should include:
   const agent = options.agent || "opencode"
   const provider = agentToProvider[agent] || "opencode"
 
-  // Set up git safety hooks based on agent type (unless disabled)
+  // Set up git safety hooks based on agent type
   // This blocks dangerous git operations (push, rebase, reset --hard, etc.)
-  if (!options.disablePrepushChecks) {
-    if (agent === "claude-code") {
-      await setupClaudeHooks(sandbox)
-    } else if (agent === "codex") {
-      await setupCodexRules(sandbox)
-    }
+  if (agent === "claude-code") {
+    await setupClaudeHooks(sandbox)
+  } else if (agent === "codex") {
+    await setupCodexRules(sandbox)
   }
 
   // Write per-agent MCP config files for the connected Smithery servers.
@@ -157,9 +153,9 @@ Your plan should include:
     }
   }
 
-  // For OpenCode, inject permission rules via environment variable (unless disabled)
+  // For OpenCode, inject permission rules via environment variable
   const env = { ...options.env }
-  if (agent === "opencode" && !options.disablePrepushChecks) {
+  if (agent === "opencode") {
     env.OPENCODE_PERMISSION = OPENCODE_PERMISSION_ENV
   }
 

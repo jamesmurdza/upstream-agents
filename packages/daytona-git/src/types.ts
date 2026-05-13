@@ -75,5 +75,12 @@ export interface SandboxGit {
 
   pull(path: string, token?: string): Promise<void>
 
-  push(path: string, token?: string): Promise<void>
+  /**
+   * Push changes to remote
+   * @param path - The repository path
+   * @param token - Optional GitHub token for authentication
+   * @param options - Optional push options
+   * @param options.noVerify - When true, skip pre-push hooks (default: true)
+   */
+  push(path: string, token?: string, options?: { noVerify?: boolean }): Promise<void>
 }

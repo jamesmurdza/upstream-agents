@@ -206,7 +206,7 @@ export function SettingsModal({ open, onClose, settings, credentialFlags, onSave
   const [defaultModel, setDefaultModel] = useState(initialDefaultModel)
   const [selectedTheme, setSelectedTheme] = useState<Theme>(settings.theme)
   const [rapidFireMode, setRapidFireMode] = useState(settings.rapidFireMode)
-  const [disablePrepushChecks, setDisablePrepushChecks] = useState(settings.disablePrepushChecks)
+  const [enablePrepushHooks, setEnablePrepushHooks] = useState(settings.enablePrepushHooks)
   const [activeSection, setActiveSection] = useState<SectionKey>(defaultSection)
 
   // Drag to dismiss (mobile only)
@@ -238,7 +238,7 @@ export function SettingsModal({ open, onClose, settings, credentialFlags, onSave
       setDefaultModel(initialDefaultModel)
       setSelectedTheme(settings.theme)
       setRapidFireMode(settings.rapidFireMode)
-      setDisablePrepushChecks(settings.disablePrepushChecks)
+      setEnablePrepushHooks(settings.enablePrepushHooks)
       setActiveSection(defaultSection)
     }
   }, [open, settings, credentialFlags, initialDefaultAgent, initialDefaultModel, defaultSection])
@@ -304,7 +304,7 @@ export function SettingsModal({ open, onClose, settings, credentialFlags, onSave
     defaultModel !== initialDefaultModel ||
     selectedTheme !== settings.theme ||
     rapidFireMode !== settings.rapidFireMode ||
-    disablePrepushChecks !== settings.disablePrepushChecks
+    enablePrepushHooks !== settings.enablePrepushHooks
 
   const hasChanges = credChanged || settingsChanged
 
@@ -316,7 +316,7 @@ export function SettingsModal({ open, onClose, settings, credentialFlags, onSave
     if (defaultModel !== initialDefaultModel) settingsPatch.defaultModel = defaultModel
     if (selectedTheme !== settings.theme) settingsPatch.theme = selectedTheme
     if (rapidFireMode !== settings.rapidFireMode) settingsPatch.rapidFireMode = rapidFireMode
-    if (disablePrepushChecks !== settings.disablePrepushChecks) settingsPatch.disablePrepushChecks = disablePrepushChecks
+    if (enablePrepushHooks !== settings.enablePrepushHooks) settingsPatch.enablePrepushHooks = enablePrepushHooks
 
     // Only send credential fields the user actually changed. Sending the
     // mask back ("***") would otherwise overwrite the real key.
@@ -420,23 +420,23 @@ export function SettingsModal({ open, onClose, settings, credentialFlags, onSave
         </h3>
       )}
       <SettingsRow
-        label="Disable pre-push checks"
-        description="Allow agents to run git push and other normally blocked commands."
+        label="Enable pre-push hooks"
+        description="Run pre-push hooks during autopush. When disabled, autopush uses --no-verify."
       >
         <button
           type="button"
           role="switch"
-          aria-checked={disablePrepushChecks}
-          onClick={() => setDisablePrepushChecks(!disablePrepushChecks)}
+          aria-checked={enablePrepushHooks}
+          onClick={() => setEnablePrepushHooks(!enablePrepushHooks)}
           className={cn(
             "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-            disablePrepushChecks ? "bg-primary" : "bg-input"
+            enablePrepushHooks ? "bg-primary" : "bg-input"
           )}
         >
           <span
             className={cn(
               "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform duration-200 ease-in-out",
-              disablePrepushChecks ? "translate-x-4" : "translate-x-0"
+              enablePrepushHooks ? "translate-x-4" : "translate-x-0"
             )}
           />
         </button>

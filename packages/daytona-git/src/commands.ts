@@ -156,13 +156,23 @@ export async function pull(
 
 /**
  * Push changes to remote
+ *
+ * @param process - The sandbox process to execute commands
+ * @param path - The repository path
+ * @param token - Optional GitHub token for authentication
+ * @param options - Optional push options
+ * @param options.noVerify - When true, skip pre-push hooks (default: true for backward compatibility)
  */
 export async function push(
   process: SandboxProcess,
   path: string,
-  token?: string
+  token?: string,
+  options?: { noVerify?: boolean }
 ): Promise<void> {
-  const pushCmd = `push -u origin HEAD 2>&1`
+  // Default to --no-verify for backward compatibility
+  const noVerify = options?.noVerify ?? true
+  const noVerifyFlag = noVerify ? " --no-verify" : ""
+  const pushCmd = `push -u origin HEAD${noVerifyFlag} 2>&1`
   if (token) {
     await exec(process, `cd ${esc(path)} && ${withAuth(token, pushCmd)}`)
   } else {

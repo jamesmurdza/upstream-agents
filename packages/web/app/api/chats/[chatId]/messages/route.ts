@@ -3,8 +3,7 @@ import { NextRequest } from "next/server"
 import { Prisma } from "@prisma/client"
 import { randomUUID } from "crypto"
 import { PATHS } from "@/lib/constants"
-import { NEW_REPOSITORY, type Settings } from "@/lib/types"
-import { DEFAULT_SETTINGS } from "@/lib/storage"
+import { NEW_REPOSITORY } from "@/lib/types"
 import { prisma } from "@/lib/db/prisma"
 import {
   badRequest,
@@ -443,27 +442,15 @@ export async function POST(
     const systemEnv = getEnvForModel(payload.model, payload.agent as Agent, credentials)
 
     // Fetch user-defined environment variables (repo-level then chat-level, chat takes precedence)
-    // Also fetch user settings to check disablePrepushChecks
     const userEnv: Record<string, string> = {}
-    let userSettings: Settings = DEFAULT_SETTINGS
 
-    // Get repo-level env vars and settings from user
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { repoEnvironmentVariables: true, settings: true },
-    })
-    if (user?.settings) {
-      const s = user.settings as Partial<Settings>
-      userSettings = {
-        defaultAgent: s.defaultAgent ?? DEFAULT_SETTINGS.defaultAgent,
-        defaultModel: s.defaultModel ?? DEFAULT_SETTINGS.defaultModel,
-        theme: s.theme ?? DEFAULT_SETTINGS.theme,
-        rapidFireMode: s.rapidFireMode ?? DEFAULT_SETTINGS.rapidFireMode,
-        disablePrepushChecks: s.disablePrepushChecks ?? DEFAULT_SETTINGS.disablePrepushChecks,
-      }
-    }
-    if (chat.repo !== NEW_REPOSITORY && user?.repoEnvironmentVariables) {
-      const repoEnvVars = (user.repoEnvironmentVariables as Record<string, Record<string, string>>)?.[chat.repo]
+    // Get repo-level env vars from user
+    if (chat.repo !== NEW_REPOSITORY) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { repoEnvironmentVariables: true },
+      })
+      const repoEnvVars = (user?.repoEnvironmentVariables as Record<string, Record<string, string>>)?.[chat.repo]
       if (repoEnvVars) {
         for (const [key, encryptedValue] of Object.entries(repoEnvVars)) {
           if (encryptedValue) {
@@ -505,7 +492,6 @@ export async function POST(
       env: Object.keys(env).length > 0 ? env : undefined,
       planMode: payload.planMode,
       mcpServers,
-      disablePrepushChecks: userSettings.disablePrepushChecks,
     })
 
     // ── Stage 5: persist messages + chat status (transactional) ────────────

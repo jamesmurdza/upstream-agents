@@ -77,7 +77,7 @@ export function createSandboxGit(sandbox: SandboxLike): SandboxGit {
 
     pull: (path, token?) => commands.pull(process, path, token),
 
-    push: (path, token?) => commands.push(process, path, token),
+    push: (path, token?, options?) => commands.push(process, path, token, options),
   }
 }
 

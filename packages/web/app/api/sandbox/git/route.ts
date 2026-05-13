@@ -3,11 +3,15 @@ import { createSandboxGit } from "@upstream/daytona-git"
 import { PATHS } from "@/lib/constants"
 import { createGitOperationMessage } from "@/lib/db/git-messages"
 import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
+import { prisma } from "@/lib/db/prisma"
+import type { Settings } from "@/lib/types"
+import { DEFAULT_SETTINGS } from "@/lib/storage"
 
 export async function POST(req: Request) {
   const ghAuth = await requireGitHubAuth()
   if (isGitHubAuthError(ghAuth)) return ghAuth
   const githubToken = ghAuth.token
+  const userId = ghAuth.userId
 
   const body = await req.json()
   const { sandboxId, repoPath, action, targetBranch, currentBranch, repoOwner, repoApiName, squash, targetSandboxId, chatId, sourceName, targetName } = body
@@ -399,7 +403,17 @@ export async function POST(req: Request) {
         }
 
         try {
-          await git.push(repoPath, githubToken)
+          // Get user settings for push options
+          let enablePrepushHooks = DEFAULT_SETTINGS.enablePrepushHooks
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { settings: true },
+          })
+          if (user?.settings) {
+            const s = user.settings as Partial<Settings>
+            enablePrepushHooks = s.enablePrepushHooks ?? DEFAULT_SETTINGS.enablePrepushHooks
+          }
+          await git.push(repoPath, githubToken, { noVerify: !enablePrepushHooks })
         } catch (pushErr) {
           await sandbox.process.executeCommand(`cd ${repoPath} && git checkout ${currentBranch} 2>&1`)
           await sandbox.process.executeCommand(`cd ${repoPath} && git branch -D ${tempBranch} 2>&1`)

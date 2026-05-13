@@ -9,6 +9,8 @@ import { prisma } from "@/lib/db/prisma"
 import { getUserCredentials } from "@/lib/db/api-helpers"
 import { getClaudeCredentials } from "@/lib/claude-credentials"
 import { PATHS } from "@/lib/constants"
+import type { Settings } from "@/lib/types"
+import { DEFAULT_SETTINGS } from "@/lib/storage"
 import { createSandboxForChat, deleteSandboxQuietly } from "@/lib/sandbox"
 import {
   createBackgroundAgentSession,
@@ -51,6 +53,26 @@ type ChatWithMessages = Prisma.ChatGetPayload<{
     }
   }
 }>
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+/**
+ * Get the enablePrepushHooks setting for a user
+ */
+async function getUserPushOptions(userId: string): Promise<{ noVerify: boolean }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { settings: true },
+  })
+  if (user?.settings) {
+    const s = user.settings as Partial<Settings>
+    const enablePrepushHooks = s.enablePrepushHooks ?? DEFAULT_SETTINGS.enablePrepushHooks
+    return { noVerify: !enablePrepushHooks }
+  }
+  return { noVerify: !DEFAULT_SETTINGS.enablePrepushHooks }
+}
 
 // =============================================================================
 // Main Handler
@@ -585,7 +607,8 @@ async function finalizeScheduledRun(
         if (account?.access_token) {
           // Push branch
           const git = createSandboxGit(sandbox)
-          await git.push(repoPath, account.access_token)
+          const pushOptions = await getUserPushOptions(job.userId)
+          await git.push(repoPath, account.access_token, pushOptions)
 
           // Create PR via GitHub API
           const [owner, repoName] = job.repo.split("/")
@@ -629,7 +652,8 @@ async function finalizeScheduledRun(
 
         if (account?.access_token) {
           const git = createSandboxGit(sandbox)
-          await git.push(repoPath, account.access_token)
+          const pushOptions = await getUserPushOptions(job.userId)
+          await git.push(repoPath, account.access_token, pushOptions)
         }
       }
     } catch (err) {
@@ -766,8 +790,9 @@ async function finalizeInteractiveChat(
 
         if (account?.access_token) {
           const git = createSandboxGit(sandbox)
+          const pushOptions = await getUserPushOptions(chat.userId)
           try {
-            await git.push(`${PATHS.SANDBOX_HOME}/project`, account.access_token)
+            await git.push(`${PATHS.SANDBOX_HOME}/project`, account.access_token, pushOptions)
           } catch (err) {
             // Create error message with force-push action (same as SSE stream)
             await createGitOperationMessage(

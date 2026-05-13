@@ -60,7 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultModel: null,
   theme: "system",
   rapidFireMode: false,
-  disablePrepushChecks: false,
+  enablePrepushHooks: false,
 }
 
 const DEFAULT_LOCAL_STATE: LocalState = {

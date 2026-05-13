@@ -2,6 +2,9 @@ import { Daytona } from "@daytonaio/sdk"
 import { createSandboxGit } from "@upstream/daytona-git"
 import { PATHS } from "@/lib/constants"
 import { requireGitHubAuth, isGitHubAuthError } from "@/lib/db/api-helpers"
+import { prisma } from "@/lib/db/prisma"
+import type { Settings } from "@/lib/types"
+import { DEFAULT_SETTINGS } from "@/lib/storage"
 
 /**
  * Sets up a GitHub remote for an existing local repo in a sandbox and pushes to it.
@@ -28,6 +31,7 @@ export async function POST(req: Request) {
     )
   }
   const githubToken = ghAuth.token
+  const userId = ghAuth.userId
 
   // 3. Get Daytona API key
   const daytonaApiKey = process.env.DAYTONA_API_KEY
@@ -39,14 +43,25 @@ export async function POST(req: Request) {
   }
 
   try {
-    // 4. Get sandbox from Daytona
+    // 4. Get user settings for push options
+    let enablePrepushHooks = DEFAULT_SETTINGS.enablePrepushHooks
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { settings: true },
+    })
+    if (user?.settings) {
+      const s = user.settings as Partial<Settings>
+      enablePrepushHooks = s.enablePrepushHooks ?? DEFAULT_SETTINGS.enablePrepushHooks
+    }
+
+    // 5. Get sandbox from Daytona
     const daytona = new Daytona({ apiKey: daytonaApiKey })
     const sandbox = await daytona.get(sandboxId)
 
-    // 5. Always use "project" as the directory name - sandbox/create always uses this
+    // 6. Always use "project" as the directory name - sandbox/create always uses this
     const repoPath = `${PATHS.SANDBOX_HOME}/project`
 
-    // 6. Set up the remote URL (without credentials - token passed per-operation)
+    // 7. Set up the remote URL (without credentials - token passed per-operation)
     const remoteUrl = `https://github.com/${repoFullName}.git`
 
     // Remove existing origin if any, then add the new one
@@ -58,9 +73,9 @@ export async function POST(req: Request) {
       `cd ${repoPath} && git remote add origin "${remoteUrl}"`
     )
 
-    // 7. Push to the remote (token passed via -c http.extraHeader, not stored)
+    // 8. Push to the remote (token passed via -c http.extraHeader, not stored)
     const git = createSandboxGit(sandbox)
-    await git.push(repoPath, githubToken)
+    await git.push(repoPath, githubToken, { noVerify: !enablePrepushHooks })
 
     return Response.json({ success: true })
   } catch (error) {

@@ -11,6 +11,8 @@ import {
 import { prisma } from "@/lib/db/prisma"
 import { isAuthError, requireChatStreamAccess } from "@/lib/db/api-helpers"
 import { createGitOperationMessage } from "@/lib/db/git-messages"
+import type { Settings } from "@/lib/types"
+import { DEFAULT_SETTINGS } from "@/lib/storage"
 
 /**
  * Check if the repository is in a conflict state (merge or rebase in progress)
@@ -50,7 +52,8 @@ async function isInConflictState(
 async function autoPush(
   sandbox: Awaited<ReturnType<Daytona["get"]>>,
   repoPath: string,
-  githubToken: string
+  githubToken: string,
+  options?: { noVerify?: boolean }
 ): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
   try {
     // Skip auto-push if in conflict state (merge or rebase in progress)
@@ -60,7 +63,7 @@ async function autoPush(
     }
 
     const git = createSandboxGit(sandbox)
-    await git.push(repoPath, githubToken)
+    await git.push(repoPath, githubToken, options)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
@@ -239,10 +242,22 @@ export async function GET(req: Request) {
                 })
 
                 if (account?.access_token) {
+                  // Get user settings for push options
+                  let enablePrepushHooks = DEFAULT_SETTINGS.enablePrepushHooks
+                  const user = await prisma.user.findUnique({
+                    where: { id: chat.userId },
+                    select: { settings: true },
+                  })
+                  if (user?.settings) {
+                    const s = user.settings as Partial<Settings>
+                    enablePrepushHooks = s.enablePrepushHooks ?? DEFAULT_SETTINGS.enablePrepushHooks
+                  }
+
                   const pushResult = await autoPush(
                     sandbox,
                     sessionOpts.repoPath,
-                    account.access_token
+                    account.access_token,
+                    { noVerify: !enablePrepushHooks }
                   )
 
                   if (!pushResult.success) {
