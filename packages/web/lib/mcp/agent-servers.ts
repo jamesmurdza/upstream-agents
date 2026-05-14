@@ -11,14 +11,10 @@ import { prisma } from "@/lib/db/prisma"
 import { decrypt } from "@/lib/db/encryption"
 import {
   GITHUB_MCP_QUALIFIED_NAME,
-  getInstallationToken,
-} from "@/lib/github/app"
+  safeServerName,
+} from "@upstream/mcp-providers"
+import { getInstallationToken } from "@/lib/github/app"
 import type { AgentMcpServer } from "@upstream/agent-configuration/mcp"
-
-/** Sanitize Smithery's slugs into a name acceptable to every agent CLI. */
-function safeServerName(qualifiedName: string): string {
-  return qualifiedName.replace(/[^a-zA-Z0-9_-]/g, "-").toLowerCase()
-}
 
 export async function loadChatMcpServers(
   chatId: string
