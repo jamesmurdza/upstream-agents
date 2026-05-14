@@ -374,8 +374,9 @@ export async function POST(req: Request) {
       case "force-push": {
         // Force-push to sync diverged history while preserving PRs.
         // GitHub's update-ref API requires the SHA to already exist on GitHub,
-        // so we push to a temp branch first to ship the objects, then PATCH the
-        // real branch ref to that SHA, then delete the temp remote branch.
+        // so we push HEAD to a temp remote ref first to ship the objects, then PATCH the
+        // real branch ref to that SHA, then delete the temp remote ref.
+        // We use a refspec (HEAD:refs/heads/tempBranch) to avoid switching local branches.
         if (!currentBranch || !repoOwner || !repoApiName) {
           return Response.json({ error: "Missing required fields for force-push" }, { status: 400 })
         }
@@ -391,33 +392,27 @@ export async function POST(req: Request) {
         }
         const sha = shaResult.result.trim()
 
+        // Push HEAD to a temp remote branch using refspec (no local branch switching)
         const tempBranch = `_cleanup/force-push-${Date.now()}`
-        const createBranchResult = await sandbox.process.executeCommand(
-          `cd ${repoPath} && git checkout -b ${tempBranch} 2>&1`
-        )
-        if (createBranchResult.exitCode !== 0) {
-          if (chatId) {
-            await createGitOperationMessage(chatId, `Force push failed: Failed to create temp branch: ${createBranchResult.result}`, true)
-          }
-          return Response.json({ error: "Failed to create temp branch: " + createBranchResult.result }, { status: 500 })
-        }
 
-        try {
-          // Get user settings for push options
-          let enablePrepushHooks = DEFAULT_SETTINGS.enablePrepushHooks
-          const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { settings: true },
-          })
-          if (user?.settings) {
-            const s = user.settings as Partial<Settings>
-            enablePrepushHooks = s.enablePrepushHooks ?? DEFAULT_SETTINGS.enablePrepushHooks
-          }
-          await git.push(repoPath, githubToken, { noVerify: !enablePrepushHooks })
-        } catch (pushErr) {
-          await sandbox.process.executeCommand(`cd ${repoPath} && git checkout ${currentBranch} 2>&1`)
-          await sandbox.process.executeCommand(`cd ${repoPath} && git branch -D ${tempBranch} 2>&1`)
-          const errMsg = pushErr instanceof Error ? pushErr.message : String(pushErr)
+        // Get user settings for push options
+        let enablePrepushHooks = DEFAULT_SETTINGS.enablePrepushHooks
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { settings: true },
+        })
+        if (user?.settings) {
+          const s = user.settings as Partial<Settings>
+          enablePrepushHooks = s.enablePrepushHooks ?? DEFAULT_SETTINGS.enablePrepushHooks
+        }
+        const noVerifyFlag = enablePrepushHooks ? "" : " --no-verify"
+
+        // Push using refspec: push local HEAD to remote temp branch
+        const pushResult = await sandbox.process.executeCommand(
+          `cd ${repoPath} && git -c "http.extraHeader=Authorization: Basic $(echo -n 'x-access-token:${githubToken}' | base64 -w0)" push${noVerifyFlag} origin HEAD:refs/heads/${tempBranch} 2>&1`
+        )
+        if (pushResult.exitCode !== 0) {
+          const errMsg = pushResult.result
           if (chatId) {
             await createGitOperationMessage(chatId, `Force push failed: Failed to push temp branch: ${errMsg}`, true)
           }
@@ -425,9 +420,6 @@ export async function POST(req: Request) {
             error: "Failed to push temp branch: " + errMsg
           }, { status: 500 })
         }
-
-        await sandbox.process.executeCommand(`cd ${repoPath} && git checkout ${currentBranch} 2>&1`)
-        await sandbox.process.executeCommand(`cd ${repoPath} && git branch -D ${tempBranch} 2>&1`)
 
         const refRes = await fetch(
           `https://api.github.com/repos/${repoOwner}/${repoApiName}/git/refs/heads/${currentBranch}`,
