@@ -14,7 +14,6 @@ import { ReAuthModal } from "@/components/modals/ReAuthModal"
 import { HelpModal } from "@/components/modals/HelpModal"
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog"
 import { LimitReachedDialog } from "@/components/modals/LimitReachedDialog"
-import { BranchPickerModal } from "@/components/modals/BranchPickerModal"
 import { MergeDialog, RebaseDialog, PRDialog, SquashDialog, ForcePushDialog, useGitDialogs } from "@/components/modals/GitDialogs"
 import { EnvironmentVariablesModal } from "@/components/modals/EnvironmentVariablesModal"
 import { McpServersModal } from "@/components/modals/McpServersModal"
@@ -498,35 +497,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
   const handleJobSelect = useCallback((job: { id: string; name: string } | null) => {
     sidebar.setSelectedScheduledJob(job ? { id: job.id, name: job.name } : null)
   }, [])
-
-  // Handler for the repo button in the ChatPanel header. Routes to the Select
-  // modal when the chat can still choose an existing repo, otherwise to Create
-  // (the only other option for a locked NEW_REPOSITORY chat). The two modals
-  // are independent — neither links to the other.
-  const handleChangeRepo = () => {
-    if (!session) {
-      modals.setSignInModalOpen(true)
-      return
-    }
-    // Can select repo if chat has no messages and no sandbox (includes drafts)
-    const canSelect = !!displayCurrentChat && displayCurrentChat.messages.length === 0 && !displayCurrentChat.sandboxId
-    if (canSelect) {
-      modals.setRepoSelectOpen(true)
-    } else {
-      modals.setRepoCreateOpen(true)
-    }
-  }
-
-  // Handler for the branch button in the ChatPanel header.
-  // Opens branch selection modal for the currently selected repository.
-  const handleChangeBranch = () => {
-    if (!session) {
-      modals.setSignInModalOpen(true)
-      return
-    }
-    if (!displayCurrentChat || displayCurrentChat.repo === NEW_REPOSITORY) return
-    modals.setBranchSelectOpen(true)
-  }
 
   // Handler for the Create Repository palette/slash command.
   const handleCreateRepo = () => {
@@ -1204,8 +1174,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
                   onRemoveQueuedMessage={removeQueuedMessage}
                   onResumeQueue={resumeQueue}
                   onStopAgent={stopAgent}
-                  onChangeRepo={handleChangeRepo}
-                  onChangeBranch={handleChangeBranch}
                   onUpdateChat={handleUpdateChatProp}
                   onSlashCommand={handleSlashCommand}
                   onOpenFile={(filePath) => {
@@ -1260,47 +1228,12 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
       )}
 
       <RepoPickerModal
-        open={modals.repoSelectOpen}
-        onClose={() => modals.setRepoSelectOpen(false)}
-        onSelect={handleRepoSelect}
-        isMobile={isMobile}
-        mode="select"
-        onRequestCreate={() => modals.setRepoCreateOpen(true)}
-      />
-
-      <RepoPickerModal
         open={modals.repoCreateOpen}
         onClose={() => modals.setRepoCreateOpen(false)}
         onSelect={handleRepoSelect}
         isMobile={isMobile}
         mode="create"
         suggestedName={currentChat?.displayName ?? null}
-      />
-
-      <BranchPickerModal
-        open={modals.branchSelectOpen}
-        onClose={() => modals.setBranchSelectOpen(false)}
-        onSelect={async (branch) => {
-          // For draft chats, update draftChatConfig
-          if (isDraftMode) {
-            updateDraftChatConfig({ baseBranch: branch })
-            modals.setBranchSelectOpen(false)
-            return
-          }
-          // For real chats
-          if (displayCurrentChat && displayCurrentChat.messages.length === 0 && !displayCurrentChat.sandboxId) {
-            // For new chats, update baseBranch (the branch we'll branch from)
-            updateCurrentChat({ baseBranch: branch })
-          } else if (displayCurrentChat) {
-            const chatId = await startNewChat(displayCurrentChat.repo, branch)
-            if (chatId) selectChat(chatId)
-          }
-          modals.setBranchSelectOpen(false)
-        }}
-        repo={displayCurrentChat?.repo?.split("/")[1] || ""}
-        owner={displayCurrentChat?.repo?.split("/")[0] || ""}
-        selectedBranch={displayCurrentChat?.baseBranch}
-        isMobile={isMobile}
       />
 
         <SettingsModal

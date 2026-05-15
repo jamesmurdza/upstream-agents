@@ -8,13 +8,9 @@ import type { HighlightKey, SectionKey } from "@/components/modals/SettingsModal
 // =============================================================================
 
 export interface ModalContextValue {
-  // Repo/Branch modals
-  repoSelectOpen: boolean
-  setRepoSelectOpen: (open: boolean) => void
+  // Repo Create modal
   repoCreateOpen: boolean
   setRepoCreateOpen: (open: boolean) => void
-  branchSelectOpen: boolean
-  setBranchSelectOpen: (open: boolean) => void
 
   // Settings modal
   settingsOpen: boolean
@@ -69,10 +65,8 @@ interface ModalProviderProps {
 const ModalContext = createContext<ModalContextValue | null>(null)
 
 export function ModalProvider({ children, isMobile, onMobileSidebarClose }: ModalProviderProps) {
-  // Repo/Branch modals
-  const [repoSelectOpen, setRepoSelectOpen] = useState(false)
+  // Repo Create modal
   const [repoCreateOpen, setRepoCreateOpen] = useState(false)
-  const [branchSelectOpen, setBranchSelectOpen] = useState(false)
 
   // Settings modal state
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -131,13 +125,9 @@ export function ModalProvider({ children, isMobile, onMobileSidebarClose }: Moda
   }, [])
 
   const value: ModalContextValue = {
-    // Repo/Branch modals
-    repoSelectOpen,
-    setRepoSelectOpen,
+    // Repo Create modal
     repoCreateOpen,
     setRepoCreateOpen,
-    branchSelectOpen,
-    setBranchSelectOpen,
 
     // Settings modal
     settingsOpen,

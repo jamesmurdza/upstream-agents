@@ -22,8 +22,6 @@ interface ChatPanelProps {
   onRemoveQueuedMessage?: (id: string) => void
   onResumeQueue?: () => void
   onStopAgent: () => void
-  onChangeRepo?: () => void
-  onChangeBranch?: () => void
   onUpdateChat?: (updates: Partial<Chat>) => void
   onSlashCommand?: (command: SlashCommandType) => void
   onOpenFile?: (filePath: string) => void
@@ -50,7 +48,7 @@ interface ChatPanelProps {
   rapidFireNotification?: number
 }
 
-export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDialog, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onChangeRepo, onChangeBranch, onUpdateChat, onSlashCommand, onOpenFile, onOpenEnvVars, isMobile = false, isLoadingMessages = false, draft = "", onDraftChange, isSending = false, onOpenCommandPalette, onOpenPlan, isAuthenticated = false, rapidFireMode = false, rapidFireNotification = 0 }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDialog, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onUpdateChat, onSlashCommand, onOpenFile, onOpenEnvVars, isMobile = false, isLoadingMessages = false, draft = "", onDraftChange, isSending = false, onOpenCommandPalette, onOpenPlan, isAuthenticated = false, rapidFireMode = false, rapidFireNotification = 0 }: ChatPanelProps) {
   // Get modal and git state from contexts
   const modals = useModals()
   const git = useGit()
@@ -212,7 +210,8 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
     setSlashSelectedIndex(0)
     setInput("")
     if (command === "repo") {
-      onChangeRepo?.()
+      // Open the create repo modal directly
+      modals.setRepoCreateOpen(true)
       return
     }
     if (command === "abort") {
@@ -220,7 +219,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
       return
     }
     onSlashCommand?.(command)
-  }, [onSlashCommand, onChangeRepo, git])
+  }, [onSlashCommand, modals, git])
 
   const handleSend = () => {
     if (!canSend) return
@@ -418,9 +417,8 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
       showRepoButton={showRepoButton}
       isNewRepo={isNewRepo}
       canSelectRepo={canSelectRepo}
-      onChangeRepo={onChangeRepo}
-      onChangeBranch={onChangeBranch}
       onUpdateChat={onUpdateChat}
+      defaultBranch={chat?.baseBranch}
       // Agent/model
       credentialFlags={credentialFlags}
       currentAgent={currentAgent}
@@ -429,6 +427,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
       // Plan mode
       planModeEnabled={planModeEnabled}
       onPlanModeToggle={() => setPlanModeEnabled((v) => !v)}
+      onSetPlanMode={setPlanModeEnabled}
       // Mobile
       isMobile={isMobile}
     />
