@@ -114,7 +114,7 @@ export function RepoCombobox({
         side="bottom"
         sideOffset={8}
       >
-        <Command shouldFilter={false}>
+        <Command shouldFilter={false} value={value || undefined}>
           <CommandInput
             placeholder="Search repositories..."
             value={search}
@@ -154,10 +154,7 @@ export function RepoCombobox({
                       key={repo.full_name}
                       value={repo.full_name}
                       onSelect={() => handleSelectRepo(repo)}
-                      className={cn(
-                        "flex items-center gap-2 cursor-pointer",
-                        value === repo.full_name && "bg-accent"
-                      )}
+                      className="flex items-center gap-2 cursor-pointer"
                     >
                       {repo.private ? (
                         <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
