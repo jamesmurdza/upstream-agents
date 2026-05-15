@@ -133,7 +133,7 @@ export function RepoCombobox({
             )}
             {!loading && !error && (
               <>
-                {onRequestCreate && (
+                {onRequestCreate && !search && (
                   <>
                     <CommandGroup>
                       <CommandItem
