@@ -28,8 +28,16 @@ interface ScheduledJobFormProps {
 // =============================================================================
 
 const TRIGGER_TYPES = [
-  { label: "Run on Schedule", value: "interval" },
-  { label: "Run on CI/CD Failure", value: "webhook" },
+  {
+    label: "On a schedule",
+    value: "interval",
+    description: "Run at regular intervals"
+  },
+  {
+    label: "When CI/CD fails",
+    value: "webhook",
+    description: "Triggered by GitHub Actions failure"
+  },
 ] as const
 
 const INTERVAL_PRESETS = [
@@ -359,78 +367,102 @@ export function ScheduledJobForm({ open, job, onClose, onSuccess, isMobile = fal
               </div>
             </div>
 
-            {/* Trigger Type */}
+            {/* Trigger Type - Radio Cards */}
             <div>
-              <label className="block text-sm font-medium mb-1">Trigger</label>
-              <select
-                value={triggerType}
-                onChange={(e) => setTriggerType(e.target.value as "interval" | "webhook")}
-                disabled={isEditing}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-              >
-                {TRIGGER_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Webhook info */}
-            {triggerType === "webhook" && (
-              <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-                This agent will run whenever a GitHub Actions workflow fails on this repository.
-                A webhook will be created on the repository when you save.
-              </div>
-            )}
-
-            {/* Interval - only show for interval trigger */}
-            {triggerType === "interval" && (
-              <div>
-                <label className="block text-sm font-medium mb-1">Run Every</label>
-                <div className="flex gap-2">
-                  <select
-                    value={isCustomInterval ? -1 : intervalMinutes}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10)
-                      if (val === -1) {
-                        setCustomInterval("")
-                      } else {
-                        setIntervalMinutes(val)
-                      }
-                    }}
-                    className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {INTERVAL_PRESETS.map((p) => (
-                      <option key={p.value} value={p.value}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-
-                  {isCustomInterval && (
-                    <>
-                      <input
-                        type="number"
-                        min="1"
-                        value={customInterval}
-                        onChange={(e) => setCustomInterval(e.target.value)}
-                        placeholder="1"
-                        className="w-20 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <select
-                        value={customUnit}
-                        onChange={(e) => setCustomUnit(e.target.value as "hours" | "days")}
-                        className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              <label className="block text-sm font-medium mb-2">When should this run?</label>
+              <div className="space-y-2">
+                {TRIGGER_TYPES.map((t) => {
+                  const isSelected = triggerType === t.value
+                  return (
+                    <div
+                      key={t.value}
+                      className={cn(
+                        "rounded-lg border transition-colors",
+                        isSelected
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-muted-foreground/50",
+                        isEditing && "opacity-70 pointer-events-none"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => !isEditing && setTriggerType(t.value)}
+                        className="w-full flex items-start gap-3 p-3 text-left cursor-pointer"
+                        disabled={isEditing}
                       >
-                        <option value="hours">hours</option>
-                        <option value="days">days</option>
-                      </select>
-                    </>
-                  )}
-                </div>
+                        <div className={cn(
+                          "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                          isSelected ? "border-primary" : "border-muted-foreground/50"
+                        )}>
+                          {isSelected && (
+                            <div className="h-2 w-2 rounded-full bg-primary" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium">{t.label}</div>
+                          <div className="text-xs text-muted-foreground">{t.description}</div>
+                        </div>
+                      </button>
+
+                      {/* Expanded content for selected card */}
+                      {isSelected && t.value === "interval" && (
+                        <div className="px-3 pb-3 pl-10">
+                          <div className="flex gap-2">
+                            <select
+                              value={isCustomInterval ? -1 : intervalMinutes}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10)
+                                if (val === -1) {
+                                  setCustomInterval("")
+                                } else {
+                                  setIntervalMinutes(val)
+                                }
+                              }}
+                              className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            >
+                              {INTERVAL_PRESETS.map((p) => (
+                                <option key={p.value} value={p.value}>
+                                  {p.label}
+                                </option>
+                              ))}
+                            </select>
+
+                            {isCustomInterval && (
+                              <>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={customInterval}
+                                  onChange={(e) => setCustomInterval(e.target.value)}
+                                  placeholder="1"
+                                  className="w-20 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                />
+                                <select
+                                  value={customUnit}
+                                  onChange={(e) => setCustomUnit(e.target.value as "hours" | "days")}
+                                  className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                >
+                                  <option value="hours">hours</option>
+                                  <option value="days">days</option>
+                                </select>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {isSelected && t.value === "webhook" && (
+                        <div className="px-3 pb-3 pl-10">
+                          <div className="text-xs text-muted-foreground">
+                            A webhook will be created on the repository when you save.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-            )}
+            </div>
 
             {/* Auto-PR */}
             <div className="flex items-center gap-2">
