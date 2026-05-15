@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import * as Dialog from "@radix-ui/react-dialog"
 import { Clock, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -10,6 +10,40 @@ import { BranchCombobox } from "@/components/chat/BranchCombobox"
 import { type ScheduledJob } from "@/lib/scheduled-jobs/types"
 import { agentModels, agentLabels, getModelLabel, type Agent } from "@/lib/types"
 import { AgentIcon } from "@/components/icons/agent-icons"
+
+// =============================================================================
+// Timezone Helpers
+// =============================================================================
+
+/** Get the user's timezone offset in hours (e.g., -8 for PST) */
+function getTimezoneOffset(): number {
+  return -new Date().getTimezoneOffset() / 60
+}
+
+/** Get short timezone name (e.g., "PST", "EST") */
+function getTimezoneName(): string {
+  return new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+    .formatToParts(new Date())
+    .find(part => part.type === 'timeZoneName')?.value ?? 'Local'
+}
+
+/** Convert local hour (0-23) to UTC hour */
+function localHourToUtc(localHour: number): number {
+  const offset = getTimezoneOffset()
+  let utcHour = localHour - offset
+  if (utcHour < 0) utcHour += 24
+  if (utcHour >= 24) utcHour -= 24
+  return Math.floor(utcHour)
+}
+
+/** Convert UTC hour (0-23) to local hour */
+function utcHourToLocal(utcHour: number): number {
+  const offset = getTimezoneOffset()
+  let localHour = utcHour + offset
+  if (localHour < 0) localHour += 24
+  if (localHour >= 24) localHour -= 24
+  return Math.floor(localHour)
+}
 
 // =============================================================================
 // Types
@@ -101,7 +135,7 @@ export function ScheduledJobForm({ open, job, onClose, onSuccess, isMobile = fal
   const [model, setModel] = useState(job?.model ?? "")
   const [triggerType, setTriggerType] = useState<"interval" | "webhook">(job?.triggerType ?? "interval")
   const [intervalMinutes, setIntervalMinutes] = useState(job?.intervalMinutes ?? 1440)
-  const [runAtHour, setRunAtHour] = useState(9) // Default to 9 AM
+  const [runAtHourLocal, setRunAtHourLocal] = useState(9) // Local time, default to 9 AM
   const [runAtDay, setRunAtDay] = useState(1) // Default to Monday
   const [autoPR, setAutoPR] = useState(job?.autoPR ?? true)
   const [continueFromLastRun, setContinueFromLastRun] = useState(job?.continueFromLastRun ?? false)
@@ -116,6 +150,9 @@ export function ScheduledJobForm({ open, job, onClose, onSuccess, isMobile = fal
   // Get available models for selected agent
   const availableModels = agentModels[agent] ?? []
 
+  // Get timezone name for display
+  const timezoneName = useMemo(() => getTimezoneName(), [])
+
   // Reset form state when job prop changes or modal opens
   useEffect(() => {
     if (open) {
@@ -129,7 +166,7 @@ export function ScheduledJobForm({ open, job, onClose, onSuccess, isMobile = fal
       setModel(job?.model ?? initialModels[0]?.value ?? "")
       setTriggerType(job?.triggerType ?? "interval")
       setIntervalMinutes(job?.intervalMinutes ?? 1440)
-      setRunAtHour(9)
+      setRunAtHourLocal(9)
       setRunAtDay(1)
       setAutoPR(job?.autoPR ?? true)
       setContinueFromLastRun(job?.continueFromLastRun ?? false)
@@ -179,6 +216,9 @@ export function ScheduledJobForm({ open, job, onClose, onSuccess, isMobile = fal
 
     setLoading(true)
 
+    // Convert local hour to UTC for storage
+    const runAtHourUtc = localHourToUtc(runAtHourLocal)
+
     try {
       const url = isEditing ? `/api/scheduled-jobs/${job.id}` : "/api/scheduled-jobs"
       const method = isEditing ? "PATCH" : "POST"
@@ -195,6 +235,8 @@ export function ScheduledJobForm({ open, job, onClose, onSuccess, isMobile = fal
           model: model || null,
           triggerType,
           intervalMinutes: triggerType === "interval" ? intervalMinutes : undefined,
+          runAtHour: triggerType === "interval" && intervalMinutes >= 1440 ? runAtHourUtc : undefined,
+          runAtDay: triggerType === "interval" && intervalMinutes === 10080 ? runAtDay : undefined,
           autoPR,
           continueFromLastRun,
         }),
@@ -453,8 +495,8 @@ export function ScheduledJobForm({ open, job, onClose, onSuccess, isMobile = fal
                   <>
                     <span className="text-muted-foreground">at</span>
                     <select
-                      value={runAtHour}
-                      onChange={(e) => setRunAtHour(parseInt(e.target.value, 10))}
+                      value={runAtHourLocal}
+                      onChange={(e) => setRunAtHourLocal(parseInt(e.target.value, 10))}
                       className="rounded-md border border-border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       {TIME_OPTIONS.map((t) => (
@@ -463,6 +505,7 @@ export function ScheduledJobForm({ open, job, onClose, onSuccess, isMobile = fal
                         </option>
                       ))}
                     </select>
+                    <span className="text-muted-foreground">{timezoneName}</span>
                   </>
                 )}
               </div>
