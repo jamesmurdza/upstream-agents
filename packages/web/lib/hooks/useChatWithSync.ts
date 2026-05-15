@@ -469,9 +469,8 @@ export function useChatWithSync() {
   const updateChatRepo = useCallback(async (chatId: string, repo: string, baseBranch: string) => {
     const chat = chats.find((c) => c.id === chatId)
     if (!chat) return
-    const canSelectRepo = chat.messages.length === 0 && !chat.sandboxId
-    const canAssignNewRepo = chat.repo === NEW_REPOSITORY && repo !== NEW_REPOSITORY
-    if (!canSelectRepo && !canAssignNewRepo) return
+    const canSelectRepo = chat.messages.length === 0 || !chat.sandboxId
+    if (!canSelectRepo) return
 
     try {
       // Reset branch to null when changing repo (branch is created on first message)
