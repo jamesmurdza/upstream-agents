@@ -1,4 +1,4 @@
-import type { Chat, Message } from "@/lib/types"
+import type { Message } from "@/lib/types"
 
 /**
  * Check if a chat has a successful merge message after the last user message.
@@ -28,15 +28,4 @@ export function hasMergedSuccessfully(messages: Message[]): boolean {
   }
 
   return false
-}
-
-export function getFirstMessagePreview(chat: Chat): string {
-  const firstUserMessage = chat.messages.find((m) => m.role === "user")
-  if (firstUserMessage) {
-    const preview = firstUserMessage.content.slice(0, 30)
-    return preview.length < firstUserMessage.content.length
-      ? preview + "..."
-      : preview
-  }
-  return "New chat"
 }

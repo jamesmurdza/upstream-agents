@@ -17,7 +17,6 @@ import {
   MobileChatItem,
   MergedChatCheckmark,
   hasMergedSuccessfully,
-  getFirstMessagePreview,
 } from "./sidebar"
 
 // Re-export from context for backward compatibility
