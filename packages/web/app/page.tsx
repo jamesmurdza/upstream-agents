@@ -133,7 +133,9 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
 
   // For jobs, we derive the ID from sidebar state since we use pushState for navigation
   // The sidebar.selectedScheduledJob is updated by handleNavigateToJob
-  const urlJobId = sidebar.selectedScheduledJob?.id
+  // Use ?? null to ensure urlJobId is always string | null (never undefined)
+  // This keeps ScheduledJobsView in URL-controlled mode so row clicks work
+  const urlJobId = sidebar.selectedScheduledJob?.id ?? null
 
   const {
     chats,
