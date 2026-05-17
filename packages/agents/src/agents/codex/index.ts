@@ -47,9 +47,6 @@ export const codexAgent: AgentDefinition = {
   },
 
   buildCommand(options: RunOptions): CommandSpec {
-    // Debug: log planMode to verify it's being passed correctly
-    console.log(`[codex buildCommand] planMode=${options.planMode}`)
-
     const args: string[] = []
 
     // Use exec subcommand for non-interactive mode with JSON output

@@ -29,9 +29,6 @@ export const geminiAgent: AgentDefinition = {
   },
 
   buildCommand(options: RunOptions): CommandSpec {
-    // Debug: log planMode to verify it's being passed correctly
-    console.log(`[gemini buildCommand] planMode=${options.planMode}`)
-
     const args: string[] = []
 
     // Stream JSON for event parsing

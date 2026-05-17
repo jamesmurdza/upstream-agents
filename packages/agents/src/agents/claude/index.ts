@@ -60,9 +60,6 @@ export const claudeAgent: AgentDefinition = {
   },
 
   buildCommand(options: RunOptions): CommandSpec {
-    // Debug: log planMode to verify it's being passed correctly
-    console.log(`[claude buildCommand] planMode=${options.planMode}`)
-
     const args: string[] = []
 
     // Print mode for non-interactive usage
