@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { useRouter, usePathname, useParams } from "next/navigation"
+import { usePathname, useParams } from "next/navigation"
 import { useSession, signIn, signOut } from "next-auth/react"
 import { nanoid } from "nanoid"
 import { MobileHeader } from "@/components/MobileHeader"
@@ -121,7 +121,6 @@ interface HomePageContentProps {
 }
 
 function HomePageContent({ isMobile }: HomePageContentProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const params = useParams()
   const { data: session } = useSession()
@@ -129,13 +128,12 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
   const modals = useModals()
   const sidebar = useSidebar()
 
-  // URL-based routing
-  const urlChatId = params?.chatId as string | undefined
+  // URL params for jobs (used by ScheduledJobsView)
   const urlJobId = params?.jobId as string | undefined
-  const urlRunId = params?.runId as string | undefined
+
+  // Derived route state for page title
   const isJobsRoute = pathname?.startsWith("/jobs") ?? false
   const isNewChatRoute = pathname === "/chat/new"
-  const isHomeRoute = pathname === "/"
 
   const {
     chats,
@@ -420,7 +418,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
     initialSyncDone.current = true
 
     const currentPath = window.location.pathname
-    console.log('[INITIAL_SYNC] running', { currentPath, currentChatId })
 
     // Parse the URL to determine what to do
     if (currentPath.startsWith("/jobs")) {
@@ -443,10 +440,8 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
       if (urlChatId !== currentChatId) {
         const chatExists = chats.some(c => c.id === urlChatId) || isDraftChatId(urlChatId)
         if (chatExists) {
-          console.log('[INITIAL_SYNC] selecting chat from URL', urlChatId)
           selectChat(urlChatId)
         } else {
-          console.log('[INITIAL_SYNC] chat does not exist, redirecting')
           window.history.replaceState(null, "", ROUTES.newChat)
           startNewChat()
         }
@@ -471,7 +466,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
 
     const handlePopState = () => {
       const currentPath = window.location.pathname
-      console.log('[POPSTATE] browser navigation detected', { currentPath, currentChatId })
 
       if (currentPath.startsWith("/jobs")) {
         sidebar.setViewMode("scheduled-jobs")
@@ -575,16 +569,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
   const isDraftMode = !!draftChat
   const isAuthenticatedDraft = isDraftMode && !!session
 
-  // DEBUG: Log render state
-  console.log('[RENDER]', {
-    currentPath: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
-    currentChatId,
-    currentChatFound: !!currentChat,
-    displayChatId: displayCurrentChat?.id,
-    displayChatName: displayCurrentChat?.displayName,
-    isLoadingMessages,
-  })
-
   // Dynamic page title based on current view
   const pageTitle = useMemo(() => {
     if (isJobsRoute) {
@@ -651,7 +635,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
 
   // Handler for selecting a chat - switch to chat view and update URL
   const handleSelectChat = useCallback((chatId: string) => {
-    console.log('[handleSelectChat] called with', chatId)
     // Update state
     selectChat(chatId)
     sidebar.setViewMode("chat")
@@ -663,7 +646,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
 
   // Handler for opening scheduled jobs view
   const handleOpenScheduledJobs = useCallback(() => {
-    console.log('[handleOpenScheduledJobs] called')
     // Update state
     sidebar.setViewMode("scheduled-jobs")
     sidebar.setSelectedScheduledJob(null)
@@ -679,7 +661,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
 
   // Handler for navigating to a job (updates URL)
   const handleNavigateToJob = useCallback((jobId: string | null) => {
-    console.log('[handleNavigateToJob] called with', jobId)
     if (jobId) {
       window.history.pushState(null, "", ROUTES.job(jobId))
     } else {
