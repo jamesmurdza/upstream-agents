@@ -163,9 +163,13 @@ export function useChatWithSync() {
   // Callback for conflict state changes from SSE complete events
   const onConflictStateChangeRef = useRef<((state: { inRebase: boolean; inMerge: boolean; conflictedFiles: string[] }) => void) | null>(null)
 
+  // Callback for markdown file writes in plan mode - opens the file in preview
+  const onMarkdownFileWriteRef = useRef<((chatId: string, filePath: string) => void) | null>(null)
+
   // SSE Streaming (extracted to separate hook)
   const { startStreaming, updateChatsCache } = useStreaming({
     onConflictStateChange: onConflictStateChangeRef.current,
+    onMarkdownFileWrite: onMarkdownFileWriteRef.current,
   })
 
   // Hydration
@@ -605,7 +609,7 @@ export function useChatWithSync() {
       const selectedModel = model ?? chat.model ?? settings.defaultModel ?? getDefaultModelForAgent(selectedAgent, credentialFlags)
 
       const userMessage: Message = { id: nanoid(), role: "user", content, timestamp: Date.now() }
-      const assistantMessage: Message = { id: nanoid(), role: "assistant", content: "", timestamp: Date.now() + 1, toolCalls: [], contentBlocks: [], metadata: planMode ? { isPlan: true } : undefined }
+      const assistantMessage: Message = { id: nanoid(), role: "assistant", content: "", timestamp: Date.now() + 1, toolCalls: [], contentBlocks: [] }
 
       // Optimistic update
       updateChatsCache((old) => old.map((c) =>
@@ -617,19 +621,6 @@ export function useChatWithSync() {
           errorMessage: undefined,
         } : c
       ))
-
-      // Auto-open plan preview if planMode is true
-      if (planMode) {
-        const chatPreviewItems = localChatState.previewStates[chatId]?.items ?? []
-        // Avoid duplicates if user rapidly sends plan mode messages
-        if (!chatPreviewItems.find((i) => i.type === "plan" && i.messageId === assistantMessage.id)) {
-          updateChatById(chatId, {
-            previewItems: [...chatPreviewItems, { type: "plan", messageId: assistantMessage.id, content: "" } as import("@/lib/plugins/types").PreviewItem],
-            activePreviewIndex: chatPreviewItems.length,
-            previewPaneHidden: false,
-          })
-        }
-      }
 
       try {
         const payload: SendMessagePayload = {
@@ -685,7 +676,7 @@ export function useChatWithSync() {
           } : c
         ))
 
-        startStreaming(chatId, data.sandboxId, "project", data.backgroundSessionId, assistantMessage.id, data.previewUrlPattern ?? undefined, data.branch)
+        startStreaming(chatId, data.sandboxId, "project", data.backgroundSessionId, assistantMessage.id, data.previewUrlPattern ?? undefined, data.branch, undefined, planMode)
 
         if (isFirstMessage) {
           suggestNameMutation.mutate({ chatId, prompt: content })
@@ -809,6 +800,22 @@ export function useChatWithSync() {
       for (const chatId of store.streams.keys()) store.stopStream(chatId)
     }
   }, [])
+
+  // Set up markdown file write callback for plan mode
+  useEffect(() => {
+    onMarkdownFileWriteRef.current = (chatId: string, filePath: string) => {
+      const chatPreviewItems = localChatState.previewStates[chatId]?.items ?? []
+      const filename = filePath.split("/").pop() || filePath
+      // Avoid duplicates
+      if (!chatPreviewItems.find((i) => i.type === "file" && i.filePath === filePath)) {
+        updateChatById(chatId, {
+          previewItems: [...chatPreviewItems, { type: "file", filePath, filename }],
+          activePreviewIndex: chatPreviewItems.length,
+          previewPaneHidden: false,
+        })
+      }
+    }
+  }, [localChatState.previewStates, updateChatById])
 
   // Queue management
   const addMessageToChat = useCallback((chatId: string, message: Message) => {

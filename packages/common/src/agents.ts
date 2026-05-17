@@ -198,6 +198,17 @@ export const defaultAgentModel: Record<Agent, string> = {
   "pi": "claude-sonnet-4-5",
 }
 
+/** Whether each agent supports plan mode (read-only execution) */
+export const agentSupportsPlanMode: Record<Agent, boolean> = {
+  "claude-code": true,
+  "opencode": false,
+  "codex": true,
+  "eliza": false,
+  "gemini": true,
+  "goose": true,
+  "pi": false,
+}
+
 // =============================================================================
 // Credential queries
 // =============================================================================

@@ -10,7 +10,7 @@ export type {
   RunOptions,
 } from "./agent"
 
-export { registry, getAgent, getAgentNames } from "./registry"
+export { registry, getAgent, getAgentNames, agentSupportsPlanMode } from "./registry"
 
 export {
   normalizeToolName,

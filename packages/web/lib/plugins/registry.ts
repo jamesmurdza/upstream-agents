@@ -2,7 +2,6 @@ import type { PreviewItem, PanelPlugin } from "./types"
 import { FileViewerPlugin } from "./panels/file-viewer"
 import { TerminalPlugin } from "./panels/terminal"
 import { ServerPreviewPlugin } from "./panels/server-preview"
-import { PlanViewerPlugin } from "./panels/plan"
 
 /**
  * All registered panel plugins.
@@ -12,7 +11,6 @@ const panelPlugins: PanelPlugin[] = [
   FileViewerPlugin,
   TerminalPlugin,
   ServerPreviewPlugin,
-  PlanViewerPlugin,
 ]
 
 /**

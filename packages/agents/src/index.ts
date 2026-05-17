@@ -110,7 +110,7 @@ export {
 // Agent Registry
 // ─────────────────────────────────────────────────────────────────────────────
 
-export { registry, getAgent } from "./core/registry"
+export { registry, getAgent, agentSupportsPlanMode } from "./core/registry"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool Utilities

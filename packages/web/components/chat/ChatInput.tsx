@@ -76,6 +76,7 @@ interface ChatInputProps {
   showClaudeLimitDialog: () => void
   // Plan mode
   planModeEnabled: boolean
+  planModeSupported: boolean
   onPlanModeToggle: () => void
   onSetPlanMode: (enabled: boolean) => void
   // Mobile
@@ -135,6 +136,7 @@ export function ChatInput({
   showClaudeLimitDialog,
   // Plan mode
   planModeEnabled,
+  planModeSupported,
   onPlanModeToggle,
   onSetPlanMode,
   // Mobile
@@ -377,48 +379,48 @@ export function ChatInput({
 
           {/* Right side items */}
           <div className={cn("flex items-center gap-2", isMobile && "w-full @container/row2")}>
-            {/* Mode selector dropdown (Edit/Plan) */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "shrink-0 flex items-center gap-1 transition-colors cursor-pointer",
-                    planModeEnabled
-                      ? "text-primary hover:text-primary/80"
-                      : "text-muted-foreground hover:text-foreground",
-                    isMobile ? "h-7 px-2 text-sm" : "h-6 px-1.5 text-sm"
-                  )}
-                  title={planModeEnabled ? "Plan mode — agent will plan before acting" : "Edit mode — agent will edit code directly"}
-                >
-                  {planModeEnabled ? (
-                    <ListChecks className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-                  ) : (
-                    <Pencil className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
-                  )}
-                  <span className={cn("text-sm", isMobile ? "hidden @[18rem]/row2:inline" : "hidden @[32rem]:inline")}>
-                    {planModeEnabled ? "Plan" : "Edit"}
-                  </span>
-                  <ChevronDown className={cn(isMobile ? "h-3 w-3" : "h-3 w-3")} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-[140px]">
-                <DropdownMenuItem
-                  onClick={() => onSetPlanMode(false)}
-                  className={cn(!planModeEnabled && "bg-accent")}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onSetPlanMode(true)}
-                  className={cn(planModeEnabled && "bg-accent")}
-                >
-                  <ListChecks className="h-4 w-4 mr-2" />
-                  Plan
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Mode selector dropdown (Edit/Plan) - only show if agent supports plan mode */}
+            {planModeSupported && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "shrink-0 flex items-center gap-1 transition-colors cursor-pointer",
+                      "text-muted-foreground hover:text-foreground",
+                      isMobile ? "h-7 px-2 text-sm" : "h-6 px-1.5 text-sm"
+                    )}
+                    title={planModeEnabled ? "Plan mode — agent will plan before acting" : "Edit mode — agent will edit code directly"}
+                  >
+                    {planModeEnabled ? (
+                      <ListChecks className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    ) : (
+                      <Pencil className={cn(isMobile ? "h-4 w-4" : "h-3.5 w-3.5")} />
+                    )}
+                    <span className={cn("text-sm", isMobile ? "hidden @[18rem]/row2:inline" : "hidden @[32rem]:inline")}>
+                      {planModeEnabled ? "Plan" : "Edit"}
+                    </span>
+                    <ChevronDown className={cn(isMobile ? "h-3 w-3" : "h-3 w-3")} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[140px]">
+                  <DropdownMenuItem
+                    onClick={() => onSetPlanMode(false)}
+                    className={cn(!planModeEnabled && "bg-accent")}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onSetPlanMode(true)}
+                    className={cn(planModeEnabled && "bg-accent")}
+                  >
+                    <ListChecks className="h-4 w-4 mr-2" />
+                    Plan
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             {/* Agent and Model selectors */}
             <AgentModelSelector

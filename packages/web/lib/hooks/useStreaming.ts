@@ -53,14 +53,18 @@ export function mergeMessages(existing: Message[], incoming: Message[]): Message
 
 interface UseStreamingOptions {
   onConflictStateChange?: ((state: { inRebase: boolean; inMerge: boolean; conflictedFiles: string[] }) => void) | null
+  /** Called when a markdown file is written in plan mode, allowing the caller to open a preview */
+  onMarkdownFileWrite?: ((chatId: string, filePath: string) => void) | null
 }
 
 export function useStreaming(options: UseStreamingOptions = {}) {
   const queryClient = useQueryClient()
   const onConflictStateChangeRef = useRef(options.onConflictStateChange)
+  const onMarkdownFileWriteRef = useRef(options.onMarkdownFileWrite)
 
-  // Keep ref updated
+  // Keep refs updated
   onConflictStateChangeRef.current = options.onConflictStateChange
+  onMarkdownFileWriteRef.current = options.onMarkdownFileWrite
 
   // Helper to update query cache
   const updateChatsCache = useCallback((updater: (chats: Chat[]) => Chat[]) => {
@@ -79,12 +83,13 @@ export function useStreaming(options: UseStreamingOptions = {}) {
     assistantMessageId: string,
     previewUrlPattern?: string,
     branch?: string | null,
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
+    planMode?: boolean
   ) => {
     const streamStore = useStreamStore.getState()
     if (streamStore.isStreaming(chatId)) streamStore.stopStream(chatId)
 
-    streamStore.startStream(chatId, { sandboxId, repoName, backgroundSessionId, previewUrlPattern })
+    streamStore.startStream(chatId, { sandboxId, repoName, backgroundSessionId, previewUrlPattern, planMode })
 
     const connect = (cursor: number = 0) => {
       if (abortSignal?.aborted) {
@@ -107,14 +112,32 @@ export function useStreaming(options: UseStreamingOptions = {}) {
         useStreamStore.getState().stopStream(chatId)
       }, { once: true })
 
+      // Track markdown files we've already opened to avoid duplicates
+      const openedMarkdownFiles = new Set<string>()
+
       eventSource.addEventListener("update", (event) => {
         if (abortSignal?.aborted) return
         try {
           const data: SSEUpdateEvent = JSON.parse(event.data)
           const store = useStreamStore.getState()
-          if (!store.isStreaming(chatId)) return
+          const stream = store.getStream(chatId)
+          if (!stream) return
 
           store.updateStream(chatId, { cursor: data.cursor, reconnectAttempts: 0 })
+
+          // In plan mode, detect markdown file writes and open preview
+          if (stream.connectionParams?.planMode && onMarkdownFileWriteRef.current) {
+            for (const toolCall of data.toolCalls) {
+              const tool = toolCall.tool?.toLowerCase()
+              const filePath = (toolCall as { filePath?: string }).filePath
+              if ((tool === "write" || tool === "edit") && filePath?.endsWith(".md")) {
+                if (!openedMarkdownFiles.has(filePath)) {
+                  openedMarkdownFiles.add(filePath)
+                  onMarkdownFileWriteRef.current(chatId, filePath)
+                }
+              }
+            }
+          }
 
           updateChatsCache((old) => old.map((c) => {
             if (c.id !== chatId) return c

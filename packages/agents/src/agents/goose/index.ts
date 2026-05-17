@@ -34,9 +34,13 @@ export const gooseAgent: AgentDefinition = {
   capabilities: {
     supportsSystemPrompt: true,
     supportsResume: true,
+    supportsPlanMode: true,
   },
 
   buildCommand(options: RunOptions): CommandSpec {
+    // Debug: log planMode to verify it's being passed correctly
+    console.log(`[goose buildCommand] planMode=${options.planMode}`)
+
     const gooseArgs: string[] = []
 
     // Use run subcommand for non-interactive execution
@@ -52,9 +56,10 @@ export const gooseAgent: AgentDefinition = {
       gooseArgs.push("--model", options.model)
     }
 
-    // Add prompt as text input
+    // Add prompt as text input (prepend /plan command for plan mode)
     if (options.prompt) {
-      gooseArgs.push("--text", options.prompt)
+      const prompt = options.planMode ? `/plan ${options.prompt}` : options.prompt
+      gooseArgs.push("--text", prompt)
     }
 
     // Apply system prompt via --system flag when provided

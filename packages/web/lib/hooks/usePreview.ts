@@ -55,7 +55,6 @@ export function usePreview({ currentChat, updateCurrentChat }: UsePreviewOptions
       case "file": return `file:${item.filePath}`
       case "terminal": return `terminal:${item.id}`
       case "server": return `server:${item.port}`
-      case "plan": return `plan:${item.messageId}`
     }
   }, [])
 

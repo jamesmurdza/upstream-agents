@@ -78,3 +78,11 @@ export function getAgent(name: string): AgentDefinition {
 export function getAgentNames(): string[] {
   return registry.getNames()
 }
+
+/**
+ * Check if an agent supports plan mode.
+ */
+export function agentSupportsPlanMode(name: string): boolean {
+  const agent = registry.get(name)
+  return agent?.capabilities?.supportsPlanMode ?? false
+}

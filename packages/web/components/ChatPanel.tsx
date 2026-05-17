@@ -6,7 +6,7 @@ import { ErrorBanner, FilePreviewModal, ChatHeader, MobileConflictBar, ChatInput
 import { cn } from "@/lib/utils"
 import { useModals, useGit } from "@/lib/contexts"
 import type { Chat, Settings, Agent, CredentialFlags } from "@/lib/types"
-import { NEW_REPOSITORY, agentModels, hasCredentialsForModel, getDefaultAgent, getDefaultModelForAgent } from "@/lib/types"
+import { NEW_REPOSITORY, agentModels, hasCredentialsForModel, getDefaultAgent, getDefaultModelForAgent, agentSupportsPlanMode } from "@/lib/types"
 import { filterSlashCommandsWithConflict } from "@upstream/common"
 import { MessageBubble } from "./MessageBubble"
 import type { SlashCommandType } from "./SlashCommandMenu"
@@ -38,8 +38,6 @@ interface ChatPanelProps {
   isSending?: boolean
   /** Callback to open the command palette */
   onOpenCommandPalette?: () => void
-  /** Callback to open a plan in the preview pane */
-  onOpenPlan?: (messageId: string) => void
   /** Whether the user is authenticated */
   isAuthenticated?: boolean
   /** Whether rapid fire mode is enabled */
@@ -48,7 +46,7 @@ interface ChatPanelProps {
   rapidFireNotification?: number
 }
 
-export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDialog, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onUpdateChat, onSlashCommand, onOpenFile, onOpenEnvVars, isMobile = false, isLoadingMessages = false, draft = "", onDraftChange, isSending = false, onOpenCommandPalette, onOpenPlan, isAuthenticated = false, rapidFireMode = false, rapidFireNotification = 0 }: ChatPanelProps) {
+export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDialog, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onUpdateChat, onSlashCommand, onOpenFile, onOpenEnvVars, isMobile = false, isLoadingMessages = false, draft = "", onDraftChange, isSending = false, onOpenCommandPalette, isAuthenticated = false, rapidFireMode = false, rapidFireNotification = 0 }: ChatPanelProps) {
   // Get modal and git state from contexts
   const modals = useModals()
   const git = useGit()
@@ -63,6 +61,14 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
   // Plan mode state
   const [planModeEnabled, setPlanModeEnabled] = useState(false)
+  // Computed current agent for plan mode check
+  const currentAgentForPlanMode = (chat?.agent ?? settings.defaultAgent ?? getDefaultAgent(credentialFlags)) as Agent
+  // Reset plan mode when switching to an agent that doesn't support it
+  useEffect(() => {
+    if (planModeEnabled && !agentSupportsPlanMode[currentAgentForPlanMode]) {
+      setPlanModeEnabled(false)
+    }
+  }, [currentAgentForPlanMode, planModeEnabled])
   // File upload state - using custom hook
   const {
     pendingFiles,
@@ -426,6 +432,7 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
       showClaudeLimitDialog={showClaudeLimitDialog}
       // Plan mode
       planModeEnabled={planModeEnabled}
+      planModeSupported={agentSupportsPlanMode[currentAgent]}
       onPlanModeToggle={() => setPlanModeEnabled((v) => !v)}
       onSetPlanMode={setPlanModeEnabled}
       // Mobile
@@ -602,7 +609,6 @@ export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDial
                 repo={isNewRepo ? undefined : chat.repo}
                 onOpenFile={onOpenFile}
                 onForcePush={git.handleForcePush}
-                onOpenPlan={onOpenPlan}
               />
             )
           })}

@@ -26,6 +26,8 @@ export interface StreamState {
     repoName: string
     backgroundSessionId: string
     previewUrlPattern?: string
+    /** Whether this stream was started in plan mode */
+    planMode?: boolean
   } | null
 }
 

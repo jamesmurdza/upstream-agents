@@ -20,13 +20,11 @@ interface MessageBubbleProps {
   onOpenFile?: (filePath: string) => void
   /** Called when the user clicks the "force push" link in a push-failure message. */
   onForcePush?: () => void
-  /** Called when the user clicks "View Plan" for a plan message. */
-  onOpenPlan?: (messageId: string) => void
 }
 
 // Memoized MessageBubble to prevent re-renders when parent (ChatPanel) re-renders
 // due to input changes. Only re-render when message content actually changes.
-export const MessageBubble = memo(function MessageBubble({ message, isStreaming, isMobile = false, repo, onOpenFile, onForcePush, onOpenPlan }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ message, isStreaming, isMobile = false, repo, onOpenFile, onForcePush }: MessageBubbleProps) {
   const isUser = message.role === "user"
   const hasUploadedFiles = isUser && message.uploadedFiles && message.uploadedFiles.length > 0
 
@@ -69,7 +67,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming,
             )}
           </div>
         ) : (
-          <AssistantContent message={message} isStreaming={isStreaming} isMobile={isMobile} repo={repo} onOpenFile={onOpenFile} onForcePush={onForcePush} onOpenPlan={onOpenPlan} />
+          <AssistantContent message={message} isStreaming={isStreaming} isMobile={isMobile} repo={repo} onOpenFile={onOpenFile} onForcePush={onForcePush} />
         )}
       </div>
     </div>
@@ -94,9 +92,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming,
 // Assistant Content (with tool calls)
 // =============================================================================
 
-import { Brain } from "lucide-react"
-
-function AssistantContent({ message, isStreaming, isMobile = false, repo, onOpenFile, onForcePush, onOpenPlan }: { message: Message; isStreaming?: boolean; isMobile?: boolean; repo?: string; onOpenFile?: (filePath: string) => void; onForcePush?: () => void; onOpenPlan?: (messageId: string) => void }) {
+function AssistantContent({ message, isStreaming, isMobile = false, repo, onOpenFile, onForcePush }: { message: Message; isStreaming?: boolean; isMobile?: boolean; repo?: string; onOpenFile?: (filePath: string) => void; onForcePush?: () => void }) {
   const hasContent = message.content && message.content.trim().length > 0
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0
   const hasBlocks = message.contentBlocks && message.contentBlocks.length > 0
@@ -125,38 +121,6 @@ function AssistantContent({ message, isStreaming, isMobile = false, repo, onOpen
         metadata={message.metadata}
         onForcePush={onForcePush}
       />
-    )
-  }
-
-  // Plan mode messages get a special stub
-  if (message.metadata?.isPlan) {
-    return (
-      <div className={cn("w-full py-1", isMobile ? "text-base" : "text-[14px]")}>
-        <div className="flex items-center gap-3 p-3 border border-border rounded-lg bg-card w-full max-w-2xl">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-            <Brain className="h-4 w-4" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-medium truncate">Execution plan</p>
-            <p className="text-muted-foreground text-xs truncate">
-              {isStreaming ? "Agent is generating a plan..." : "Ready for review"}
-            </p>
-          </div>
-          <button
-            onClick={() => onOpenPlan?.(message.id)}
-            className="shrink-0 px-3 py-1.5 text-xs font-medium border border-border bg-background hover:bg-accent text-foreground rounded-md transition-colors cursor-pointer"
-          >
-            View plan
-          </button>
-        </div>
-        
-        {/* Streaming indicator for the rest of the plan generation */}
-        {isStreaming && (
-          <div className="text-2xl text-muted-foreground animate-pulse mt-2 ml-1">
-            ...
-          </div>
-        )}
-      </div>
     )
   }
 

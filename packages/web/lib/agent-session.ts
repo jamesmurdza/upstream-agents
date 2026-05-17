@@ -99,33 +99,10 @@ export async function createBackgroundAgentSession(
   sandbox: DaytonaSandbox,
   options: AgentSessionOptions
 ): Promise<BackgroundAgentSession> {
-  let systemPrompt = buildSystemPrompt(
+  const systemPrompt = buildSystemPrompt(
     options.repoPath,
     options.previewUrlPattern
   )
-
-  // When plan mode is enabled, append planning instructions to the system
-  // prompt. This is the universal mechanism — works for every agent because
-  // it's just text the model sees. Agent-specific CLI flags (e.g. Claude's
-  // thinking mode) are injected separately at the SDK layer.
-  if (options.planMode) {
-    systemPrompt += `
-
-## Plan Mode
-
-You are in PLAN MODE. Before taking any actions:
-1. Analyze the request thoroughly
-2. Create a detailed implementation plan in markdown format
-3. Present the plan to the user
-4. Do NOT execute any file writes, edits, or shell commands
-5. Wait for the user to review and approve the plan
-
-Your plan should include:
-- Summary of what needs to be done
-- Files to be created or modified (with brief descriptions)
-- Step-by-step implementation order
-- Any risks or trade-offs to consider`
-  }
 
   // Map agent type to SDK provider name
   const agent = options.agent || "opencode"
@@ -156,9 +133,13 @@ Your plan should include:
     }
   }
 
-  // For OpenCode, inject permission rules via environment variable
+  // For OpenCode in non-plan mode, inject default permission rules via environment variable
+  // (Plan mode permissions are handled by the agent's buildCommand)
+  // Debug: log planMode from options
+  console.log(`[agent-session] options.planMode=${options.planMode}`)
+
   const env = { ...options.env }
-  if (agent === "opencode") {
+  if (agent === "opencode" && !options.planMode) {
     env.OPENCODE_PERMISSION = OPENCODE_PERMISSION_ENV
   }
 
@@ -169,6 +150,7 @@ Your plan should include:
     cwd: options.repoPath,
     model: options.model,
     env: Object.keys(env).length > 0 ? env : undefined,
+    planMode: options.planMode,
   })
 
   return {

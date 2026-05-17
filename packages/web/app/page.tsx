@@ -1342,7 +1342,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
                   draft={currentDraft}
                   onDraftChange={handleDraftChange}
                   isSending={isSendingMessage}
-                  onOpenPlan={(messageId) => preview.openPreview({ type: "plan", messageId, content: "" })}
                   isAuthenticated={!!session}
                   rapidFireMode={settings.rapidFireMode}
                   rapidFireNotification={rapidFireNotification}

@@ -58,6 +58,8 @@ export interface AgentCapabilities {
   supportsSystemPrompt?: boolean
   /** Agent supports session resumption */
   supportsResume?: boolean
+  /** Agent supports plan mode (read-only execution) */
+  supportsPlanMode?: boolean
   /** Agent requires special setup (e.g., login) */
   setup?: (sandbox: CodeAgentSandbox, env: Record<string, string>) => Promise<void>
 }

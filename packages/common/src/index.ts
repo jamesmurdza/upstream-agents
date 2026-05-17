@@ -37,6 +37,7 @@ export {
   agentToProvider,
   agentModels,
   defaultAgentModel,
+  agentSupportsPlanMode,
   // Functions
   getDefaultAgent,
   hasCredentialsForModel,

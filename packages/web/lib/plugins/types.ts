@@ -8,7 +8,6 @@ export type PreviewItem =
   | { type: "file"; filePath: string; filename: string }
   | { type: "terminal"; id: string }
   | { type: "server"; port: number; url: string }
-  | { type: "plan"; content: string; messageId: string }
 
 /**
  * Props passed to every panel plugin component.
