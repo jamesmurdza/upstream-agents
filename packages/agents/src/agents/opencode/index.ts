@@ -66,19 +66,28 @@ export const opencodeAgent: AgentDefinition = {
     if (options.planMode) {
       // Enable CLI-enforced plan mode (read-only)
       // OPENCODE_EXPERIMENTAL_PLAN_MODE has a known bug where it still allows edits,
-      // so we also set permissions to deny all file modification and execution tools
+      // so we also set permissions to deny all file modification and execution tools.
+      // Format: { toolName: { pattern: "allow"|"deny" } }
       env.OPENCODE_EXPERIMENTAL_PLAN_MODE = "1"
       env.OPENCODE_PERMISSION = JSON.stringify({
-        "*": "allow",
-        "edit": "deny",
-        "write": "deny",
-        "apply_patch": "deny",
-        "bash": "deny",
-        "task": "deny",
+        // Deny file modification tools
+        edit: { "*": "deny" },
+        write: { "*": "deny" },
+        // Deny bash/shell execution
+        bash: { "*": "deny" },
+        // Allow read-only tools
+        read: { "*": "allow" },
+        glob: { "*": "allow" },
+        grep: { "*": "allow" },
+        // Default: allow other tools (like thinking, asking questions)
+        "*": { "*": "allow" },
       })
     } else {
       // Allow all tool actions without interactive approval in headless runs
-      env.OPENCODE_PERMISSION = '{"*":"allow"}'
+      // Format: { toolName: { pattern: "allow"|"deny" } }
+      env.OPENCODE_PERMISSION = JSON.stringify({
+        "*": { "*": "allow" },
+      })
     }
 
     return {
