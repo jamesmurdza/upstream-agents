@@ -475,7 +475,7 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, urlJobId, onNavigate
               {jobs.map((job) => (
                 <div
                   key={job.id}
-                  className="rounded-lg border border-border p-4 hover:bg-muted/30 cursor-pointer transition-colors"
+                  className="rounded-lg border border-border bg-muted/20 p-4 hover:bg-muted/40 cursor-pointer transition-colors"
                   onClick={() => setSelectedJobId(job.id, job.name)}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -566,13 +566,13 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, urlJobId, onNavigate
             </div>
 
             {/* Desktop Table Layout */}
-            <div className="hidden md:block rounded-lg border border-border">
+            <div className="hidden md:block rounded-lg border border-border bg-muted/20">
               <table className="w-full">
                 <tbody className="divide-y divide-border">
                   {jobs.map((job) => (
                     <tr
                       key={job.id}
-                      className="hover:bg-muted/30 cursor-pointer transition-colors"
+                      className="hover:bg-muted/40 cursor-pointer transition-colors"
                       onClick={() => setSelectedJobId(job.id, job.name)}
                     >
                       <td className="px-4 py-3">
