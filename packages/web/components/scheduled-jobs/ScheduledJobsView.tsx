@@ -93,8 +93,6 @@ interface ScheduledJobsViewProps {
   onOpenForm?: () => void
   /** Increment to trigger a refresh of the jobs list */
   refreshKey?: number
-  /** Callback when a job is selected/deselected (for sidebar integration) */
-  onJobSelect?: (job: ScheduledJob | null) => void
   /** Job ID from URL - controls which job is selected (null = show list) */
   urlJobId: string | null
   /** Callback when navigating to a job (updates URL and sidebar state) */
@@ -105,7 +103,7 @@ interface ScheduledJobsViewProps {
 // Component
 // =============================================================================
 
-export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, urlJobId, onNavigateToJob }: ScheduledJobsViewProps) {
+export function ScheduledJobsView({ onOpenForm, refreshKey, urlJobId, onNavigateToJob }: ScheduledJobsViewProps) {
   const { data: session } = useSession()
 
   // The selected job ID - derived directly from URL
@@ -133,11 +131,6 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, urlJobI
   const [selectedRun, setSelectedRun] = useState<ScheduledJobRun | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [dropdownOpen, setDropdownOpen] = useState(false)
-
-  // Notify parent when job selection changes
-  useEffect(() => {
-    onJobSelect?.(selectedJob)
-  }, [selectedJob, onJobSelect])
 
   // Reset detail state when returning to list view
   // Note: Don't call setSelectedJobId here - URL changes should drive navigation
