@@ -31,7 +31,7 @@ import { useMobile } from "@/lib/hooks/useMobile"
 import { useGitHubTokenCheck } from "@/lib/hooks/useGitHubTokenCheck"
 import { usePreview } from "@/lib/hooks/usePreview"
 import { usePageTitle } from "@/lib/hooks/usePageTitle"
-import { ROUTES } from "@/lib/hooks/useUrlNavigation"
+import { ROUTES, matchRoute } from "@/lib/hooks/useUrlNavigation"
 import {
   ChatProvider,
   ModalProvider,
@@ -412,59 +412,62 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
   // Sync URL to state - used for initial load and browser back/forward
   const syncUrlToState = useCallback((isInitialSync: boolean = false) => {
     const currentPath = window.location.pathname
+    const matched = matchRoute(currentPath)
 
-    // Jobs routes
-    if (currentPath.startsWith("/jobs")) {
-      sidebar.setViewMode("scheduled-jobs")
-      if (!isInitialSync) selectChat(null)
+    if (!matched) return
 
-      // Check for specific job ID in URL: /jobs/[jobId]
-      const jobMatch = currentPath.match(/^\/jobs\/([^/]+)$/)
-      if (jobMatch) {
-        const jobId = jobMatch[1]
-        // Set selected job with ID (name will be updated when job data loads)
-        sidebar.setSelectedScheduledJob({ id: jobId, name: jobId })
-      } else {
-        // Just /jobs - clear selection
+    switch (matched.route) {
+      case "jobs":
+        sidebar.setViewMode("scheduled-jobs")
+        if (!isInitialSync) selectChat(null)
         sidebar.setSelectedScheduledJob(null)
-      }
-      return
-    }
+        break
 
-    // New chat route
-    if (currentPath === "/chat/new") {
-      sidebar.setViewMode("chat")
-      if (!currentChatId || !isDraftChatId(currentChatId)) {
-        startNewChat()
-      }
-      return
-    }
+      case "job":
+        sidebar.setViewMode("scheduled-jobs")
+        if (!isInitialSync) selectChat(null)
+        // Set selected job with ID (name will be updated when job data loads)
+        sidebar.setSelectedScheduledJob({ id: matched.jobId, name: matched.jobId })
+        break
 
-    // Chat route with ID
-    const chatMatch = currentPath.match(/^\/chat\/([^/]+)$/)
-    if (chatMatch) {
-      const urlChatId = chatMatch[1]
-      sidebar.setViewMode("chat")
-      if (urlChatId !== currentChatId) {
-        const chatExists = chats.some(c => c.id === urlChatId) || isDraftChatId(urlChatId)
-        if (chatExists) {
-          selectChat(urlChatId)
-        } else {
-          window.history.replaceState(null, "", ROUTES.newChat)
+      case "jobRun":
+        sidebar.setViewMode("scheduled-jobs")
+        if (!isInitialSync) selectChat(null)
+        // Set selected job with ID (name will be updated when job data loads)
+        sidebar.setSelectedScheduledJob({ id: matched.jobId, name: matched.jobId })
+        // TODO: Handle run selection when runs view is implemented
+        break
+
+      case "newChat":
+        sidebar.setViewMode("chat")
+        if (!currentChatId || !isDraftChatId(currentChatId)) {
           startNewChat()
         }
-      }
-      return
-    }
+        break
 
-    // Home route - redirect to current chat or new chat
-    if (currentPath === "/") {
-      if (currentChatId) {
-        window.history.replaceState(null, "", ROUTES.chat(currentChatId))
-      } else {
-        window.history.replaceState(null, "", ROUTES.newChat)
-        startNewChat()
+      case "chat": {
+        const urlChatId = matched.chatId
+        sidebar.setViewMode("chat")
+        if (urlChatId !== currentChatId) {
+          const chatExists = chats.some(c => c.id === urlChatId) || isDraftChatId(urlChatId)
+          if (chatExists) {
+            selectChat(urlChatId)
+          } else {
+            window.history.replaceState(null, "", ROUTES.newChat.build())
+            startNewChat()
+          }
+        }
+        break
       }
+
+      case "home":
+        if (currentChatId) {
+          window.history.replaceState(null, "", ROUTES.chat.build(currentChatId))
+        } else {
+          window.history.replaceState(null, "", ROUTES.newChat.build())
+          startNewChat()
+        }
+        break
     }
   }, [currentChatId, chats, isDraftChatId, selectChat, startNewChat, sidebar])
 
@@ -607,7 +610,7 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
     // Navigate to the new chat URL
     if (newChatId) {
       // Update URL without triggering Next.js navigation
-      window.history.pushState(null, "", ROUTES.chat(newChatId))
+      window.history.pushState(null, "", ROUTES.chat.build(newChatId))
     }
   }, [session, modals, sidebar, displayCurrentChat, repos, startNewChat])
 
@@ -619,7 +622,7 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
     sidebar.setSelectedScheduledJob(null)
     // Update URL without triggering Next.js navigation (which causes remount)
     // Using window.history.pushState avoids the component remount that router.push causes
-    window.history.pushState(null, "", ROUTES.chat(chatId))
+    window.history.pushState(null, "", ROUTES.chat.build(chatId))
   }, [selectChat, sidebar])
 
   // Handler for opening scheduled jobs view
@@ -629,7 +632,7 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
     sidebar.setSelectedScheduledJob(null)
     selectChat(null)
     // Update URL without triggering Next.js navigation
-    window.history.pushState(null, "", ROUTES.jobs)
+    window.history.pushState(null, "", ROUTES.jobs.build())
   }, [sidebar, selectChat])
 
   // Handler for scheduled job selection (memoized to prevent infinite loops)
@@ -642,10 +645,10 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
     if (jobId) {
       // Update sidebar state - use jobName if provided, otherwise use jobId as placeholder
       sidebar.setSelectedScheduledJob({ id: jobId, name: jobName ?? jobId })
-      window.history.pushState(null, "", ROUTES.job(jobId))
+      window.history.pushState(null, "", ROUTES.job.build(jobId))
     } else {
       sidebar.setSelectedScheduledJob(null)
-      window.history.pushState(null, "", ROUTES.jobs)
+      window.history.pushState(null, "", ROUTES.jobs.build())
     }
   }, [sidebar])
 
