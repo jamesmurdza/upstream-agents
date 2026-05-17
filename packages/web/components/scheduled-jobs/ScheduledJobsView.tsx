@@ -587,11 +587,11 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, urlJobId, onNavigate
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Name</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Repository</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Schedule</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Last run</th>
-                    <th className="px-4 py-2 w-10"></th>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Name</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Repository</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Schedule</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Last run</th>
+                    <th className="px-4 py-2.5 w-10"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
