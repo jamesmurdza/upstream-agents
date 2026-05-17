@@ -637,11 +637,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
     window.history.pushState(null, "", ROUTES.jobs.build())
   }, [sidebar, selectChat])
 
-  // Handler for scheduled job selection (memoized to prevent infinite loops)
-  const handleJobSelect = useCallback((job: { id: string; name: string } | null) => {
-    sidebar.setSelectedScheduledJob(job ? { id: job.id, name: job.name } : null)
-  }, [sidebar])
-
   // Handler for navigating to a job (updates URL and sidebar state)
   const handleNavigateToJob = useCallback((jobId: string | null, jobName?: string) => {
     if (jobId) {
@@ -1311,8 +1306,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
                 <ScheduledJobsView
                   onOpenForm={() => modals.setScheduledJobFormOpen(true)}
                   refreshKey={scheduledJobsRefreshKey}
-                  onJobSelect={handleJobSelect}
-                  showList={sidebar.selectedScheduledJob === null && !urlJobId}
                   urlJobId={urlJobId}
                   onNavigateToJob={handleNavigateToJob}
                 />
