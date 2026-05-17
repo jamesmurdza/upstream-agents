@@ -627,6 +627,16 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
     window.history.pushState(null, "", ROUTES.chat.build(chatId))
   }, [selectChat, sidebar])
 
+  // Handler for pinning/unpinning a chat
+  const handlePinChat = useCallback((chatId: string) => {
+    const chat = chats.find((c) => c.id === chatId)
+    if (!chat) return
+    // Toggle pin state: if pinned, unpin (set to null); if not pinned, pin (set to now)
+    updateChatById(chatId, {
+      pinnedAt: chat.pinnedAt ? null : Date.now(),
+    })
+  }, [chats, updateChatById])
+
   // Handler for opening scheduled jobs view
   const handleOpenScheduledJobs = useCallback(() => {
     // Update state
@@ -1234,6 +1244,7 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
           onNewChat={handleNewChat}
           onDeleteChat={(chatId) => removeChat(chatId, getNextChatId)}
           onRenameChat={renameChat}
+          onPinChat={handlePinChat}
           collapsed={sidebar.collapsed}
           onToggleCollapse={() => sidebar.toggleCollapse()}
           width={sidebar.width}
@@ -1263,6 +1274,7 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
           onNewChat={handleNewChat}
           onDeleteChat={(chatId) => removeChat(chatId, getNextChatId)}
           onRenameChat={renameChat}
+          onPinChat={handlePinChat}
           collapsed={false}
           onToggleCollapse={() => {}}
           width={280}

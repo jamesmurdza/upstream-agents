@@ -132,6 +132,9 @@ model Chat {
   // Sync flag for git pull on next execution
   needsSync Boolean @default(false)
 
+  // Pin timestamp (null = not pinned, set = pinned at that time)
+  pinnedAt DateTime?
+
   // JSONB for encrypted chat-level environment variables
   // { "KEY1": "encrypted_value1", ... }
   environmentVariables Json?

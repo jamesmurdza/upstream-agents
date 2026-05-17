@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { MoreHorizontal, Pin, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, GitMerge, GitBranch } from "lucide-react"
+import { MoreHorizontal, Pin, PinOff, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, GitMerge, GitBranch } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { NEW_REPOSITORY } from "@/lib/types"
 import type { Chat } from "@/lib/types"
@@ -22,6 +22,7 @@ export interface ChatItemProps {
   onSelect: () => void
   onDelete: () => void
   onRename: (newName: string) => void
+  onPin?: () => void
   onMerge?: () => void
   onRebase?: () => void
   // Drag-to-merge props (optional; when omitted, drag is disabled).
@@ -35,7 +36,7 @@ export interface ChatItemProps {
   onDropRow?: () => void
 }
 
-export function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, depth = 0, hasChildren = false, isExpanded = true, onToggleExpanded, onSelect, onDelete, onRename, onMerge, onRebase, isDragSource, isDropTarget, onDragStartRow, onDragEndRow, onDragEnterRow, onDragOverRow, onDragLeaveRow, onDropRow }: ChatItemProps) {
+export function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, depth = 0, hasChildren = false, isExpanded = true, onToggleExpanded, onSelect, onDelete, onRename, onPin, onMerge, onRebase, isDragSource, isDropTarget, onDragStartRow, onDragEndRow, onDragEnterRow, onDragOverRow, onDragLeaveRow, onDropRow }: ChatItemProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState("")
@@ -155,7 +156,8 @@ export function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, dept
               {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             </button>
           )}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-1">
+            {chat.pinnedAt && <Pin className="h-3 w-3 flex-shrink-0 text-muted-foreground" />}
             <div className="text-sm truncate">{displayName}</div>
           </div>
 
@@ -186,17 +188,28 @@ export function ChatItem({ chat, isActive, collapsed, isDeleting, isUnseen, dept
 
             {menuOpen && (
               <div className="absolute right-0 top-full mt-1 w-32 rounded-md border border-border bg-popover shadow-md py-1 z-50">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    // TODO: Implement pin functionality
-                    setMenuOpen(false)
-                  }}
-                  className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
-                >
-                  <Pin className="h-3.5 w-3.5" />
-                  Pin
-                </button>
+                {onPin && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onPin()
+                      setMenuOpen(false)
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
+                  >
+                    {chat.pinnedAt ? (
+                      <>
+                        <PinOff className="h-3.5 w-3.5" />
+                        Unpin
+                      </>
+                    ) : (
+                      <>
+                        <Pin className="h-3.5 w-3.5" />
+                        Pin
+                      </>
+                    )}
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation()

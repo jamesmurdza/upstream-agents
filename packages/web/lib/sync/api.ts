@@ -28,6 +28,7 @@ export interface ChatResponse {
   status: string
   parentChatId: string | null
   needsSync: boolean
+  pinnedAt: number | null
   createdAt: number
   updatedAt: number
   lastActiveAt: number
@@ -149,6 +150,7 @@ export async function updateChat(
     previewUrlPattern: string
     backgroundSessionId: string | null
     needsSync: boolean
+    pinnedAt: number | null
     lastActiveAt: number
   }>
 ): Promise<ChatResponse> {
@@ -217,6 +219,7 @@ export function toChatType(serverChat: ChatResponse): Chat {
     status: serverChat.status as Chat["status"],
     parentChatId: serverChat.parentChatId || undefined,
     needsSync: serverChat.needsSync,
+    pinnedAt: serverChat.pinnedAt ?? undefined,
     createdAt: serverChat.createdAt,
     updatedAt: serverChat.updatedAt,
     lastActiveAt: serverChat.lastActiveAt,

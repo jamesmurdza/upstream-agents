@@ -45,6 +45,7 @@ interface ChatWithMessagesResponse {
   status: string
   parentChatId: string | null
   needsSync: boolean
+  pinnedAt: number | null
   createdAt: number
   updatedAt: number
   lastActiveAt: number
@@ -126,6 +127,7 @@ export async function GET(
       status: chat.status,
       parentChatId: chat.parentChatId,
       needsSync: chat.needsSync,
+      pinnedAt: chat.pinnedAt?.getTime() ?? null,
       createdAt: chat.createdAt.getTime(),
       updatedAt: chat.updatedAt.getTime(),
       lastActiveAt: chat.lastActiveAt.getTime(),
@@ -170,6 +172,7 @@ interface PatchChatBody {
   previewUrlPattern?: string
   backgroundSessionId?: string | null
   needsSync?: boolean
+  pinnedAt?: number | null
   lastActiveAt?: number
 }
 
@@ -206,6 +209,7 @@ export async function PATCH(
     if (body.previewUrlPattern !== undefined) updateData.previewUrlPattern = body.previewUrlPattern
     if (body.backgroundSessionId !== undefined) updateData.backgroundSessionId = body.backgroundSessionId
     if (body.needsSync !== undefined) updateData.needsSync = body.needsSync
+    if (body.pinnedAt !== undefined) updateData.pinnedAt = body.pinnedAt ? new Date(body.pinnedAt) : null
     if (body.lastActiveAt !== undefined) updateData.lastActiveAt = new Date(body.lastActiveAt)
 
     if (Object.keys(updateData).length === 0) {
@@ -232,6 +236,7 @@ export async function PATCH(
       status: updatedChat.status,
       parentChatId: updatedChat.parentChatId,
       needsSync: updatedChat.needsSync,
+      pinnedAt: updatedChat.pinnedAt?.getTime() ?? null,
       createdAt: updatedChat.createdAt.getTime(),
       updatedAt: updatedChat.updatedAt.getTime(),
       lastActiveAt: updatedChat.lastActiveAt.getTime(),

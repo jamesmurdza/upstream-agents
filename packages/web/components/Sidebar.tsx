@@ -32,6 +32,8 @@ interface SidebarProps {
   onNewChat: () => void
   onDeleteChat: (chatId: string) => void
   onRenameChat: (chatId: string, newName: string) => void
+  /** Toggle pin state for a chat */
+  onPinChat?: (chatId: string) => void
   collapsed: boolean
   onToggleCollapse: () => void
   width: number
@@ -71,6 +73,7 @@ export function Sidebar({
   onNewChat,
   onDeleteChat,
   onRenameChat,
+  onPinChat,
   collapsed,
   onToggleCollapse,
   width,
@@ -138,7 +141,14 @@ export function Sidebar({
         if (repoFilter === NO_REPOSITORY) return chat.repo === NEW_REPOSITORY
         return chat.repo === repoFilter
       })
-      .sort((a, b) => (b.lastActiveAt ?? b.createdAt) - (a.lastActiveAt ?? a.createdAt))
+      .sort((a, b) => {
+        // Pinned chats first, sorted by pinnedAt (most recently pinned first)
+        if (a.pinnedAt && !b.pinnedAt) return -1
+        if (!a.pinnedAt && b.pinnedAt) return 1
+        if (a.pinnedAt && b.pinnedAt) return b.pinnedAt - a.pinnedAt
+        // Then by lastActiveAt
+        return (b.lastActiveAt ?? b.createdAt) - (a.lastActiveAt ?? a.createdAt)
+      })
   }, [chats, repoFilter])
 
   // Build parent → children lookup from the filtered list, preserving sort
@@ -477,6 +487,7 @@ export function Sidebar({
                     onSelect={() => handleSelectChat(chat.id)}
                     onDelete={() => onDeleteChat(chat.id)}
                     onRequestRename={() => modals.setMobileRenameChat({ id: chat.id, name: chat.displayName || "Untitled" })}
+                    onPin={onPinChat ? () => onPinChat(chat.id) : undefined}
                   />
                 ))
               )}
@@ -752,6 +763,7 @@ export function Sidebar({
                   onSelectChat,
                   onDeleteChat,
                   onRenameChat,
+                  onPinChat,
                   onMerge: onRequestMergeChats ? (id) => onRequestMergeChats(id) : undefined,
                   onRebase: onRequestRebaseChat ? (id) => onRequestRebaseChat(id) : undefined,
                   dragSourceId,
@@ -836,6 +848,7 @@ interface RenderChatTreeArgs {
   onSelectChat: (id: string) => void
   onDeleteChat: (id: string) => void
   onRenameChat: (id: string, newName: string) => void
+  onPinChat?: (id: string) => void
   onMerge?: (id: string) => void
   onRebase?: (id: string) => void
   dragSourceId?: string | null
@@ -869,6 +882,7 @@ function renderChatTree(args: RenderChatTreeArgs): React.ReactNode[] {
         onSelect={() => args.onSelectChat(chat.id)}
         onDelete={() => args.onDeleteChat(chat.id)}
         onRename={(newName) => args.onRenameChat(chat.id, newName)}
+        onPin={args.onPinChat ? () => args.onPinChat!(chat.id) : undefined}
         onMerge={args.onMerge ? () => args.onMerge!(chat.id) : undefined}
         onRebase={args.onRebase ? () => args.onRebase!(chat.id) : undefined}
         isDragSource={args.dragSourceId === chat.id}

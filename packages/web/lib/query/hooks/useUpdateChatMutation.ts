@@ -50,6 +50,7 @@ export function useUpdateChatMutation() {
         if (data.previewUrlPattern !== undefined) updated.previewUrlPattern = data.previewUrlPattern
         if (data.backgroundSessionId !== undefined) updated.backgroundSessionId = data.backgroundSessionId ?? undefined
         if (data.needsSync !== undefined) updated.needsSync = data.needsSync
+        if (data.pinnedAt !== undefined) updated.pinnedAt = data.pinnedAt ?? undefined
         if (data.lastActiveAt !== undefined) updated.lastActiveAt = data.lastActiveAt
 
         queryClient.setQueryData<Chat>(queryKeys.chats.detail(chatId), updated)
@@ -72,6 +73,7 @@ export function useUpdateChatMutation() {
           if (data.previewUrlPattern !== undefined) updated.previewUrlPattern = data.previewUrlPattern
           if (data.backgroundSessionId !== undefined) updated.backgroundSessionId = data.backgroundSessionId ?? undefined
           if (data.needsSync !== undefined) updated.needsSync = data.needsSync
+          if (data.pinnedAt !== undefined) updated.pinnedAt = data.pinnedAt ?? undefined
           if (data.lastActiveAt !== undefined) updated.lastActiveAt = data.lastActiveAt
           return updated
         })

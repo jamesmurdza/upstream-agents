@@ -186,6 +186,9 @@ export interface Chat {
   /** Set when a merge targets this branch but sandbox was stopped. Triggers pull on next execute. */
   needsSync?: boolean
 
+  /** Timestamp when this chat was pinned (null/undefined = not pinned). Pinned chats appear at the top of the sidebar. */
+  pinnedAt?: number | null
+
   /** Set if the last attempt to fetch this chat's messages from the server
    *  failed. Suppresses auto-retry on subsequent selects until the user
    *  explicitly retries. */
