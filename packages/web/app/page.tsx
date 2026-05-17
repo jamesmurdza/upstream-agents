@@ -403,31 +403,30 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
   // =============================================================================
   // URL Sync (for initial load and browser back/forward only)
   // =============================================================================
-  // Track the last URL we synced to, to avoid re-syncing when handlers already updated state
-  const lastSyncedUrl = useRef<string | null>(null)
+  // Track the last pathname we processed to avoid re-syncing
+  const lastProcessedPathname = useRef<string | null>(null)
 
-  // Sync URL to state - only runs when URL changes externally (initial load, back/forward)
-  // Handlers update state first then push URL, so we skip sync when state already matches
+  // Sync URL to state - runs when pathname changes
+  // Only takes action when URL state doesn't match app state
   useEffect(() => {
     if (!isHydrated) return
 
-    // Construct current URL for comparison (pathname already includes dynamic segments)
-    const currentUrl = pathname ?? "/"
+    const currentPathname = pathname ?? "/"
 
-    // Skip if we already synced this URL (prevents double-processing)
-    if (lastSyncedUrl.current === currentUrl) return
-    lastSyncedUrl.current = currentUrl
+    // Skip if we already processed this exact pathname
+    if (lastProcessedPathname.current === currentPathname) return
+    lastProcessedPathname.current = currentPathname
 
-    // Handle /jobs routes - switch to jobs view
+    // Handle /jobs routes - switch to jobs view if needed
     if (isJobsRoute) {
       if (sidebar.viewMode !== "scheduled-jobs") {
         sidebar.setViewMode("scheduled-jobs")
       }
-      // The ScheduledJobsView component handles urlJobId directly via props
+      // ScheduledJobsView handles urlJobId directly via props
       return
     }
 
-    // Handle /chat/new route - ensure we're in draft mode
+    // Handle /chat/new route
     if (isNewChatRoute) {
       if (sidebar.viewMode !== "chat") {
         sidebar.setViewMode("chat")
@@ -439,8 +438,9 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
       return
     }
 
-    // Handle /chat/[chatId] route - only sync if chat doesn't match
+    // Handle /chat/[chatId] route - sync if URL chat doesn't match state
     if (urlChatId) {
+      // Only select chat if it's different from current
       if (urlChatId !== currentChatId) {
         const chatExists = chats.some(c => c.id === urlChatId) || isDraftChatId(urlChatId)
         if (chatExists) {
@@ -464,7 +464,6 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
       } else {
         router.replace(ROUTES.newChat)
       }
-      return
     }
   }, [
     isHydrated,
@@ -602,35 +601,34 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
     }
     // Navigate to the new chat URL
     if (newChatId) {
-      // Mark this URL as handled so sync effect doesn't re-process
-      lastSyncedUrl.current = `/chat/${newChatId}`
+      // Mark this pathname as processed so sync effect doesn't re-process
+      lastProcessedPathname.current = ROUTES.chat(newChatId)
       router.push(ROUTES.chat(newChatId))
     }
   }, [session, modals, sidebar, displayCurrentChat, repos, startNewChat, router])
 
   // Handler for selecting a chat - switch to chat view and update URL
   const handleSelectChat = useCallback((chatId: string) => {
-    // Update URL first to mark this as a "handled" navigation
-    lastSyncedUrl.current = `/chat/${chatId}`
-    // Then update state
+    // Mark pathname as processed first
+    lastProcessedPathname.current = ROUTES.chat(chatId)
+    // Update state
     selectChat(chatId)
     sidebar.setViewMode("chat")
-    sidebar.setSelectedScheduledJob(null) // Clear selected job when switching to chat
-    // Finally push the URL (won't trigger sync since lastSyncedUrl already matches)
+    sidebar.setSelectedScheduledJob(null)
+    // Push URL
     router.push(ROUTES.chat(chatId))
   }, [selectChat, sidebar, router])
 
   // Handler for opening scheduled jobs view
   const handleOpenScheduledJobs = useCallback(() => {
-    // Update URL first to mark this as a "handled" navigation
-    lastSyncedUrl.current = "/jobs"
-    // Then update state
+    // Mark pathname as processed first
+    lastProcessedPathname.current = ROUTES.jobs
+    // Update state
     sidebar.setViewMode("scheduled-jobs")
-    sidebar.setSelectedScheduledJob(null) // Clear selected job to show list view
-    selectChat(null as unknown as string) // Deselect current chat
-    // Finally push the URL (won't trigger sync since lastSyncedUrl already matches)
+    sidebar.setSelectedScheduledJob(null)
+    selectChat(null as unknown as string)
+    // Push URL
     router.push(ROUTES.jobs)
-    // Preview pane is automatically hidden when no chat is selected (preview.preview.previewItems will be empty)
   }, [sidebar, selectChat, router])
 
   // Handler for scheduled job selection (memoized to prevent infinite loops)
@@ -641,10 +639,10 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
   // Handler for navigating to a job (updates URL)
   const handleNavigateToJob = useCallback((jobId: string | null) => {
     if (jobId) {
-      lastSyncedUrl.current = `/jobs/${jobId}`
+      lastProcessedPathname.current = ROUTES.job(jobId)
       router.push(ROUTES.job(jobId))
     } else {
-      lastSyncedUrl.current = "/jobs"
+      lastProcessedPathname.current = ROUTES.jobs
       router.push(ROUTES.jobs)
     }
   }, [router])

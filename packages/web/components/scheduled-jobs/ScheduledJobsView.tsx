@@ -110,16 +110,17 @@ interface ScheduledJobsViewProps {
 export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, showList, urlJobId, onNavigateToJob }: ScheduledJobsViewProps) {
   const { data: session } = useSession()
 
-  // View state: list or detail - controlled by URL if provided
-  const [internalSelectedJobId, setInternalSelectedJobId] = useState<string | null>(null)
+  // The selected job ID - controlled by URL when urlJobId prop is provided
+  // When URL-controlled, we derive state from urlJobId directly
+  const isUrlControlled = urlJobId !== undefined
+  const selectedJobId = isUrlControlled ? (urlJobId || null) : null
 
-  // Use URL job ID if provided, otherwise use internal state
-  const selectedJobId = urlJobId !== undefined ? (urlJobId || null) : internalSelectedJobId
-
-  // Wrapper to update both internal state and notify parent for URL update
+  // Handler to change selected job - updates URL when URL-controlled
   const setSelectedJobId = (jobId: string | null) => {
-    setInternalSelectedJobId(jobId)
-    onNavigateToJob?.(jobId)
+    if (isUrlControlled) {
+      // URL-controlled: notify parent to update URL
+      onNavigateToJob?.(jobId)
+    }
   }
 
   // Jobs list state
@@ -145,13 +146,13 @@ export function ScheduledJobsView({ onOpenForm, refreshKey, onJobSelect, showLis
     onJobSelect?.(selectedJob)
   }, [selectedJob, onJobSelect])
 
-  // Reset to list view when showList becomes true
+  // Reset detail state when returning to list view
+  // Note: Don't call setSelectedJobId here - URL changes should drive navigation
   useEffect(() => {
-    if (showList) {
-      setSelectedJobId(null)
+    if (showList || !selectedJobId) {
       setSelectedJob(null)
     }
-  }, [showList])
+  }, [showList, selectedJobId])
 
   // Fetch jobs list
   const fetchJobs = async () => {
