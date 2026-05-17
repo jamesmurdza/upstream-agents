@@ -419,8 +419,19 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
 
     const currentPathname = pathname ?? "/"
 
+    console.log('[URL_SYNC_EFFECT] running', {
+      currentPathname,
+      lastProcessedPathname: lastProcessedPathname.current,
+      urlChatId,
+      currentChatIdRef: currentChatIdRef.current,
+    })
+
     // Skip if we already processed this exact pathname
-    if (lastProcessedPathname.current === currentPathname) return
+    if (lastProcessedPathname.current === currentPathname) {
+      console.log('[URL_SYNC_EFFECT] skipping - already processed')
+      return
+    }
+    console.log('[URL_SYNC_EFFECT] processing new pathname')
     lastProcessedPathname.current = currentPathname
 
     // Handle /jobs routes - switch to jobs view if needed
@@ -450,14 +461,18 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
       // Only select chat if it's different from current
       const chatId = currentChatIdRef.current
       if (urlChatId !== chatId) {
+        console.log('[URL_SYNC_EFFECT] urlChatId !== chatId, calling selectChat', { urlChatId, chatId })
         const chatExists = chats.some(c => c.id === urlChatId) || isDraftChatId(urlChatId)
         if (chatExists) {
           selectChat(urlChatId)
         } else {
           // Chat doesn't exist, redirect to new chat
+          console.log('[URL_SYNC_EFFECT] chat does not exist, redirecting to newChat')
           router.replace(ROUTES.newChat)
           return
         }
+      } else {
+        console.log('[URL_SYNC_EFFECT] urlChatId === chatId, no action needed')
       }
       if (sidebar.viewMode !== "chat") {
         sidebar.setViewMode("chat")
@@ -551,6 +566,18 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
   const isDraftMode = !!draftChat
   const isAuthenticatedDraft = isDraftMode && !!session
 
+  // DEBUG: Log render state
+  console.log('[RENDER]', {
+    pathname,
+    urlChatId,
+    currentChatId,
+    currentChatFound: !!currentChat,
+    displayChatId: displayCurrentChat?.id,
+    displayChatName: displayCurrentChat?.displayName,
+    isLoadingMessages,
+    lastProcessedPathname: lastProcessedPathname.current,
+  })
+
   // Dynamic page title based on current view
   const pageTitle = useMemo(() => {
     if (isJobsRoute) {
@@ -618,6 +645,7 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
 
   // Handler for selecting a chat - switch to chat view and update URL
   const handleSelectChat = useCallback((chatId: string) => {
+    console.log('[handleSelectChat] called with', chatId)
     // Mark pathname as processed first
     lastProcessedPathname.current = ROUTES.chat(chatId)
     // Update state

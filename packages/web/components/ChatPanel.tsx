@@ -49,6 +49,14 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ chat, settings, credentialFlags, showClaudeLimitDialog, onSendMessage, onEnqueueMessage, onRemoveQueuedMessage, onResumeQueue, onStopAgent, onUpdateChat, onSlashCommand, onOpenFile, onOpenEnvVars, isMobile = false, isLoadingMessages = false, draft = "", onDraftChange, isSending = false, onOpenCommandPalette, onOpenPlan, isAuthenticated = false, rapidFireMode = false, rapidFireNotification = 0 }: ChatPanelProps) {
+  // DEBUG: Log chat panel renders
+  console.log('[ChatPanel RENDER]', {
+    chatId: chat?.id,
+    chatName: chat?.displayName,
+    messagesCount: chat?.messages?.length,
+    isLoadingMessages,
+  })
+
   // Get modal and git state from contexts
   const modals = useModals()
   const git = useGit()
