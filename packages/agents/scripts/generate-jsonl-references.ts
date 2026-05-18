@@ -22,6 +22,7 @@
  *   tests/fixtures/jsonl-reference/
  *     ├── claude.jsonl          - Claude Code CLI raw output
  *     ├── codex.jsonl           - OpenAI Codex CLI raw output
+ *     ├── eliza.jsonl           - Eliza deterministic test agent output (generated separately)
  *     ├── gemini.jsonl          - Google Gemini CLI raw output
  *     ├── opencode.jsonl        - OpenCode CLI raw output
  *     └── pi.jsonl              - Pi Coding Agent CLI raw output
