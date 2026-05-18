@@ -1,8 +1,6 @@
 # @upstream/mcp-providers
 
-Framework-agnostic MCP provider abstractions for GitHub and Smithery.
-
-This package provides pure TypeScript implementations for connecting to MCP servers. No web framework dependencies.
+TypeScript library for connecting to MCP servers via GitHub and Smithery.
 
 ## GitHub
 
