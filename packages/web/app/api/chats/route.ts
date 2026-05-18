@@ -118,6 +118,7 @@ interface CreateChatBody {
   agent?: string
   model?: string
   status?: string
+  planModeEnabled?: boolean
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -184,6 +185,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         agent: finalAgent,
         model: finalModel,
         status: body.status ?? "pending",
+        planModeEnabled: body.planModeEnabled ?? false,
       },
     })
 

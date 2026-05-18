@@ -128,6 +128,7 @@ export async function createChat(data: {
   agent?: string
   model?: string
   status?: string
+  planModeEnabled?: boolean
 }): Promise<ChatResponse> {
   return fetchApi<ChatResponse>("/api/chats", {
     method: "POST",
