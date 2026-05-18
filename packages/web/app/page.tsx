@@ -541,6 +541,7 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
         sessionId: null,
         agent: resolvedAgent,
         model: resolvedModel,
+        planModeEnabled: draftChatConfig.planMode ?? false,
         messages: [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -1083,11 +1084,12 @@ function HomePageContent({ isMobile }: HomePageContentProps) {
         if (isAuthenticatedDraft) {
           // Authenticated draft - update via hook (updates both React state and localStorage)
           // Only include defined values to avoid overwriting existing config fields
-          const draftUpdates: { agent?: string | null; model?: string | null; repo?: string; baseBranch?: string } = {}
+          const draftUpdates: { agent?: string | null; model?: string | null; repo?: string; baseBranch?: string; planMode?: boolean } = {}
           if (updates.agent !== undefined) draftUpdates.agent = updates.agent
           if (updates.model !== undefined) draftUpdates.model = updates.model
           if (updates.repo !== undefined) draftUpdates.repo = updates.repo
           if (updates.baseBranch !== undefined) draftUpdates.baseBranch = updates.baseBranch
+          if (updates.planModeEnabled !== undefined) draftUpdates.planMode = updates.planModeEnabled
           updateDraftChatConfig(draftUpdates)
         } else {
           // Unauthenticated draft - use local component state

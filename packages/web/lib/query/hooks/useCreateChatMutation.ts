@@ -11,6 +11,7 @@ interface CreateChatParams {
   baseBranch?: string
   parentChatId?: string
   status?: Chat["status"]
+  planModeEnabled?: boolean
 }
 
 /**
@@ -27,6 +28,7 @@ export function useCreateChatMutation() {
         baseBranch: params.baseBranch,
         parentChatId: params.parentChatId,
         status: params.status,
+        planModeEnabled: params.planModeEnabled,
       })
       return toChatType(serverChat)
     },

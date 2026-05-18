@@ -329,6 +329,7 @@ export function useChatWithSync() {
         repo: draftChatConfig.repo,
         baseBranch: draftChatConfig.baseBranch,
         status: options?.status ?? "pending",
+        planModeEnabled: draftChatConfig.planMode,
       })
 
       // Migrate local state from draft ID to real ID

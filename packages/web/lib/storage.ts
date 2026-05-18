@@ -30,6 +30,7 @@ export interface DraftChatConfig {
   baseBranch: string
   agent: string | null
   model: string | null
+  planMode?: boolean
 }
 
 /** Preview state for a chat */

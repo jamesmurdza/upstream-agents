@@ -41,8 +41,8 @@ export interface ChatContextValue {
   updateDraft: (chatId: string, draft: string) => void
   clearDraft: (chatId: string) => void
   isDraftChatId: (chatId: string) => boolean
-  draftChatConfig: { id: string; repo: string; baseBranch: string; agent: string | null; model: string | null } | null | undefined
-  updateDraftChatConfig: (updates: Partial<{ repo: string; baseBranch: string; agent: string | null; model: string | null }>) => void
+  draftChatConfig: { id: string; repo: string; baseBranch: string; agent: string | null; model: string | null; planMode?: boolean } | null | undefined
+  updateDraftChatConfig: (updates: Partial<{ repo: string; baseBranch: string; agent: string | null; model: string | null; planMode?: boolean }>) => void
 
   // Message operations
   refetchMessages: (chatId: string) => Promise<void>
