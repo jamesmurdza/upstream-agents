@@ -13,6 +13,8 @@ Raw JSONL output captured from actual AI coding agent CLI runs. These are **not 
 | `opencode.jsonl` | OpenCode | OpenCode CLI |
 | `pi.jsonl` | Pi | Pi Coding Agent CLI |
 
+**Note:** Goose is a supported agent but does not have a JSONL reference file because the generator script does not yet include it.
+
 ## Regenerating
 
 From the repo root:
